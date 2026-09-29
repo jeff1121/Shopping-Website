@@ -32,6 +32,8 @@ namespace Website
         /// 頁面載入事件：若使用者已登入，隱藏「登入/註冊」選單，
         /// 顯示登出按鈕、個人檔案與購物車圖示，並以 Session["count"] 的列數更新購物車數量徽章。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -58,6 +60,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -68,6 +72,8 @@ namespace Website
         /// 步驟一：依輸入的使用者名稱或 Email 查詢帳號。
         /// 找到時快取密碼、安全問題/答案與 Email，切換到安全問題面板；找不到則顯示錯誤並清空輸入。
         /// </summary>
+        /// <param name="sender">觸發帳號查詢的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void submit_Click(object sender, EventArgs e)
         {
             SqlCommand cmd = new SqlCommand("SELECT username, password, secq, seca, email FROM violet_user_login WHERE username=@username OR email=@username", con);
@@ -105,6 +111,8 @@ namespace Website
         /// 步驟二：比對安全問題答案。答對時以 Gmail SMTP（smtp.gmail.com:587、SSL）寄出含原密碼的信件並導向登入頁；
         /// 答錯則顯示錯誤並清空答案欄。寄件帳號與密碼需自行替換下方佔位字串。
         /// </summary>
+        /// <param name="sender">觸發安全答案送出的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void submitAns_Click(object sender, EventArgs e)
         {
             if (txtSecA.Text == secans)

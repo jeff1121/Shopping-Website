@@ -99,7 +99,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label countItems;
 
         /// <summary>
-        /// 圖片「FreeShipping」：頁尾「Free Shipping」促銷圖示。
+        /// 圖片「FreeShipping」：頁首資訊列「Free Shipping」促銷圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -108,7 +108,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image FreeShipping;
 
         /// <summary>
-        /// 標籤「FreeShippingDetail」：頁尾免運說明文字（Free Shipping on orders over Rs.150* in India）。
+        /// 標籤「FreeShippingDetail」：頁首資訊列免運說明文字（Free Shipping on orders over Rs.150* in India）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -117,7 +117,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label FreeShippingDetail;
 
         /// <summary>
-        /// 圖片「Voucher」：頁尾「Voucher」優惠券圖示。
+        /// 圖片「Voucher」：頁首資訊列「Voucher」優惠券圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -126,7 +126,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image Voucher;
 
         /// <summary>
-        /// 標籤「VoucherDetail」：頁尾優惠券說明文字（20% Student Discount）。
+        /// 標籤「VoucherDetail」：頁首資訊列優惠券說明文字（20% Student Discount）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -135,7 +135,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label VoucherDetail;
 
         /// <summary>
-        /// 圖片「Discount」：頁尾「Discount」折扣圖示。
+        /// 圖片「Discount」：頁首資訊列「Discount」折扣圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -144,7 +144,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image Discount;
 
         /// <summary>
-        /// 標籤「DiscountDetail」：頁尾折扣說明文字（30% off on dresses. Use code: 30OFF）。
+        /// 標籤「DiscountDetail」：頁首資訊列折扣說明文字（30% off on dresses. Use code: 30OFF）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -180,7 +180,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.TextBox txtName;
 
         /// <summary>
-        /// 必填驗證器「validateNameEmpty」：姓名（txtName）必填驗證，錯誤訊息：「Name field cannot be left blank」。
+        /// 必填驗證器「validateNameEmpty」：使用者名稱或 Email（txtName）必填驗證；錯誤訊息仍沿用「Name field cannot be left blank」。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。

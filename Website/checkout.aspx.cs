@@ -23,6 +23,8 @@ namespace Website
         /// 頁面載入事件：已登入時更新頁首圖示與購物車徽章；首次載入時填入訂單明細、
         /// 以今天日期作為訂單日期並產生訂單編號。未登入時不顯示任何訂單資料。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -56,6 +58,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -67,6 +71,8 @@ namespace Website
         /// （欄位順序 uname, pname, orderID, orderDate, quantity, total），最後刪除該使用者的 violet_cart 資料。
         /// 注意：未清空 Session["count"]，因此下單後購物車徽章仍會顯示舊數量，直到重新登入。
         /// </summary>
+        /// <param name="sender">觸發下單事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnCheckout_Click(object sender, EventArgs e)
         {
             btnCheckout.Visible = false;

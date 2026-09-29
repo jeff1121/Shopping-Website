@@ -214,7 +214,7 @@ GO
 | --- | --- |
 | SQL Server Express（Windows 驗證） | `Data Source=localhost\SQLEXPRESS;Initial Catalog=website;Integrated Security=True` |
 | LocalDB | `Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=website;Integrated Security=True` |
-| Docker / SQL 驗證 | `Data Source=<主機>,1433;Initial Catalog=website;User ID=sa;Password=<密碼>;TrustServerCertificate=True` |
+| Docker / SQL 驗證 | `Data Source=<主機>,1433;Initial Catalog=website;User ID=sa;Password=<你的強密碼>;TrustServerCertificate=True` |
 
 ### 4.2 後置程式碼中的 12 個佔位字串
 
@@ -244,6 +244,16 @@ SqlConnection con = new SqlConnection(
 ## 5. 必要修正（建置前）
 
 以下項目在 Repo 中缺漏，不處理會導致建置失敗或功能異常。
+
+### 5.0 版控與專案檔現況（先確認）
+
+- Repo 目前**沒有** `.gitignore`。
+- `git ls-files` 顯示 `Website/obj/Debug/DesignTimeResolveAssemblyReferences.cache` 與
+  `Website/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache` 已被簽入，這是建置快取，不是執行所需檔案。
+- `Website/img/products/apple.png`、`Website/img/products/appol.png`、`Website/img/products/img2.png`、
+  `Website/img/products/human99/laptop.png` 已在 Git 中，但未列入 `Website.csproj` 的 `<Content Include>`；
+  以 Web Application 專案發佈時若需要這些圖片，請在 Visual Studio 將它們加入專案。
+- `Website/css/style.css` 與 `Website/Properties/AssemblyInfo.cs` 被 `Website.csproj` 引用，但不在 Git 中。
 
 ### 5.1 缺少 `Properties/AssemblyInfo.cs`（建置失敗）
 

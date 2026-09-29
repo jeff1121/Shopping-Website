@@ -26,6 +26,8 @@ namespace Website
         /// 1. 若網址帶有 ?category=，改用 SqlDataSource5 顯示該分類商品；
         /// 2. 若已登入，將 Session["addproduct"] 重設為 "false"，並更新頁首圖示與購物車數量徽章。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
             // 由分類頁點選進入時，改用分類篩選的資料來源
@@ -62,6 +64,8 @@ namespace Website
         /// 2. 查詢目前庫存並扣除所選數量（庫存在加入購物車時即預扣）；
         /// 3. 導向 cart.aspx?id=商品名稱&amp;quantity=數量。
         /// </summary>
+        /// <param name="source">觸發命令事件的 DataList。</param>
+        /// <param name="e">包含 CommandName、CommandArgument 與項目控制項的事件資料。</param>
         protected void productsDisplay_ItemCommand(object source, DataListCommandEventArgs e)
         {
             if (e.CommandName == "addtocart")
@@ -85,7 +89,7 @@ namespace Website
                 // 注意：字串串接 SQL，存在 SQL Injection 風險
                 String update = "UPDATE violet_products SET stock=" + updateStock + " WHERE pname='" + lbl.Text + "'";
                 SqlCommand cmd1 = new SqlCommand(update, con);
-                //Executing Query
+                // 執行庫存扣減。
                 con.Open();
                 cmd1.ExecuteNonQuery();
                 con.Close();
@@ -97,6 +101,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -106,6 +112,8 @@ namespace Website
         /// <summary>
         /// 搜尋按鈕：改用 SqlDataSource2（以 searchProducts 文字對 keywords 欄位做 LIKE 模糊比對）重新繫結商品清單。
         /// </summary>
+        /// <param name="sender">觸發搜尋事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnSearch_Click(object sender, EventArgs e)
         {
             // 注意：此條件對 TextBox 物件呼叫 ToString()，永遠不會是 null
@@ -121,6 +129,8 @@ namespace Website
         /// 價格排序下拉選單變更事件：
         /// "Low to High" → SqlDataSource3、"High to Low" → SqlDataSource4、其餘（Random）→ SqlDataSource1。
         /// </summary>
+        /// <param name="sender">觸發排序變更的下拉選單。</param>
+        /// <param name="e">選取項目變更事件資料。</param>
         protected void sortPrice_SelectedIndexChanged(object sender, System.EventArgs e)
         {
             productsDisplay.DataSourceID = null;
@@ -146,6 +156,8 @@ namespace Website
         /// 庫存為 0 時停用選單與加入購物車按鈕，並將按鈕圖片換成 img/sold.png（售完）。
         /// 注意：每個品項都會額外查詢一次資料庫（N+1 查詢）。
         /// </summary>
+        /// <param name="sender">正在繫結項目的 DataList。</param>
+        /// <param name="e">包含目前項目與控制項的繫結事件資料。</param>
         protected void productsDisplay_ItemDataBound(object sender, DataListItemEventArgs e)
         {
             DropDownList number = (DropDownList)( e.Item.FindControl("DropDownList1") );
@@ -187,6 +199,8 @@ namespace Website
         /// <summary>
         /// 頁首搜尋圖示點擊事件：將輸入焦點移到左側的商品搜尋框。
         /// </summary>
+        /// <param name="sender">頁首搜尋圖片按鈕。</param>
+        /// <param name="e">圖片按鈕點擊事件資料。</param>
         protected void searchIcon_Click(object sender, ImageClickEventArgs e)
         {
             searchProducts.Focus();

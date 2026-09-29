@@ -14,6 +14,7 @@
     <form id="form1" runat="server">
         <div class="container">
             <!--Header-->
+                <%-- 共用頁首與導覽列：Logo、主選單、登入/註冊選單、登出鈕、搜尋/個人/購物車圖示與購物車徽章。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -66,6 +67,7 @@
                     </div>
 
                     <!--Header Info-->
+                        <%-- 共用服務資訊列：免運、優惠券、線上支援與回饋圖示；各頁重複維護。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -81,10 +83,12 @@
             <!--Header-->
 
             <!--Body-->
+                <%-- 主內容：usernamePanel 先查帳號並顯示安全問題，passwordPanel 再比對答案並寄出原密碼。 --%>
                 <div class="body">
                     <asp:Label ID="lblLoginMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 640px; top: 10px; position: absolute" Text="Password Recovery"></asp:Label>
                     <br />
                     <div style="text-align: center;">
+                        <%-- 帳號查詢面板：輸入 username/email 後查 violet_user_login 並顯示安全問題。 --%>
                         <asp:Panel ID="usernamePanel" runat="server" BorderStyle="Solid" Height="280px" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
                             <br /><br /><br /><br />
                             <asp:TextBox ID="txtUsername" runat="server" placeholder="Enter Username / Email-ID..." style="width: 300px; height: 30px"></asp:TextBox>
@@ -96,6 +100,7 @@
                             <asp:Button ID="submit" runat="server" Text="Submit" OnClick="submit_Click" Font-Size="Large"/>
                         </asp:Panel>
                     
+                        <%-- 安全問題面板：答案正確時使用 Gmail SMTP 將資料庫中的明碼密碼寄到註冊信箱。 --%>
                         <asp:Panel ID="passwordPanel" runat="server" Visible="false" BorderStyle="Solid" Height="280px" HorizontalAlign="Center" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
                             <br /><br /><br /><br />
                             <asp:Label ID="lblSec" runat="server" Text="" Font-Size="Large"></asp:Label>
@@ -116,6 +121,7 @@
             <!--Body-->
 
             <!-- Footer Section Begin -->
+                <%-- 共用頁尾：Contact Us、Payment Method 與 Information 區塊；未使用 Master Page，因此各頁各自複製。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>

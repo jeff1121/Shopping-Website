@@ -21,6 +21,8 @@ namespace Website
         /// <summary>
         /// 頁面載入事件：登入頁不需要額外初始化。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
 
@@ -29,6 +31,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -40,6 +44,8 @@ namespace Website
         /// 成功時設定 Session["uname"]（姓名，為各表關聯鍵）、Session["user"]（登入時輸入的帳號文字），
         /// 並呼叫 <see cref="fillsavedCart"/> 還原購物車後導向首頁；失敗則顯示錯誤訊息。
         /// </summary>
+        /// <param name="sender">觸發送出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
             SqlCommand cmd = new SqlCommand("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", con);
@@ -77,6 +83,10 @@ namespace Website
         /// 重建為購物車 DataTable（欄位 sno, pimage, pname, price, quantity, total, uname）並存入 Session["count"]。
         /// sno 會重新由 1 開始編號，total 以 price × quantity 重新計算。
         /// </summary>
+        /// <remarks>
+        /// 注意：violet_cart 另有 sname（賣家）欄位，但此方法沒有讀取 sname，而是把 violet_cart.uname（買家姓名）放進 DataTable 的 uname 欄；
+        /// 因 cart.aspx 的 GridView 將該欄標成 Seller Name，登入還原後畫面會把買家誤顯示為賣家。
+        /// </remarks>
         private void fillsavedCart()
         {
             DataTable dt = new DataTable();
@@ -111,7 +121,7 @@ namespace Website
                     dr["pname"] = ds.Tables[0].Rows[i]["pname"].ToString();
                     dr["price"] = ds.Tables[0].Rows[i]["price"].ToString();
                     dr["quantity"] = ds.Tables[0].Rows[i]["quantity"].ToString();
-                    // violet_cart.uname 是買家；此處放入 DataTable 的 uname 欄在購物車頁顯示為「賣家」
+                    // 注意：這裡讀的是 violet_cart.uname（買家），不是 violet_cart.sname（賣家），會造成還原後 Seller Name 欄位語意錯置。
                     dr["uname"] = ds.Tables[0].Rows[i]["uname"].ToString();
                     decimal price1 = Convert.ToDecimal(ds.Tables[0].Rows[i]["price"].ToString());
                     int quantity1 = Convert.ToInt16(ds.Tables[0].Rows[i]["quantity"].ToString());

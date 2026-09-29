@@ -15,6 +15,10 @@ namespace Website
     /// 賣家填寫商品名稱、價格、分類、關鍵字並上傳圖片，圖片存到 img/products/&lt;登入帳號&gt;/，
     /// 商品資料寫入 violet_products。
     /// </summary>
+    /// <remarks>
+    /// 頁面只依 Session["user"] 判斷登入狀態，未檢查 uid 是否 &gt; 5000；未登入時分類下拉選單不會被填入，
+    /// 但使用者仍可能直接送出造成 Session 或檔案上傳流程例外。
+    /// </remarks>
     public partial class addProducts : System.Web.UI.Page
     {
         /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
@@ -24,6 +28,11 @@ namespace Website
         /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時填入寫死的商品分類選項。
         /// 注意：未登入時不會填入分類，也沒有阻擋未登入或非賣家存取。
         /// </summary>
+        /// <param name="sender">ASP.NET Web Forms 傳入的事件來源。</param>
+        /// <param name="e">頁面載入事件資料。</param>
+        /// <remarks>
+        /// 讀取 Session["count"] 作為購物車徽章；分類只包含 Computer 與 Computer Accesories，需與 violet_categories.name 相同。
+        /// </remarks>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -60,6 +69,9 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">登出按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
+        /// <remarks>不清除 Session["count"] 或 Session["uname"]。</remarks>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -74,6 +86,10 @@ namespace Website
         /// 3. 查出登入者姓名 uname 作為賣家欄位，以參數化查詢寫入 violet_products；
         /// 4. 完成後導向 profile.aspx。
         /// </summary>
+        /// <remarks>
+        /// INSERT 未指定欄位且只提供六個值；若 violet_products 含 stock 等額外 NOT NULL 欄位，會出現欄位數不符或預設值需求。
+        /// 原始檔名會直接用於儲存路徑，可能覆蓋同名檔案；未選檔時先取副檔名會先拋出例外。
+        /// </remarks>
         public void uploadImg()
         {
             var supportedTypes = new[] { "jpg", "jpeg", "png" };
@@ -149,6 +165,8 @@ namespace Website
         /// <summary>
         /// 送出按鈕：呼叫 <see cref="uploadImg"/> 上傳圖片並新增商品。
         /// </summary>
+        /// <param name="sender">Submit 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
             uploadImg();

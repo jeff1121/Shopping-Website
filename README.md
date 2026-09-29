@@ -44,6 +44,7 @@
 | --- | --- |
 | 可否直接編譯 | ❌ 否。12 個後置程式碼檔案含佔位字串 `new SqlConnection(<enter your database connection>)`，`Web.config` 的連線字串為 `Add connection string here` |
 | 缺漏檔案 | `Website/Properties/AssemblyInfo.cs`（專案檔有引用，缺少會建置失敗）、`Website/css/style.css`（僅影響外觀） |
+| 版控現況 | Repo 沒有 `.gitignore`；`Website/obj/Debug/` 兩個快取檔已被簽入；部分已簽入圖片未列入 `Website.csproj` |
 | 外部相依 | iTextSharp 以機器專屬路徑 `..\..\..\..\Files\OrderInvoice\itextsharp.dll` 參考，非 NuGet |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 / CI / Lint | 無 |
@@ -163,8 +164,17 @@ Shopping-Website/
         ├── categories/             # 分類圖片（desktop、laptop、pant、shirt）
         ├── icons/                  # 頁首與資訊列圖示（search、man、bag、delivery…）
         ├── logos/                  # 合作品牌 Logo
-        ├── products/               # 商品圖片（apple、arcade、printer、watch…）；human.png 為破圖時的替代圖
-        │   └── human99/            # 賣家上傳目錄範例：products/<登入帳號>/
+        ├── products/               # 商品圖片目錄；human.png 為圖片載入錯誤時的替代圖
+        │   ├── apple.png           # 已簽入圖片，但未列入 Website.csproj
+        │   ├── appol.png           # 已簽入圖片，但未列入 Website.csproj
+        │   ├── arcade.png          # 已列入 Website.csproj
+        │   ├── human.png           # 替代圖，已列入 Website.csproj
+        │   ├── img1.png            # 已列入 Website.csproj
+        │   ├── img2.png            # 已簽入圖片，但未列入 Website.csproj
+        │   ├── printer.png         # 已列入 Website.csproj
+        │   ├── watch.png           # 已列入 Website.csproj
+        │   └── human99/
+        │       └── laptop.png      # 賣家上傳目錄範例 products/<登入帳號>/；已簽入但未列入 Website.csproj
         ├── logo.png                # 網站 Logo
         ├── addtocart.png           # 加入購物車按鈕
         ├── sold.png                # 售完按鈕
@@ -213,7 +223,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `Session["user"]` | string | `login`、`sellerSignIn` | 登入時輸入的文字（使用者名稱**或** Email）。查詢以 `WHERE username=@x OR email=@x` 解析；不為 null 即視為已登入；登出時設為 null |
 | `Session["uname"]` | string | `login` | 使用者姓名（`violet_user_login.uname`），是購物車、訂單、商品中實際儲存的關聯鍵 |
-| `Session["count"]` | `DataTable` | `login`、`cart`、`checkout` | 購物車內容，欄位 `sno, pimage, pname, price, quantity, total, uname`；列數即頁首徽章數字 |
+| `Session["count"]` | `DataTable` | `login`、`cart`、`checkout` | 購物車內容，欄位 `sno, pimage, pname, price, quantity, total, uname`；列數即頁首徽章數字。`uname` 欄位在不同流程中語意不一致：從商品加入時放賣家姓名，登入還原時讀自 `violet_cart.uname`（買家姓名） |
 | `Session["addproduct"]` | string | `index`、`cart` | `"true"` 表示剛從首頁按下加入購物車，`cart.aspx` 才會新增品項，處理後重設為 `"false"` |
 | `Session["oldQuantity"]` | string | `cart` | 修改數量前的原數量，用於計算庫存差額 |
 | `Session["count1"]` | — | 無 | `profile.aspx.cs` 誤讀此 key，導致該頁徽章永遠顯示 0 |
@@ -312,6 +322,7 @@ sequenceDiagram
 
 - `profile.aspx`：`uid > 5000` 顯示賣家區塊。
 - `sellerProfile.aspx`：`uid < 5000` 導向 `profile.aspx`。
+- 兩頁的邊界條件不一致：`uid = 5000` 可停留在 `sellerProfile.aspx`，但在 `profile.aspx` 不會顯示賣家區塊。測試賣家時請將 `uid` 設為 5001 以上。
 
 ---
 

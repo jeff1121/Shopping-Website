@@ -25,6 +25,7 @@
     <form id="form1" runat="server">
         <div class="container">
             <!--Header-->
+                <%-- 共用頁首與導覽列：Logo、主選單、登入/註冊選單、登出鈕、搜尋/個人/購物車圖示與購物車徽章。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -77,6 +78,7 @@
                     </div>
 
                     <!--Header Info-->
+                        <%-- 共用服務資訊列：免運、優惠券、線上支援與回饋圖示；各頁重複維護。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -92,8 +94,10 @@
             <!--Header-->
 
             <!--Body-->
+                <%-- 主內容：左側 sortProducts 提供價格排序與 keywords 搜尋；右側 productsDisplay 以 DataList 顯示商品、數量下拉與加入購物車按鈕。 --%>
                 <div class="body">
                     <div class="displayProducts" style="top: 20px; position: relative">
+                        <%-- 排序與搜尋面板：sortPrice 觸發後置程式碼切換 SqlDataSource；searchProducts 作為 SqlDataSource2 的 ControlParameter。 --%>
                         <asp:Panel ID="sortProducts" BorderStyle="Solid" runat="server" height="275px" Width="200px" style="left: 30px; position: relative">
                             <table style="top: 15px; left: 25px; position: relative; text-align: center">
                                 <tr>
@@ -150,6 +154,7 @@
                         </asp:Panel>
 
                         <br />
+                        <%-- 商品清單面板：productsDisplay 依不同操作綁定 SqlDataSource1~5，ItemCommand 會扣庫存並導向購物車。 --%>
                         <asp:Panel ID="displayProducts" BorderStyle="Solid" runat="server" Width="1049px" style="top: -300px; left: 300px; position: relative">
                             <asp:DataList ID="productsDisplay" runat="server" DataSourceID="SqlDataSource1" RepeatDirection="Horizontal" DataKeyField="pname" OnItemCommand="productsDisplay_ItemCommand" RepeatColumns="4" OnItemDataBound="productsDisplay_ItemDataBound">
 
@@ -193,14 +198,18 @@
                                 </ItemTemplate>
 
                             </asp:DataList>
+                            <%-- SqlDataSource1：首頁預設商品清單，使用 SQL Server NEWID() 隨機排序 violet_products。 --%>
                             <asp:SqlDataSource ID="SqlDataSource1" runat="server" ConnectionString="<%$ ConnectionStrings:cmpConnectionString %>" SelectCommand="SELECT * FROM violet_products ORDER BY NEWID()"></asp:SqlDataSource>
+                            <%-- SqlDataSource2：搜尋資料來源，使用 searchProducts.Text 對 keywords 欄位做 LIKE 模糊比對。 --%>
                             <asp:SqlDataSource ID="SqlDataSource2" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] WHERE ([keywords] LIKE '%' + @keywords + '%')">
                                 <SelectParameters>
                                     <asp:ControlParameter ControlID="searchProducts" PropertyName="Text" Name="keywords" Type="String"></asp:ControlParameter>
                                 </SelectParameters>
                             </asp:SqlDataSource>
+                            <%-- SqlDataSource3 / SqlDataSource4：價格排序資料來源，分別由低到高與由高到低。 --%>
                             <asp:SqlDataSource ID="SqlDataSource3" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] ORDER BY [price]"></asp:SqlDataSource>
                             <asp:SqlDataSource ID="SqlDataSource4" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] ORDER BY [price] DESC"></asp:SqlDataSource>
+                            <%-- SqlDataSource5：分類篩選資料來源，category 參數取自 Request.QueryString["category"]。 --%>
                             <asp:SqlDataSource ID="SqlDataSource5" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] WHERE ([category] = @category)">
                                 <SelectParameters>
                                     <asp:QueryStringParameter QueryStringField="category" Name="category" Type="String"></asp:QueryStringParameter>
@@ -213,6 +222,7 @@
             <!--Body-->
 
             <!-- Footer Section Begin -->
+                <%-- 共用頁尾：Contact Us、Payment Method 與 Information 區塊；未使用 Master Page，因此各頁各自複製。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>

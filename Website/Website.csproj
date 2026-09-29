@@ -1,7 +1,10 @@
 ﻿<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- 匯入 Roslyn CodeDom 套件的 MSBuild props；套件不存在時由下方 EnsureNuGetPackageBuildImports 產生錯誤。 -->
   <Import Project="..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
+  <!-- 匯入 MSBuild 共用屬性。 -->
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
+    <!-- 專案基本屬性：預設組態、專案 GUID、Web Application 專案型別、輸出型別與 .NET Framework 4.7.2。 -->
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>
@@ -25,6 +28,7 @@
     </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <!-- Debug 組態：輸出到 bin\，啟用 DEBUG/TRACE 常數與完整偵錯資訊。 -->
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -34,6 +38,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <!-- Release 組態：輸出到 bin\，啟用最佳化與 TRACE 常數。 -->
     <DebugSymbols>true</DebugSymbols>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
@@ -43,6 +48,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <!-- 組件參考：包含 Web Forms 所需的 System.Web、ADO.NET 的 System.Data，以及 PDF 匯出使用的 iTextSharp。 -->
     <!-- iTextSharp 不在 NuGet 套件清單中，HintPath 指向原作者機器上的路徑；請改為本機 DLL 路徑或改用 NuGet 安裝 iTextSharp 5.x -->
     <Reference Include="itextsharp">
       <HintPath>..\..\..\..\Files\OrderInvoice\itextsharp.dll</HintPath>
@@ -66,11 +72,13 @@
     <Reference Include="System.EnterpriseServices" />
   </ItemGroup>
   <ItemGroup>
+    <!-- NuGet 套件參考：Roslyn CodeDom 編譯器提供者，與 Web.config 的 system.codedom 設定配套。 -->
     <Reference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform">
       <HintPath>..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\lib\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <!-- 內容檔：所有 .aspx 頁面、靜態圖片、Web.config 與共用 CSS（css\style.css 目前缺檔）。 -->
     <Content Include="about.aspx" />
     <Content Include="addProducts.aspx" />
     <Content Include="blog.aspx" />
@@ -122,6 +130,7 @@
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
+    <!-- 編譯檔：各頁後置程式碼與 designer 檔，透過 DependentUpon 綁定到對應 .aspx。 -->
     <Compile Include="about.aspx.cs">
       <DependentUpon>about.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -231,6 +240,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <!-- 非編譯檔：NuGet packages.config 與 Web.config 的 Debug/Release 轉換檔。 -->
     <None Include="packages.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
@@ -241,10 +251,12 @@
   </ItemGroup>
   <ItemGroup />
   <PropertyGroup>
+    <!-- Visual Studio Web Application targets 的版本與路徑設定。 -->
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- 匯入 C# 與 Web Application 建置目標；WebApplications targets 在 Visual Studio/MSBuild 環境中提供。 -->
   <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
   <ProjectExtensions>

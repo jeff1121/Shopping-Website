@@ -19,6 +19,7 @@
     <form id="form1" runat="server">
         <div class="container">
             <!--Header-->
+                <%-- 共用頁首與導覽列：Logo、主選單、登入/註冊選單、登出鈕、搜尋/個人/購物車圖示與購物車徽章。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -71,6 +72,7 @@
                     </div>
 
                     <!--Header Info-->
+                        <%-- 共用服務資訊列：免運、優惠券、線上支援與回饋圖示；各頁重複維護。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -86,8 +88,10 @@
             <!--Header-->
 
             <!--Body-->
+                <%-- 主內容：displayCategories 使用 DataList 顯示 violet_categories 的分類圖片與名稱，點選分類名稱觸發 DataList1_ItemCommand。 --%>
                 <div class="body">
                     <br /><br />
+                    <%-- 分類清單面板：DataList1 讀取 violet_categories，點選 LinkButton1 會導向 index.aspx?category=...。 --%>
                     <asp:Panel ID="displayCategories" runat="server" Width="1049px" BorderStyle="Solid" style="left: 200px; position: relative">
                         <asp:DataList ID="DataList1" runat="server" DataSourceID="SqlDataSource1" RepeatColumns="4" RepeatDirection="Horizontal" OnItemCommand="DataList1_ItemCommand">
 
@@ -108,12 +112,14 @@
                             </ItemTemplate>
                         </asp:DataList>
                     </asp:Panel>
+                    <%-- SqlDataSource1：分類資料來源，依 name 排序讀取 violet_categories 的 name 與 cimage。 --%>
                     <asp:SqlDataSource ID="SqlDataSource1" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_categories] ORDER BY [name]"></asp:SqlDataSource>
 
                 </div>
             <!--Body-->
 
             <!-- Footer Section Begin -->
+                <%-- 共用頁尾：Contact Us、Payment Method 與 Information 區塊；未使用 Master Page，因此各頁各自複製。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>

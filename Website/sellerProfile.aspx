@@ -1,5 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="sellerProfile.aspx.cs" Inherits="Website.sellerProfile" %>
-<%-- 賣家個人資料：僅 uid >= 5000 可停留，否則導向 profile.aspx；更新功能尚未完成。 --%>
+<%-- 賣家個人資料：程式阻擋 uid &lt; 5000 並導向 profile.aspx，因此 uid = 5000 也可停留；更新功能尚未完成。 --%>
 
 <!DOCTYPE html>
 
@@ -7,13 +7,13 @@
 <head runat="server">
     <title>About</title>
 
-    <!--Css Link-->
+    <%-- 共用樣式連結：指向 Website/css/style.css（此檔目前未在 repo 中）。 --%>
         <link rel="stylesheet" type="text/css" href="css/style.css" />
 </head>
 <body>
     <form id="form1" runat="server">
         <div class="container">
-            <!--Header-->
+            <%-- 頁首導覽區：Logo、主選單、登入/註冊選單、登出按鈕與常用圖示。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -64,7 +64,7 @@
                         <a href="index.aspx" style="top: 30px; left: 1400px; position: absolute"><img src="img/icons/bag.png" alt="Cart"/></a>
                     </div>
 
-                    <!--Header Info-->
+                    <%-- 頁首促銷資訊列：免運、學生優惠與折扣宣傳文案。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -75,13 +75,14 @@
                             <asp:Image ID="Discount" runat="server" AlternateText="Discount" ImageUrl="~/img/icons/sales.png" style=" left: 1100px; top: 10px; position: absolute;"/>
                             <asp:Label ID="DiscountDetail" runat="server" Text="30% off on dresses. Use code: 30OFF" style=" left: 1150px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
                         </div>
-                    <!--Header Info-->
+                    <%-- 頁首促銷資訊列結束。 --%>
                 </div>
-            <!--Header-->
+            <%-- 頁首導覽區結束。 --%>
 
-            <!--Body-->
+            <%-- 頁面主要內容區。 --%>
                 <div class="body">
                     <div>
+                        <%-- 賣家個人資料表單：從 violet_user_login 載入資料；目前更新流程尚未完整寫回資料庫。 --%>
                         <asp:Label ID="lblSignupMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 675px; top: 10px; position: absolute" Text="Personal Details"></asp:Label>
                     <div style="top: 100px; position: relative; text-align: center; font-size: large">
                         
@@ -169,7 +170,7 @@
                         <br/><br />
                         <br /><br />
 
-                        <!--Buttons-->
+                        <%-- 表單操作按鈕區。 --%>
                             <asp:Button ID="Update" runat="server" Text="Update" Font-Size="Large" OnClick="Update_Click"/>
                             &nbsp &nbsp &nbsp &nbsp
                             <asp:Button ID="Submit" runat="server" Text="Submit" Font-Size="Large" OnClick="Submit_Click"/>
@@ -180,9 +181,9 @@
                     </div>
                     </div>
                 </div>
-            <!--Body-->
+            <%-- 頁面主要內容區結束。 --%>
 
-            <!-- Footer Section Begin -->
+            <%-- 頁尾資訊區開始：靜態站台連結與版權文字。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>
@@ -234,7 +235,7 @@
                         </h3>
                     </div>
                 </div>
-            <!-- Footer Section End -->
+            <%-- 頁尾資訊區結束。 --%>
         </div>
     </form>
 </body>

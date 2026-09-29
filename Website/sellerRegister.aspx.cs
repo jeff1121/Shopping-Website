@@ -13,11 +13,18 @@ namespace Website
     /// 「賣家註冊」頁面（sellerRegister.aspx）的後置程式碼。
     /// 表單與一般會員註冊相同，同樣寫入 violet_user_login（並未使用 violet_seller_login）。
     /// </summary>
+    /// <remarks>
+    /// 此頁不會產生或寫入 uid，也不會寫入 violet_seller_login；在含 uid 的實際資料表結構下，位置式 INSERT 容易因欄位數不符失敗。
+    /// 若需成為賣家，仍需在資料庫手動把 violet_user_login.uid 設為 &gt; 5000。
+    /// </remarks>
     public partial class sellerRegister : System.Web.UI.Page
     {
         /// <summary>
         /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時將生日驗證器的比較值設為今天。
         /// </summary>
+        /// <param name="sender">ASP.NET Web Forms 傳入的事件來源。</param>
+        /// <param name="e">頁面載入事件資料。</param>
+        /// <remarks>登入時讀取 Session["count"] 作為購物車徽章；未登入也可使用註冊表單。</remarks>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -49,6 +56,9 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">登出按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
+        /// <remarks>不清除 Session["count"] 或 Session["uname"]。</remarks>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -60,6 +70,12 @@ namespace Website
         /// 注意：此處未帶入 uid，若資料表含 uid 欄位（與 register.aspx 相同的 14 欄結構）會因欄位數不符而失敗；
         /// 且程式不會指派 &gt; 5000 的賣家 uid，需手動於資料庫設定。
         /// </summary>
+        /// <param name="sender">Submit 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
+        /// <remarks>
+        /// INSERT 依 violet_user_login 欄位順序寫入 uname、email、username、password、phone、dob、country、state、city、gender、address、secq、seca；
+        /// txtAddress 是 HTML textarea，必須讀取 Value 而不是 Text。
+        /// </remarks>
         protected void Submit_Click(object sender, EventArgs e)
         {
             // txtAddress 是 HTML textarea（runat=server），需讀取 Value

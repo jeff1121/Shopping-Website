@@ -90,7 +90,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.ImageButton cartIcon;
 
         /// <summary>
-        /// 標籤「countItems」：購物車徽章：顯示 Session["count"]（購物車 DataTable）的品項數，登入後顯示。
+        /// 標籤「countItems」：購物車徽章：後置程式碼實際讀取 Session["count1"]（非登入流程使用的 Session["count"]），登入後顯示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -99,7 +99,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label countItems;
 
         /// <summary>
-        /// 圖片「FreeShipping」：頁尾「Free Shipping」促銷圖示。
+        /// 圖片「FreeShipping」：頁首資訊列「Free Shipping」促銷圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -108,7 +108,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image FreeShipping;
 
         /// <summary>
-        /// 標籤「FreeShippingDetail」：頁尾免運說明文字（Free Shipping on orders over Rs.150* in India）。
+        /// 標籤「FreeShippingDetail」：頁首資訊列免運說明文字（Free Shipping on orders over Rs.150* in India）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -117,7 +117,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label FreeShippingDetail;
 
         /// <summary>
-        /// 圖片「Voucher」：頁尾「Voucher」優惠券圖示。
+        /// 圖片「Voucher」：頁首資訊列「Voucher」優惠券圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -126,7 +126,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image Voucher;
 
         /// <summary>
-        /// 標籤「VoucherDetail」：頁尾優惠券說明文字（20% Student Discount）。
+        /// 標籤「VoucherDetail」：頁首資訊列優惠券說明文字（20% Student Discount）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -135,7 +135,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label VoucherDetail;
 
         /// <summary>
-        /// 圖片「Discount」：頁尾「Discount」折扣圖示。
+        /// 圖片「Discount」：頁首資訊列「Discount」折扣圖示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -144,7 +144,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Image Discount;
 
         /// <summary>
-        /// 標籤「DiscountDetail」：頁尾折扣說明文字（30% off on dresses. Use code: 30OFF）。
+        /// 標籤「DiscountDetail」：頁首資訊列折扣說明文字（30% off on dresses. Use code: 30OFF）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -378,7 +378,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label lblCountry1;
 
         /// <summary>
-        /// 下拉選單「selectCountry」：國家下拉選單；變更時連動載入 selectState。
+        /// 下拉選單「selectCountry」：國家下拉選單；選項固定寫在 .aspx 標記中，沒有連動載入。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
@@ -396,7 +396,7 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label lblState1;
 
         /// <summary>
-        /// 下拉選單「selectState」：州／省下拉選單；變更時連動載入 selectCity。
+        /// 下拉選單「selectState」：州／省下拉選單；選項固定寫在 .aspx 標記中，沒有連動載入。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。

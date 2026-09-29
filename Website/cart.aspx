@@ -14,6 +14,7 @@
     <form id="form1" runat="server">
         &nbsp;<div class="container">
             <!--Header-->
+                <%-- 共用頁首與導覽列：Logo、主選單、登入/註冊選單、登出鈕、搜尋/個人/購物車圖示與購物車徽章。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -66,6 +67,7 @@
                     </div>
 
                     <!--Header Info-->
+                        <%-- 共用服務資訊列：免運、優惠券、線上支援與回饋圖示；各頁重複維護。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -81,11 +83,13 @@
             <!--Header-->
 
             <!--Body-->
+                <%-- 主內容：GridView1 顯示 Session["count"] 購物車；editQuantity 面板只在點選 Modify 後顯示，用於更新數量與庫存。 --%>
                 <div class="body">
                     <asp:Label ID="lblCartMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 720px; top: 10px; position: absolute" Text="Cart"></asp:Label>
                     <br /><br />
                     <asp:Label ID="lblEmpty" runat="server" Text="Cart is Empty, Add item(s) to your Cart!!!" Font-Size="x-Large" style="left: 550px; top: 100px; position: absolute" Visible="False"></asp:Label>
                     <div style="top: 100px; text-align: center; position: relative">
+                        <%-- 購物車明細 GridView：資料來自 Session["count"]；Select=Modify、Delete=Remove Item(s)。 --%>
                         <asp:GridView ID="GridView1" runat="server" AutoGenerateColumns="False" ShowFooter="True" OnRowDeleting="GridView1_RowDeleting" Height="348px" OnSelectedIndexChanged="GridView1_SelectedIndexChanged" HeaderStyle-BackColor="#999999" FooterStyle-BackColor="#999999" FooterStyle-BorderWidth="5px" HeaderStyle-BorderWidth="5px" Font-Bold="True">
 
                             <Columns>
@@ -116,6 +120,7 @@
 
                         </asp:GridView>
 
+                        <%-- 數量編輯面板：顯示被選列資訊，DropDownList1 由目前庫存產生，Update 後同步 Session、violet_cart 與 violet_products.stock。 --%>
                         <asp:Panel ID="editQuantity" runat="server" Height="280px" style="z-index: 1; top: -50px; left: 500px; position: relative; text-align: center" Width="520px" Visible="False">
 
                             <table border="1" style="top: 50px; left: 18px; position: relative; text-align: center; border-collapse: collapse;">
@@ -176,6 +181,7 @@
             <!--Body-->
 
             <!-- Footer Section Begin -->
+                <%-- 共用頁尾：Contact Us、Payment Method 與 Information 區塊；未使用 Master Page，因此各頁各自複製。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>

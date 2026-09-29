@@ -7,7 +7,7 @@
 <head runat="server">
     <title>About</title>
 
-    <!--Css Link-->
+    <%-- 共用樣式連結：指向 Website/css/style.css（此檔目前未在 repo 中）。 --%>
         <link rel="stylesheet" type="text/css" href="css/style.css" />
     <style type="text/css">
         .auto-style1 {
@@ -18,7 +18,7 @@
 <body>
     <form id="form1" runat="server">
         <div class="container">
-            <!--Header-->
+            <%-- 頁首導覽區：Logo、主選單、登入/註冊選單、登出按鈕與常用圖示。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -70,7 +70,7 @@
                         <asp:Label ID="countItems" runat="server" style="z-index: 1; border-radius: 50px; text-align:center; top: 40px; left: 1420px; position: absolute" Font-Size="Large" BorderColor="Black" BorderStyle="Solid" Visible="False"></asp:Label>
                     </div>
 
-                    <!--Header Info-->
+                    <%-- 頁首促銷資訊列：免運、學生優惠與折扣宣傳文案。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -81,11 +81,11 @@
                             <asp:Image ID="Discount" runat="server" AlternateText="Discount" ImageUrl="~/img/icons/sales.png" style=" left: 1100px; top: 10px; position: absolute;"/>
                             <asp:Label ID="DiscountDetail" runat="server" Text="30% off on dresses. Use code: 30OFF" style=" left: 1150px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
                         </div>
-                    <!--Header Info-->
+                    <%-- 頁首促銷資訊列結束。 --%>
                 </div>
-            <!--Header-->
+            <%-- 頁首導覽區結束。 --%>
 
-            <!--Body-->
+            <%-- 頁面主要內容區。 --%>
                 <div class="body">
                     <div>
                         <asp:Label ID="lblSignupMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 675px; top: 10px; position: absolute" Text="Personal Details"></asp:Label>
@@ -175,7 +175,7 @@
                         <br/><br />
                         <br /><br />
 
-                        <!--Buttons-->
+                        <%-- 表單操作按鈕區。 --%>
                             <asp:Button ID="Update" runat="server" Text="Update" Font-Size="Large" OnClick="Update_Click"/>
                             &nbsp &nbsp &nbsp &nbsp
                             <asp:Button ID="Submit" runat="server" Text="Submit" Font-Size="Large" OnClick="Submit_Click"/>
@@ -187,7 +187,7 @@
 
                         <br /><br />
 
-                        <%-- Displaying Order Placed by User --%>
+                        <%-- 訂單歷史區：DataList 以 SqlDataSource1 讀取 violet_order，依 Session["uname"] 顯示目前會員訂單；每張訂單卡可觸發後置程式碼匯出整個 panelOrder 為 PDF。 --%>
                         <asp:Label ID="Label7" runat="server" Text="Order History" Font-Size="X-Large" Font-Bold="true" Visible="True"></asp:Label>
                         <br /><br />
                         <asp:Panel ID="panelOrder" Width="1236px" BorderStyle="Solid" runat="server" style="text-align: center; left: 115px; position: relative" Visible="True">
@@ -247,6 +247,7 @@
                                 </ItemTemplate>
 
                             </asp:DataList>
+                            <%-- SqlDataSource1：查詢 violet_order WHERE uname = Session["uname"]，供 displayOrder 顯示訂單歷史。 --%>
                             <asp:SqlDataSource ID="SqlDataSource1" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_order] WHERE ([uname] = @uname)">
                                 <SelectParameters>
                                     <asp:SessionParameter SessionField="uname" Name="uname" Type="String"></asp:SessionParameter>
@@ -256,12 +257,12 @@
 
                         <br /><br />
 
-                        <%-- Displaying Products Sold on Website by Seller --%>
+                        <%-- 賣家商品區：僅 uid > 5000 時由後置程式碼顯示，列出 violet_products 中 uname 等於個人資料姓名的商品。 --%>
                         <asp:Label ID="Label8" runat="server" Text="Products Sold on Website" Font-Size="X-Large" Font-Bold="true" Visible="False"></asp:Label> 
                         <br /><br />
                         <asp:Panel ID="Panel1" runat="server" Width="1077px" BorderStyle="Solid" style="text-align: center; left: 200px; position: relative" Visible="False">
 
-                            <!-- GridView -->
+                            <%-- GridView：賣家商品管理表格，可編輯價格、庫存、關鍵字並刪除商品。 --%>
                             <asp:GridView ID="GridView1" runat="server" AutoGenerateColumns="False" HeaderStyle-BackColor="#999999" HeaderStyle-BorderWidth="5px" DataKeyNames="pname" DataSourceID="SqlDataSource2" OnRowDataBound="GridView1_RowDataBound">
 
                                 <Columns>
@@ -276,7 +277,7 @@
 
                             </asp:GridView>
 
-                            <!-- SQL DataSource -->
+                            <%-- SqlDataSource2：依 txtName.Text 對應的賣家姓名查詢 violet_products，並提供商品 UPDATE / DELETE 指令。 --%>
                             <asp:SqlDataSource ID="SqlDataSource2" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] WHERE ([uname] = @uname)" DeleteCommand="DELETE FROM [violet_products] WHERE [pname] = @pname" UpdateCommand="UPDATE [violet_products] SET [price] = @price, [stock] = @stock, [keywords] = @keywords WHERE [pname] = @pname">
                                 <DeleteParameters>
                                     <asp:Parameter Name="pname" Type="String"></asp:Parameter>
@@ -295,9 +296,9 @@
                     </div>
                     </div>
                 </div>
-            <!--Body-->
+            <%-- 頁面主要內容區結束。 --%>
 
-            <!-- Footer Section Begin -->
+            <%-- 頁尾資訊區開始：靜態站台連結與版權文字。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>
@@ -349,7 +350,7 @@
                         </h3>
                     </div>
                 </div>
-            <!-- Footer Section End -->
+            <%-- 頁尾資訊區結束。 --%>
         </div>
     </form>
 </body>

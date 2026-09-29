@@ -18,6 +18,10 @@ namespace Website
     /// 功能：顯示與編輯個人資料（電話、地址、國家/州/城市）、顯示訂單歷史並以 iTextSharp 匯出 PDF；
     /// uid &gt; 5000 的賣家額外顯示「上架商品」按鈕與自己的商品清單（可編輯/刪除）。
     /// </summary>
+    /// <remarks>
+    /// 主要依賴 Session["user"] 查詢 violet_user_login，訂單清單由 SqlDataSource1 使用 Session["uname"] 查詢
+    /// violet_order，賣家商品清單由 SqlDataSource2 依 txtName.Text 查詢 violet_products。
+    /// </remarks>
     public partial class profile : System.Web.UI.Page
     {
         /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
@@ -33,6 +37,12 @@ namespace Website
         /// 4. uid &gt; 5000 時顯示賣家專屬區塊；
         /// 5. 預設停用所有輸入欄位。
         /// </summary>
+        /// <param name="sender">ASP.NET Web Forms 傳入的事件來源。</param>
+        /// <param name="e">頁面載入事件資料。</param>
+        /// <remarks>
+        /// 查詢 violet_user_login 時使用參數，但後續訂單 COUNT 以 txtName.Text 字串串接 SQL；若未登入直接進入此頁，
+        /// Session["user"] 為 null 時仍會執行查詢並可能造成非預期結果。
+        /// </remarks>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -113,6 +123,11 @@ namespace Website
         /// 送出按鈕：將電話、地址、國家、州、城市更新回 violet_user_login。
         /// 注意：SQL 以字串串接（SQL Injection 風險），且會用 Response.Write 將 SQL 內容輸出到頁面（除錯殘留）。
         /// </summary>
+        /// <param name="sender">Submit 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
+        /// <remarks>
+        /// WHERE 條件使用 Session["user"] 同時比對 username 與 email；此方法不更新姓名、Email、使用者名稱、生日或性別。
+        /// </remarks>
         protected void Submit_Click(object sender, EventArgs e)
         {
             Update.Visible = true;
@@ -129,6 +144,8 @@ namespace Website
         /// <summary>
         /// 更新按鈕：切換為編輯模式，僅開放電話、地址、國家、州、城市可編輯，並顯示送出按鈕。
         /// </summary>
+        /// <param name="sender">Update 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void Update_Click(object sender, EventArgs e)
         {
             Update.Visible = false;
@@ -148,6 +165,9 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">登出按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
+        /// <remarks>此處不清除 Session["count"]、Session["uname"] 或其他購物車相關 Session。</remarks>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -173,6 +193,8 @@ namespace Website
         /// <summary>
         /// 「上架商品」按鈕（僅賣家可見）：導向 addProducts.aspx。
         /// </summary>
+        /// <param name="sender">Add a Product 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnAddProduct_Click(object sender, EventArgs e)
         {
             Response.Redirect("~/addProducts.aspx");
@@ -205,6 +227,8 @@ namespace Website
         /// <summary>
         /// 訂單卡片上「Download PDF」按鈕的點擊事件：呼叫 <see cref="exportpdf"/> 匯出全部訂單。
         /// </summary>
+        /// <param name="sender">DataList 內的 Download PDF 按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         [Obsolete]
         protected void DownloadPDF(object sender, EventArgs e)
         {
@@ -214,6 +238,8 @@ namespace Website
         /// <summary>
         /// 覆寫此方法並留空，讓 panelOrder 能在 &lt;form runat="server"&gt; 之外被 RenderControl（匯出 PDF 所需）。
         /// </summary>
+        /// <param name="control">即將被 RenderControl 輸出的控制項。</param>
+        /// <remarks>這是匯出 Web Forms 控制項為 PDF 的常見繞過方式；搭配 .aspx 的 EnableEventValidation="false" 使用。</remarks>
         public override void VerifyRenderingInServerForm(Control control)
         {
             /* Verifies that the control is rendered */
@@ -223,6 +249,9 @@ namespace Website
         /// 以程式碼載入賣家商品清單到 GridView1（目前未被呼叫，實際改由標記中的 SqlDataSource2 繫結）。
         /// 無商品時顯示「No Products Added」並隱藏清單面板。
         /// </summary>
+        /// <remarks>
+        /// 使用 txtName.Text 作為 violet_products.uname 查詢條件，且以字串串接 SQL；保留此方法是舊實作，Page_Load 內呼叫已被註解。
+        /// </remarks>
         public void filldata()
         {
             String fetchCount = "SELECT COUNT(*) FROM violet_products WHERE uname='" + txtName.Text + "'";
@@ -252,6 +281,8 @@ namespace Website
         /// 賣家商品 GridView 每列繫結時觸發：替第 7 欄（Edit/Delete 指令欄）的第一個 LinkButton
         /// 加上 JavaScript 確認對話框。注意：第一個按鈕實際上是「Edit」而非「Delete」。
         /// </summary>
+        /// <param name="sender">GridView1。</param>
+        /// <param name="e">目前繫結的資料列事件資料。</param>
         protected void GridView1_RowDataBound(object sender, GridViewRowEventArgs e)
         {
             if (e.Row.RowType == DataControlRowType.DataRow)

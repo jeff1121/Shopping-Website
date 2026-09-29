@@ -14,6 +14,7 @@
     <form id="form1" runat="server">
         <div class="container">
             <!--Header-->
+                <%-- 共用頁首與導覽列：Logo、主選單、登入/註冊選單、登出鈕、搜尋/個人/購物車圖示與購物車徽章。 --%>
                 <div class="header">
                     <div style="z-index: 1; top: 0px; width: 100%; height: 100px; position: fixed; left: 0px; background-color: white">
                         <asp:HyperLink ID="Logo" runat="server" style="top: 30px; left: 50px; position: absolute" ImageUrl="~/img/logo.png" NavigateUrl="~/index.aspx"></asp:HyperLink>
@@ -66,6 +67,7 @@
                     </div>
 
                     <!--Header Info-->
+                        <%-- 共用服務資訊列：免運、優惠券、線上支援與回饋圖示；各頁重複維護。 --%>
                         <div style="z-index: -1; top: 90px; width: 100%; height: 50px; position: absolute; background-color: lightslategray; left: 0px">
                             <asp:Image ID="FreeShipping" runat="server" AlternateText="Free Shipping" ImageUrl="~/img/icons/delivery.png" style=" left: 60px; top: 15px; position: absolute;"/>
                             <asp:Label ID="FreeShippingDetail" runat="server" Text="Free Shipping on orders over Rs.150* in India" style=" left: 110px; top: 15px; position: absolute;" ForeColor="White" Font-Size="Medium"></asp:Label>
@@ -81,10 +83,12 @@
             <!--Header-->
 
             <!--Body-->
+                <%-- 主內容：Panel1 顯示訂單編號、日期與購物車明細；completeOrder 面板在下單後顯示完成訊息。 --%>
                 <div class="body">
                     <div style="text-align: center; position: relative">
                         <asp:Label ID="lblCheckouttMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 720px; top: 10px; position: absolute" Text="Checkout"></asp:Label>
                         <br /><br /><br /><br /><br /><br /><br />
+                    <%-- 訂單確認面板：顯示本次訂單編號、日期、Session["count"] 明細與 Place Order 按鈕。 --%>
                     <asp:Panel ID="Panel1" runat="server" style="z-index: 1; position: relative; text-align: center" Visible="True">
                         <table>
                             <tr>
@@ -130,6 +134,7 @@
                         <asp:Button ID="btnCheckout" runat="server" Text="Place Order" Font-Size="Large" Visible="true" UseSubmitBehavior="True" OnClick="btnCheckout_Click"/>
                     </asp:Panel>
 
+                        <%-- 訂單完成面板：btnCheckout_Click 寫入 violet_order 並刪除 violet_cart 後才顯示。 --%>
                         <asp:Panel ID="completeOrder" runat="server" style="z-index: 1; position: relative; text-align: center" Visible="False">
                             <asp:Label ID="Label7" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 65px; top: 10px; position: absolute" Text="Order Placed Succcessfully"></asp:Label>
                             <br /><br /><br /><br /><br />
@@ -166,6 +171,7 @@
             <!--Body-->
 
             <!-- Footer Section Begin -->
+                <%-- 共用頁尾：Contact Us、Payment Method 與 Information 區塊；未使用 Master Page，因此各頁各自複製。 --%>
                 <div class="footer" style="text-align: center; background-color: #262626; left: 0px">
                     <div style="left: 220px; position: absolute; color: #FFFFFF;">
                         <h2>About us</h2>

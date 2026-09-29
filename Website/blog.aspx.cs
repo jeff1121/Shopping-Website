@@ -18,6 +18,8 @@ namespace Website
         /// 頁面載入事件：若使用者已登入，隱藏「登入/註冊」選單，
         /// 顯示登出按鈕、個人檔案與購物車圖示，並以 Session["count"] 的列數更新購物車數量徽章。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -45,6 +47,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;

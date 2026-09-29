@@ -31,6 +31,8 @@ namespace Website
         /// 已登入時更新頁首圖示、查出登入者姓名 uname、更新購物車徽章，首次載入時呼叫 <see cref="filldata"/>；
         /// 未登入時顯示「請先登入」提示。
         /// </summary>
+        /// <param name="sender">觸發頁面載入事件的物件。</param>
+        /// <param name="e">頁面載入事件資料。</param>
         protected void Page_Load(object sender, EventArgs e)
         {
             // Session["user"] 不為 null 代表已登入
@@ -80,6 +82,8 @@ namespace Website
         /// <summary>
         /// 登出按鈕：清除 Session["user"] 後導回首頁。
         /// </summary>
+        /// <param name="sender">觸發登出事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
@@ -93,6 +97,8 @@ namespace Website
         /// 3. 將剩餘列的 sno 重新編號為 1..N 並同步回 violet_cart；
         /// 4. 寫回 Session 後重新導向本頁。
         /// </summary>
+        /// <param name="sender">觸發刪除事件的 GridView。</param>
+        /// <param name="e">包含被刪除列索引的事件資料。</param>
         protected void GridView1_RowDeleting(object sender, GridViewDeleteEventArgs e)
         {
             string productName = "";
@@ -114,11 +120,11 @@ namespace Website
 
                 if (sr == sr1)
                 {
-                    //Updating stock after deletion
+                    // 移除品項時，將購物車內原數量加回商品庫存。
                     int j = Convert.ToInt32(dt.Rows[i]["quantity"].ToString());
                     String updateQuantity = "UPDATE violet_products SET stock=stock+" + j +" WHERE pname='" + productName + "'";
                     SqlCommand cmd1 = new SqlCommand(updateQuantity, con);
-                    //Executing Query
+                    // 執行資料庫更新。
                     con.Open();
                     cmd1.ExecuteNonQuery();
                     con.Close();
@@ -128,7 +134,7 @@ namespace Website
 
                     String update = "DELETE FROM violet_cart WHERE uname='" + uname + "' AND pname='" + productName + "' AND sno=" + sr;
                     SqlCommand cmd = new SqlCommand(update, con);
-                    //Executing Query
+                    // 執行資料庫更新。
                     con.Open();
                     cmd.ExecuteNonQuery();
                     con.Close();
@@ -146,7 +152,7 @@ namespace Website
 
                 String update = "UPDATE violet_cart SET sno=" + Convert.ToInt32(dt.Rows[i - 1]["sno"].ToString()) + " WHERE uname='" + uname + "' AND pname='" + productName + "'";
                 SqlCommand cmd = new SqlCommand(update, con);
-                //Executing Query
+                // 執行資料庫更新。
                 con.Open();
                 cmd.ExecuteNonQuery();
                 con.Close();
@@ -161,6 +167,8 @@ namespace Website
         /// 購物車 GridView 「Modify」選取事件：隱藏清單與結帳按鈕，顯示數量編輯面板，
         /// 並以被選列的 sno 呼叫 <see cref="modify"/> 載入該品項資料。
         /// </summary>
+        /// <param name="sender">觸發選取事件的 GridView。</param>
+        /// <param name="e">選取列變更事件資料。</param>
         protected void GridView1_SelectedIndexChanged(object sender, EventArgs e)
         {
             btnCheckout.Visible = false;
@@ -173,6 +181,8 @@ namespace Website
         /// <summary>
         /// 編輯面板中數量下拉選單變更事件：以單價（Label5）× 數量重新計算小計並顯示於 Label6。
         /// </summary>
+        /// <param name="sender">觸發數量變更的下拉選單。</param>
+        /// <param name="e">選取項目變更事件資料。</param>
         protected void DropDownList1_SelectedIndexChanged(object sender, EventArgs e)
         {
             int q;
@@ -190,6 +200,8 @@ namespace Website
         /// 2. 更新 Session 購物車對應列與 violet_cart 的數量與小計；
         /// 3. 重新導向本頁。
         /// </summary>
+        /// <param name="sender">觸發更新事件的按鈕。</param>
+        /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnUpdate_Click(object sender, EventArgs e)
         {
             DataTable dt;
@@ -206,11 +218,11 @@ namespace Website
 
                 if (sr == sr1)
                 {
-                    //Updating stock after updating cart
+                    // 依「舊數量 - 新數量」調整預扣庫存，正值代表補回庫存、負值代表追加扣庫存。
                     int j = Convert.ToInt32(DropDownList1.Text);
                     String updateQuantity = "UPDATE violet_products SET stock=(stock+" + Convert.ToInt32(Session["oldQuantity"].ToString()) + "-" + j + ") WHERE pname='" + Label4.Text + "'";
                     SqlCommand cmd1 = new SqlCommand(updateQuantity, con);
-                    //Executing Query
+                    // 執行資料庫更新。
                     con.Open();
                     cmd1.ExecuteNonQuery();
                     con.Close();
@@ -224,7 +236,7 @@ namespace Website
 
                     String update = "UPDATE violet_cart SET quantity=" + Convert.ToInt32(dt.Rows[i]["quantity"].ToString()) + ", total=" + Convert.ToDecimal(dt.Rows[i]["total"].ToString()) + " WHERE uname='" + uname + "' AND pname='" + Label4.Text + "'";
                     SqlCommand cmd = new SqlCommand(update, con);
-                    //Executing Query
+                    // 執行資料庫更新。
                     con.Open();
                     cmd.ExecuteNonQuery();
                     con.Close();
@@ -428,7 +440,7 @@ namespace Website
 
                         if (sr == sr1)
                         {
-                            //Inserting contents of DropDownList
+                            // 依商品目前剩餘庫存產生可選數量；不含購物車內原數量，因此可增加的上限會受已預扣庫存影響。
                             SqlCommand cmd = new SqlCommand("SELECT stock FROM violet_products WHERE pname=@pname", con);
                             cmd.Parameters.AddWithValue("@pname", dt.Rows[i]["pname"].ToString());
                             con.Open();
