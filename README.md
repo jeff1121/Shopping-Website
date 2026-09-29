@@ -9,8 +9,9 @@
 以 **ASP.NET Web Forms（.NET Framework 4.7.2、C#）** 搭配 **SQL Server（ADO.NET）** 開發的教學用電子商務網站。
 一般會員可以瀏覽、搜尋、排序商品並透過購物車下單；賣家可以上架商品、管理價格與庫存。
 
-本 Repo 源自 [DarylFernandes99/Shopping-Website](https://github.com/DarylFernandes99/Shopping-Website)，
-並補上完整的繁體中文程式碼註解與文件。
+本 Repo 位於 [Jeff1121/Shopping-Website](https://github.com/Jeff1121/Shopping-Website)，源自
+[DarylFernandes99/Shopping-Website](https://github.com/DarylFernandes99/Shopping-Website)，
+並補上完整的繁體中文程式碼註解與文件（功能與原專案相同，未修改程式邏輯）。
 
 > 🚀 **想直接跑起來？** 請看 [QuickStart.md](QuickStart.md)，內含資料庫建立腳本、連線字串設定、建置前必要修正與常見問題排除。
 
@@ -19,6 +20,7 @@
 ## 目錄
 
 - [專案現況（請先閱讀）](#專案現況請先閱讀)
+- [快速開始](#快速開始)
 - [功能總覽](#功能總覽)
 - [技術架構](#技術架構)
 - [專案結構](#專案結構)
@@ -47,6 +49,26 @@
 | 自動化測試 / CI / Lint | 無 |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
+
+---
+
+## 快速開始
+
+完整步驟（含資料庫腳本、各種連線字串範例、疑難排解）請見 [QuickStart.md](QuickStart.md)。摘要如下：
+
+1. 準備 Windows、Visual Studio 2019+（ASP.NET 與網頁程式開發工作負載）、.NET Framework 4.7.2、SQL Server。
+2. 取得原始碼：
+
+   ```bash
+   git clone https://github.com/Jeff1121/Shopping-Website.git
+   cd Shopping-Website
+   ```
+
+3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
+4. 在 `Website/Web.config` 設定 `cmpConnectionString`，並把 12 個後置程式碼檔案中的 `<enter your database connection>` 改為讀取該連線字串。
+5. 補上 `Website/Properties/AssemblyInfo.cs`、修正 iTextSharp 參考（建議改用 NuGet `iTextSharp` 5.5.13.3）。
+6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
+7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
 
 ---
 
@@ -128,7 +150,7 @@ Shopping-Website/
     ├── about.aspx(.cs)             # 關於我們（靜態）
     ├── blog.aspx(.cs)              # 部落格（靜態）
     ├── contact.aspx(.cs)           # 聯絡我們（寫入 violet_contact）
-    ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告
+    ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
     ├── Web.config                  # 連線字串、編譯與驗證設定
     ├── Web.Debug.config            # Debug 組態轉換（僅範例）
     ├── Web.Release.config          # Release 組態轉換（移除 debug 屬性）
@@ -141,7 +163,8 @@ Shopping-Website/
         ├── categories/             # 分類圖片（desktop、laptop、pant、shirt）
         ├── icons/                  # 頁首與資訊列圖示（search、man、bag、delivery…）
         ├── logos/                  # 合作品牌 Logo
-        ├── products/               # 商品圖片；賣家上傳的圖片存於 products/<登入帳號>/
+        ├── products/               # 商品圖片（apple、arcade、printer、watch…）；human.png 為破圖時的替代圖
+        │   └── human99/            # 賣家上傳目錄範例：products/<登入帳號>/
         ├── logo.png                # 網站 Logo
         ├── addtocart.png           # 加入購物車按鈕
         ├── sold.png                # 售完按鈕
@@ -426,7 +449,8 @@ sequenceDiagram
 - **新增頁面**：建立 `.aspx`、`.aspx.cs`、`.aspx.designer.cs` 三個檔案，並登錄到 `Website.csproj`；複製既有頁面的頁首/頁尾與 `Page_Load` 登入狀態邏輯。
 - **新增伺服器控制項**：同步更新 `.aspx.designer.cs`（在 Visual Studio 設計工具中儲存即會自動產生）。
 - **修改資料表**：因位置式 INSERT，調整欄位順序或數量時需同步修改對應的程式碼，並一併更新 `QuickStart.md` 與本文件的資料庫章節。
-- **程式碼註解**：所有類別、方法、欄位皆以繁體中文 XML 文件註解（`/// <summary>`）說明；每個 `.aspx` 第二行以 `<%-- --%>` 說明頁面用途。
+- **程式碼註解**：所有類別、方法、欄位皆以繁體中文 XML 文件註解（`/// <summary>`）說明；每個 `.aspx` 第二行以 `<%-- --%>` 說明頁面用途；設定檔（`Web.config`、`Website.csproj` 等）以 XML 註解說明。
+- **designer 檔註解**：`.aspx.designer.cs` 的每個控制項欄位都有「型別「ID」：用途」格式的繁中註解。Visual Studio 重新產生此檔時會還原為英文預設註解，提交前請補回或還原。
 - **機密資訊**：不要提交真實連線字串或 SMTP 密碼。
 
 ---

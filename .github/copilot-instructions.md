@@ -13,7 +13,8 @@ ASP.NET Web Forms (.NET Framework 4.7.2, C#) shopping site backed by SQL Server 
 
 ## Conventions
 
-- Docs and code comments are written in Traditional Chinese (zh-TW). Every class, method and field in code-behind has a zh-TW `/// <summary>`; every `.aspx` has a `<%-- --%>` purpose comment on line 2. Keep this when adding code.
+- Docs and code comments are written in Traditional Chinese (zh-TW). Every class, method and field in code-behind has a zh-TW `/// <summary>`; every `.aspx` has a `<%-- --%>` purpose comment on line 2. Designer files also carry zh-TW field comments in the form `型別「ID」：用途` — Visual Studio regeneration reverts them to English, so restore them before committing. Keep this when adding code.
+- The repo lives at `https://github.com/Jeff1121/Shopping-Website` (forked from `DarylFernandes99/Shopping-Website`).
 - Source files are UTF-8 with BOM and CRLF line endings.
 
 ## Architecture
