@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="register.aspx.cs" Inherits="Website.register" %>
+<%-- 一般會員註冊：填寫個人資料與安全問題，寫入 violet_user_login 並指派 uid（1~4998）。 --%>
 
 <!DOCTYPE html>
 

@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="sellerRegister.aspx.cs" Inherits="Website.sellerRegister" %>
+<%-- 賣家註冊：表單與 register.aspx 相同，同樣寫入 violet_user_login（不含 uid）。 --%>
 
 <!DOCTYPE html>
 

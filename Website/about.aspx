@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="about.aspx.cs" Inherits="Website.about" %>
+<%-- 關於我們：靜態公司介紹頁。頁首、選單、頁尾與其他頁面重複（本專案未使用 Master Page）。 --%>
 
 <!DOCTYPE html>
 

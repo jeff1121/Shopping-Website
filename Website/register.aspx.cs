@@ -9,14 +9,23 @@ using System.Web.UI.WebControls;
 
 namespace Website
 {
+    /// <summary>
+    /// 「一般會員註冊」頁面（register.aspx）的後置程式碼。
+    /// 將表單資料寫入 violet_user_login，再為新帳號產生 1～4998 的唯一 uid（uid ≤ 5000 視為一般會員）。
+    /// </summary>
     public partial class register : System.Web.UI.Page
     {
 
-        //Connection
+        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
         SqlConnection con = new SqlConnection(<enter your database connection>);
 
+        /// <summary>
+        /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時將生日驗證器的比較值設為今天，
+        /// 確保生日不會晚於今天。
+        /// </summary>
         protected void Page_Load(object sender, EventArgs e)
         {
+            // Session["user"] 不為 null 代表已登入
             if (Session["user"] != null)
             {
                 btnLogout.Visible = true;
@@ -42,17 +51,25 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 登出按鈕：清除 Session["user"] 後導回首頁。
+        /// </summary>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
             Response.Redirect("~/index.aspx");
         }
 
+        /// <summary>
+        /// 註冊送出按鈕：以參數化查詢將 14 個欄位依順序寫入 violet_user_login（uid 先暫定為 0），
+        /// 再呼叫 <see cref="generateUID"/> 指派唯一 uid，最後導向登入頁。密碼以明碼儲存。
+        /// </summary>
         protected void Submit_Click(object sender, EventArgs e)
         {
+            // txtAddress 是 HTML textarea（runat=server），需讀取 Value
             String strAddress = txtAddress.Value;
 
-            //Insertion
+            //Insertion（位置式 INSERT，欄位順序必須與資料表定義一致）
             SqlCommand cmd = new SqlCommand("INSERT INTO violet_user_login VALUES (@name, @email, @username, @password, @phone, @dob, @country, @state, @city, @gender, @address, @secq, @seca, @uid)", con);
             cmd.Parameters.AddWithValue("@name", txtName.Text);
             cmd.Parameters.AddWithValue("@username", txtUsername.Text);
@@ -79,10 +96,15 @@ namespace Website
             Response.Redirect("~/login.aspx");
         }
 
+        /// <summary>
+        /// 隨機產生 1～4998 且尚未被使用的 uid，並更新到剛註冊的帳號（以 txtUsername 辨識）。
+        /// uid 的範圍用來區分角色：≤ 5000 為一般會員、&gt; 5000 為賣家（見 profile / sellerProfile）。
+        /// </summary>
         public void generateUID()
         {
             bool flag = true;
             Random random = new Random();
+            // 重複抽號直到找到未被使用的 uid
             while (flag == true)
             {
                 int num = random.Next(1, 4999);
@@ -92,6 +114,7 @@ namespace Website
                 int uid = (int)check.ExecuteScalar();
                 if (uid > 0)
                 {
+                    // 注意：此處 continue 前未關閉連線，下一輪 con.Open() 會拋出例外
                     continue;
                 }
                 else

@@ -9,14 +9,31 @@ using System.Web.UI.WebControls;
 
 namespace Website
 {
+    /// <summary>
+    /// 「購物車」頁面（cart.aspx）的後置程式碼。
+    /// 購物車同時存在兩處：Session["count"]（DataTable，欄位 sno, pimage, pname, price, quantity, total, uname）
+    /// 與資料表 violet_cart；本頁負責新增、修改數量、移除品項，並同步調整 violet_products 的庫存。
+    /// </summary>
     public partial class cart : System.Web.UI.Page
     {
+        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
         SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>
+        /// 標記要加入的商品是否已存在於購物車（由 <see cref="checkdesignid"/> 設定）。
+        /// 注意：為 static，會在所有使用者請求間共用。
+        /// </summary>
         static Boolean availabledesignid = false;
+        /// <summary>目前登入者的姓名（violet_user_login.uname），為 violet_cart 的買家欄位。</summary>
         String uname = "";
 
+        /// <summary>
+        /// 頁面載入事件：
+        /// 已登入時更新頁首圖示、查出登入者姓名 uname、更新購物車徽章，首次載入時呼叫 <see cref="filldata"/>；
+        /// 未登入時顯示「請先登入」提示。
+        /// </summary>
         protected void Page_Load(object sender, EventArgs e)
         {
+            // Session["user"] 不為 null 代表已登入
             if (Session["user"] != null)
             {
                 btnLogout.Visible = true;
@@ -25,6 +42,7 @@ namespace Website
                 cartIcon.Visible = true;
                 countItems.Visible = true;
 
+                // 以登入時輸入的帳號或 Email 查出姓名
                 SqlCommand cmd = new SqlCommand("SELECT uname FROM violet_user_login WHERE username=@name OR email=@name", con);
                 cmd.Parameters.AddWithValue("@name", Session["user"]);
                 con.Open();
@@ -59,12 +77,22 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 登出按鈕：清除 Session["user"] 後導回首頁。
+        /// </summary>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
             Response.Redirect("~/index.aspx");
         }
 
+        /// <summary>
+        /// 購物車 GridView 「Remove Item(s)」刪除事件：
+        /// 1. 依被點選列第一欄的 sno 找到 Session 購物車中的對應列；
+        /// 2. 將該列數量加回 violet_products 庫存，從 DataTable 與 violet_cart 刪除；
+        /// 3. 將剩餘列的 sno 重新編號為 1..N 並同步回 violet_cart；
+        /// 4. 寫回 Session 後重新導向本頁。
+        /// </summary>
         protected void GridView1_RowDeleting(object sender, GridViewDeleteEventArgs e)
         {
             string productName = "";
@@ -109,6 +137,7 @@ namespace Website
                 }
             }
 
+            // 重新編號剩餘品項的 sno，並同步到 violet_cart
             for (int i = 1; i <= dt.Rows.Count; i++)
             {
                 productName = dt.Rows[i-1]["pname"].ToString();
@@ -128,6 +157,10 @@ namespace Website
             Response.Redirect("~/cart.aspx");
         }
 
+        /// <summary>
+        /// 購物車 GridView 「Modify」選取事件：隱藏清單與結帳按鈕，顯示數量編輯面板，
+        /// 並以被選列的 sno 呼叫 <see cref="modify"/> 載入該品項資料。
+        /// </summary>
         protected void GridView1_SelectedIndexChanged(object sender, EventArgs e)
         {
             btnCheckout.Visible = false;
@@ -137,6 +170,9 @@ namespace Website
             modify(GridView1.SelectedRow.Cells[0].Text);
         }
 
+        /// <summary>
+        /// 編輯面板中數量下拉選單變更事件：以單價（Label5）× 數量重新計算小計並顯示於 Label6。
+        /// </summary>
         protected void DropDownList1_SelectedIndexChanged(object sender, EventArgs e)
         {
             int q;
@@ -148,6 +184,12 @@ namespace Website
             Label6.Text = totalcost.ToString();
         }
 
+        /// <summary>
+        /// 編輯面板「Update」按鈕：
+        /// 1. 以 Session["oldQuantity"] 與新數量的差額調整 violet_products 庫存（stock + 舊數量 - 新數量）；
+        /// 2. 更新 Session 購物車對應列與 violet_cart 的數量與小計；
+        /// 3. 重新導向本頁。
+        /// </summary>
         protected void btnUpdate_Click(object sender, EventArgs e)
         {
             DataTable dt;
@@ -194,9 +236,18 @@ namespace Website
 
         }
 
-        //Fill data in  GriedView using DataTable
+        /// <summary>
+        /// 填入購物車 GridView。
+        /// 若 Session["addproduct"] 為 "true"（由首頁加入購物車導向而來）且帶有 ?id=&amp;quantity=：
+        /// - 購物車為空：建立新 DataTable，加入第一項並寫入 violet_cart；
+        /// - 商品已存在：呼叫 <see cref="updatequantity"/> 累加數量（注意：此分支不會同步 violet_cart）；
+        /// - 商品不存在：追加新列並寫入 violet_cart。
+        /// 否則直接顯示 Session["count"] 的內容，無資料時顯示「購物車是空的」。表尾顯示 Grand Total。
+        /// 處理後會將 Session["addproduct"] 重設為 "false"，避免重新整理時重複加入。
+        /// </summary>
         public void filldata()
         {
+            // 注意：直接進入本頁且未曾經過首頁時 Session["addproduct"] 可能為 null，會拋出 NullReferenceException
             if(Session["addproduct"].ToString() == "true")
             {
                 DataTable dt = new DataTable();
@@ -213,6 +264,7 @@ namespace Website
                 if (Request.QueryString["id"] != null)
                 {
                     btnCheckout.Visible = true;
+                    // 情況一：購物車為空，建立第一筆
                     if (Session["count"] == null)
                     {
                         dr = dt.NewRow();
@@ -253,6 +305,7 @@ namespace Website
                     else
                     {
                         checkdesignid();
+                        // 情況二：商品已在購物車中，只累加數量
                         if (availabledesignid == true)
                         {
                             updatequantity();
@@ -264,6 +317,7 @@ namespace Website
                         }
                         else
                         {
+                            // 情況三：新商品，以目前列數 + 1 作為 sno 追加
                             dt = (DataTable)Session["count"];
                             int sr;
                             sr = dt.Rows.Count;
@@ -325,7 +379,10 @@ namespace Website
             }
         }
 
-        //Finding total amount of all productsadded to cart
+        /// <summary>
+        /// 計算購物車（Session["count"]）所有列 total 欄位的加總金額。
+        /// </summary>
+        /// <returns>購物車總金額。</returns>
         public decimal grandTotal()
         {
             DataTable dt = new DataTable();
@@ -341,6 +398,11 @@ namespace Website
             return grandTotal;
         }
 
+        /// <summary>
+        /// 將指定 sno 的購物車品項載入數量編輯面板（僅在 PostBack 時執行）：
+        /// 依目前庫存填入數量選項 1..庫存（庫存為 0 則停用），並將原數量記入 Session["oldQuantity"] 供更新時調整庫存。
+        /// </summary>
+        /// <param name="modifyQuantity">要編輯的品項序號（sno），取自 GridView 被選列的第一欄。</param>
         public void modify(string modifyQuantity)
         {
             DataTable dt;
@@ -405,6 +467,9 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 檢查網址 ?id= 指定的商品名稱是否已存在於 Session 購物車，存在則將 availabledesignid 設為 true。
+        /// </summary>
         private void checkdesignid()
         {
             DataTable dt;
@@ -421,6 +486,10 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 將網址 ?quantity= 的數量累加到 Session 購物車中同名商品的數量，並重算小計。
+        /// 注意：只更新 Session，不會同步更新 violet_cart。
+        /// </summary>
         private void updatequantity()
         {
             DataTable dt;
@@ -443,6 +512,19 @@ namespace Website
             Session["count"] = dt;
         }
 
+        /// <summary>
+        /// 將一筆購物車品項以位置式 INSERT 寫入 violet_cart
+        /// （欄位順序 uname, sno, pimage, pname, price, quantity, total, sname）。
+        /// 注意：SQL 以字串串接，存在 SQL Injection 風險。
+        /// </summary>
+        /// <param name="name">買家姓名（violet_user_login.uname）。</param>
+        /// <param name="sno">購物車內序號。</param>
+        /// <param name="productimage">商品圖片相對路徑。</param>
+        /// <param name="Productname">商品名稱。</param>
+        /// <param name="price">單價。</param>
+        /// <param name="quantity">數量。</param>
+        /// <param name="totalprice">小計（單價 × 數量）。</param>
+        /// <param name="sname">賣家姓名（violet_products.uname）。</param>
         private void savecartdetail(String name, int sno, String productimage, String Productname, Decimal price, int quantity, Decimal totalprice, String sname)
         {
             String query = "INSERT INTO violet_cart values('" + name + "', " + sno + ", '" + productimage + "', '" + Productname + "', " + price + ", " + quantity + ", " + totalprice + ", '" + sname +"')";

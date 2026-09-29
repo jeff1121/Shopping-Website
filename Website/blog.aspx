@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="blog.aspx.cs" Inherits="Website.blog" %>
+<%-- 部落格：靜態內容頁。頁首、選單、頁尾與其他頁面重複。 --%>
 
 <!DOCTYPE html>
 

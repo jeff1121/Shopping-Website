@@ -9,12 +9,26 @@ using System.Web.UI.WebControls;
 
 namespace Website
 {
+    /// <summary>
+    /// 首頁 / 商品目錄頁面（index.aspx）的後置程式碼。
+    /// 商品清單 productsDisplay（DataList）會依操作切換不同的 SqlDataSource：
+    /// SqlDataSource1 隨機排序、SqlDataSource2 關鍵字搜尋、SqlDataSource3 價格由低到高、
+    /// SqlDataSource4 價格由高到低、SqlDataSource5 依 ?category= 篩選分類。
+    /// 加入購物車時會先扣減庫存，再導向 cart.aspx。
+    /// </summary>
     public partial class index : System.Web.UI.Page
     {
+        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
         SqlConnection con = new SqlConnection(<enter your database connection>);
 
+        /// <summary>
+        /// 頁面載入事件：
+        /// 1. 若網址帶有 ?category=，改用 SqlDataSource5 顯示該分類商品；
+        /// 2. 若已登入，將 Session["addproduct"] 重設為 "false"，並更新頁首圖示與購物車數量徽章。
+        /// </summary>
         protected void Page_Load(object sender, EventArgs e)
         {
+            // 由分類頁點選進入時，改用分類篩選的資料來源
             if (Request.QueryString["category"] != null)
             {
                 productsDisplay.DataSourceID = null;
@@ -42,11 +56,18 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 商品 DataList 的項目命令事件。點擊「加入購物車」（CommandName="addtocart"）時：
+        /// 1. 設定 Session["addproduct"]="true"，讓 cart.aspx 知道要新增品項；
+        /// 2. 查詢目前庫存並扣除所選數量（庫存在加入購物車時即預扣）；
+        /// 3. 導向 cart.aspx?id=商品名稱&amp;quantity=數量。
+        /// </summary>
         protected void productsDisplay_ItemCommand(object source, DataListCommandEventArgs e)
         {
             if (e.CommandName == "addtocart")
             {
                 Session["addproduct"] = "true";
+                // 取得該列的數量下拉選單與商品名稱標籤
                 DropDownList number = (DropDownList)( e.Item.FindControl("DropDownList1") );
                 Label lbl = (Label)( e.Item.FindControl("Label1") );
 
@@ -61,6 +82,7 @@ namespace Website
                 }
                 con.Close();
                 int updateStock = q - Convert.ToInt32(number.SelectedItem.ToString());
+                // 注意：字串串接 SQL，存在 SQL Injection 風險
                 String update = "UPDATE violet_products SET stock=" + updateStock + " WHERE pname='" + lbl.Text + "'";
                 SqlCommand cmd1 = new SqlCommand(update, con);
                 //Executing Query
@@ -72,14 +94,21 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 登出按鈕：清除 Session["user"] 後導回首頁。
+        /// </summary>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
             Response.Redirect("~/index.aspx");
         }
 
+        /// <summary>
+        /// 搜尋按鈕：改用 SqlDataSource2（以 searchProducts 文字對 keywords 欄位做 LIKE 模糊比對）重新繫結商品清單。
+        /// </summary>
         protected void btnSearch_Click(object sender, EventArgs e)
         {
+            // 注意：此條件對 TextBox 物件呼叫 ToString()，永遠不會是 null
             if (searchProducts.ToString() != null)
             {
                 productsDisplay.DataSourceID = null;
@@ -88,6 +117,10 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 價格排序下拉選單變更事件：
+        /// "Low to High" → SqlDataSource3、"High to Low" → SqlDataSource4、其餘（Random）→ SqlDataSource1。
+        /// </summary>
         protected void sortPrice_SelectedIndexChanged(object sender, System.EventArgs e)
         {
             productsDisplay.DataSourceID = null;
@@ -108,6 +141,11 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 商品 DataList 每一項繫結完成後觸發：依該商品庫存填入數量下拉選單（最多 1～10）。
+        /// 庫存為 0 時停用選單與加入購物車按鈕，並將按鈕圖片換成 img/sold.png（售完）。
+        /// 注意：每個品項都會額外查詢一次資料庫（N+1 查詢）。
+        /// </summary>
         protected void productsDisplay_ItemDataBound(object sender, DataListItemEventArgs e)
         {
             DropDownList number = (DropDownList)( e.Item.FindControl("DropDownList1") );
@@ -128,6 +166,7 @@ namespace Website
             int i;
             if (q > 0)
             {
+                // 選項為 1..庫存量，最多列到 10
                 for (i = 1; i <= q; i++)
                 {
                     String n = i.ToString();
@@ -145,6 +184,9 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 頁首搜尋圖示點擊事件：將輸入焦點移到左側的商品搜尋框。
+        /// </summary>
         protected void searchIcon_Click(object sender, ImageClickEventArgs e)
         {
             searchProducts.Focus();

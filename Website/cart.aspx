@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="cart.aspx.cs" Inherits="Website.cart" %>
+<%-- 購物車：GridView1 顯示 Session["count"] 內容，可修改數量（editQuantity 面板）或移除品項，再前往結帳。 --%>
 
 <!DOCTYPE html>
 

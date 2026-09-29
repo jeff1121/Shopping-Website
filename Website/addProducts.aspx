@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="addProducts.aspx.cs" Inherits="Website.addProducts" %>
+<%-- 上架商品：賣家輸入商品名稱、價格、分類、關鍵字並上傳圖片（jpg/jpeg/png），寫入 violet_products。 --%>
 
 <!DOCTYPE html>
 

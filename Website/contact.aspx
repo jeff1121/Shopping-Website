@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="contact.aspx.cs" Inherits="Website.contact" %>
+<%-- 聯絡我們：留言表單，送出後寫入 violet_contact。 --%>
 
 <!DOCTYPE html>
 

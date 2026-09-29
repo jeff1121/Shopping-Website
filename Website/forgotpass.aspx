@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="forgotpass.aspx.cs" Inherits="Website.forgotpass" %>
+<%-- 忘記密碼：usernamePanel 輸入帳號 → passwordPanel 回答安全問題 → 以 Email 寄出密碼。 --%>
 
 <!DOCTYPE html>
 

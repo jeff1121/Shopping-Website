@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="profile.aspx.cs" Inherits="Website.profile" EnableEventValidation = "false"%>
+<%-- 會員個人資料：個人資料編輯、訂單歷史（可匯出 PDF）、賣家商品管理。EnableEventValidation=false 為匯出 PDF 時 RenderControl 所需。 --%>
 
 <!DOCTYPE html>
 

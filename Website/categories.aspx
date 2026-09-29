@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="categories.aspx.cs" Inherits="Website.categories" %>
+<%-- 商品分類：從 violet_categories（name, cimage）列出分類，點選後導向 index.aspx?category=分類名稱。 --%>
 
 <!DOCTYPE html>
 

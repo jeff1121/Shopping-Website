@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="checkout.aspx.cs" Inherits="Website.checkout" %>
+<%-- 結帳：顯示訂單編號、日期與購物車明細，按下 Place Order 後寫入 violet_order 並顯示 completeOrder 面板。 --%>
 
 <!DOCTYPE html>
 

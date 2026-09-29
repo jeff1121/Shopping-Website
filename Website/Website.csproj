@@ -43,6 +43,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <!-- iTextSharp 不在 NuGet 套件清單中，HintPath 指向原作者機器上的路徑；請改為本機 DLL 路徑或改用 NuGet 安裝 iTextSharp 5.x -->
     <Reference Include="itextsharp">
       <HintPath>..\..\..\..\Files\OrderInvoice\itextsharp.dll</HintPath>
     </Reference>
@@ -77,6 +78,7 @@
     <Content Include="categories.aspx" />
     <Content Include="checkout.aspx" />
     <Content Include="contact.aspx" />
+    <!-- css\style.css 未納入版控（Repo 中不存在），頁面仍可執行但缺少共用樣式 -->
     <Content Include="css\style.css" />
     <Content Include="forgotpass.aspx" />
     <Content Include="img\add.jpg" />
@@ -197,6 +199,7 @@
     <Compile Include="profile.aspx.designer.cs">
       <DependentUpon>profile.aspx</DependentUpon>
     </Compile>
+    <!-- Properties\AssemblyInfo.cs 未納入版控，建置前需自行建立或移除此行（見 QuickStart.md） -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="register.aspx.cs">
       <DependentUpon>register.aspx</DependentUpon>

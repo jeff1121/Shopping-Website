@@ -9,22 +9,37 @@ using System.Web.UI.WebControls;
 
 namespace Website
 {
+    /// <summary>
+    /// 「會員登入」頁面（login.aspx）的後置程式碼。
+    /// 以使用者名稱或 Email 搭配密碼驗證身分，成功後建立 Session 並從 violet_cart 還原已儲存的購物車。
+    /// </summary>
     public partial class login : System.Web.UI.Page
     {
-        //Connection
+        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
         SqlConnection con = new SqlConnection(<enter your database connection>);
 
+        /// <summary>
+        /// 頁面載入事件：登入頁不需要額外初始化。
+        /// </summary>
         protected void Page_Load(object sender, EventArgs e)
         {
 
         }
 
+        /// <summary>
+        /// 登出按鈕：清除 Session["user"] 後導回首頁。
+        /// </summary>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
             Response.Redirect("~/index.aspx");
         }
 
+        /// <summary>
+        /// 登入按鈕：以 username 或 email 查詢 violet_user_login 取得姓名與密碼（明碼比對）。
+        /// 成功時設定 Session["uname"]（姓名，為各表關聯鍵）、Session["user"]（登入時輸入的帳號文字），
+        /// 並呼叫 <see cref="fillsavedCart"/> 還原購物車後導向首頁；失敗則顯示錯誤訊息。
+        /// </summary>
         protected void Submit_Click(object sender, EventArgs e)
         {
             SqlCommand cmd = new SqlCommand("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", con);
@@ -41,6 +56,7 @@ namespace Website
             }
             con.Close();
 
+            // 注意：查無帳號時 pass 為空字串，若密碼欄也空白會誤判為成功（密碼欄有前端必填驗證）
             if (pass == txtPassword.Text)
             {
                 Session["uname"] = name;
@@ -56,6 +72,11 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 從 violet_cart 讀出目前使用者（Session["uname"]）已儲存的購物車列，
+        /// 重建為購物車 DataTable（欄位 sno, pimage, pname, price, quantity, total, uname）並存入 Session["count"]。
+        /// sno 會重新由 1 開始編號，total 以 price × quantity 重新計算。
+        /// </summary>
         private void fillsavedCart()
         {
             DataTable dt = new DataTable();
@@ -69,6 +90,7 @@ namespace Website
             dt.Columns.Add("uname");
             
 
+            // 注意：字串串接 SQL，存在 SQL Injection 風險
             String myquery = "SELECT * from violet_cart where uname='" + Session["uname"].ToString() + "'";
             SqlCommand cmd = new SqlCommand();
             cmd.CommandText = myquery;
@@ -89,6 +111,7 @@ namespace Website
                     dr["pname"] = ds.Tables[0].Rows[i]["pname"].ToString();
                     dr["price"] = ds.Tables[0].Rows[i]["price"].ToString();
                     dr["quantity"] = ds.Tables[0].Rows[i]["quantity"].ToString();
+                    // violet_cart.uname 是買家；此處放入 DataTable 的 uname 欄在購物車頁顯示為「賣家」
                     dr["uname"] = ds.Tables[0].Rows[i]["uname"].ToString();
                     decimal price1 = Convert.ToDecimal(ds.Tables[0].Rows[i]["price"].ToString());
                     int quantity1 = Convert.ToInt16(ds.Tables[0].Rows[i]["quantity"].ToString());

@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="sellerSignIn.aspx.cs" Inherits="Website.sellerSignIn" %>
+<%-- 賣家登入：以 violet_user_login 驗證，僅設定 Session["user"]。目前選單中沒有連到此頁的連結。 --%>
 
 <!DOCTYPE html>
 

@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="index.aspx.cs" Inherits="Website.index" %>
+<%-- 首頁 / 商品目錄：左側排序與搜尋，右側 productsDisplay 顯示商品；下方 SqlDataSource1~5 由後置程式碼切換。 --%>
 
 <!DOCTYPE html>
 

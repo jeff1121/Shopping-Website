@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="login.aspx.cs" Inherits="Website.login" %>
+<%-- 會員登入：以使用者名稱或 Email + 密碼登入，成功後還原已儲存的購物車。 --%>
 
 <!DOCTYPE html>
 

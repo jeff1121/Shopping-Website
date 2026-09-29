@@ -13,14 +13,29 @@ using System.Web.UI.WebControls;
 
 namespace Website
 {
+    /// <summary>
+    /// 「會員個人資料」頁面（profile.aspx）的後置程式碼。
+    /// 功能：顯示與編輯個人資料（電話、地址、國家/州/城市）、顯示訂單歷史並以 iTextSharp 匯出 PDF；
+    /// uid &gt; 5000 的賣家額外顯示「上架商品」按鈕與自己的商品清單（可編輯/刪除）。
+    /// </summary>
     public partial class profile : System.Web.UI.Page
     {
-        //Connection
+        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
         readonly SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>目前登入帳號的 uid，&gt; 5000 視為賣家。</summary>
         int uid = 0000;
 
+        /// <summary>
+        /// 頁面載入事件：
+        /// 1. 已登入時更新頁首圖示（注意：此頁讀取的是 Session["count1"] 而非 Session["count"]，徽章會顯示 0）；
+        /// 2. 首次載入時讀取帳號資料填入表單並取得 uid；
+        /// 3. 依該會員姓名計算訂單數，無訂單時隱藏訂單面板；
+        /// 4. uid &gt; 5000 時顯示賣家專屬區塊；
+        /// 5. 預設停用所有輸入欄位。
+        /// </summary>
         protected void Page_Load(object sender, EventArgs e)
         {
+            // Session["user"] 不為 null 代表已登入
             if (Session["user"] != null)
             {
                 btnLogout.Visible = true;
@@ -55,6 +70,7 @@ namespace Website
                     txtUsername.Text = Session["user"].ToString();
                     txtPhone.Text = read["phone"].ToString();
                     txtDOB.Text = read["dob"].ToString();
+                    // 只保留日期字串前 10 碼（去掉時間部分，實際格式取決於伺服器區域設定）
                     txtDOB.Text = txtDOB.Text.Substring(0, 10);
                     selectCountry.Text = read["country"].ToString();
                     selectState.Text = read["state"].ToString();
@@ -66,6 +82,7 @@ namespace Website
                 con.Close();
             }
 
+            // 計算該會員的訂單數（字串串接 SQL，存在 SQL Injection 風險）
             String fetchCount = "SELECT COUNT(*) FROM violet_order WHERE uname='" + txtName.Text + "'";
             con.Open();
             SqlCommand cmd6 = new SqlCommand(fetchCount, con);
@@ -78,6 +95,7 @@ namespace Website
                 Label7.Text = "No Orders Have Been Placed";
             }
 
+            // 注意：uid 只在首次載入時讀取，PostBack 後為 0，賣家區塊會被隱藏
             if (uid > 5000)
             {
                 btnAddProduct.Visible = true;
@@ -91,6 +109,10 @@ namespace Website
 
             Submit.Visible = false;
         }
+        /// <summary>
+        /// 送出按鈕：將電話、地址、國家、州、城市更新回 violet_user_login。
+        /// 注意：SQL 以字串串接（SQL Injection 風險），且會用 Response.Write 將 SQL 內容輸出到頁面（除錯殘留）。
+        /// </summary>
         protected void Submit_Click(object sender, EventArgs e)
         {
             Update.Visible = true;
@@ -104,6 +126,9 @@ namespace Website
             con.Close();
         }
 
+        /// <summary>
+        /// 更新按鈕：切換為編輯模式，僅開放電話、地址、國家、州、城市可編輯，並顯示送出按鈕。
+        /// </summary>
         protected void Update_Click(object sender, EventArgs e)
         {
             Update.Visible = false;
@@ -120,12 +145,18 @@ namespace Website
 
         }
 
+        /// <summary>
+        /// 登出按鈕：清除 Session["user"] 後導回首頁。
+        /// </summary>
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             Session["user"] = null;
             Response.Redirect("~/index.aspx");
         }
 
+        /// <summary>
+        /// 停用表單中所有個人資料輸入欄位（唯讀模式）。
+        /// </summary>
         public void disableInput()
         {
             txtName.Enabled = false;
@@ -139,11 +170,18 @@ namespace Website
             selectState.Enabled = false;
         }
 
+        /// <summary>
+        /// 「上架商品」按鈕（僅賣家可見）：導向 addProducts.aspx。
+        /// </summary>
         protected void btnAddProduct_Click(object sender, EventArgs e)
         {
             Response.Redirect("~/addProducts.aspx");
         }
 
+        /// <summary>
+        /// 將訂單歷史面板 panelOrder 渲染成 HTML，再以 iTextSharp 的 HTMLWorker 轉成 A4 PDF，
+        /// 以附件 OrderInvoice.pdf 輸出給瀏覽器下載。HTMLWorker 已過時，故標記 [Obsolete]。
+        /// </summary>
         [Obsolete]
         private void exportpdf()
         {
@@ -164,17 +202,27 @@ namespace Website
             Response.End();
         }
 
+        /// <summary>
+        /// 訂單卡片上「Download PDF」按鈕的點擊事件：呼叫 <see cref="exportpdf"/> 匯出全部訂單。
+        /// </summary>
         [Obsolete]
         protected void DownloadPDF(object sender, EventArgs e)
         {
             exportpdf();
         }
 
+        /// <summary>
+        /// 覆寫此方法並留空，讓 panelOrder 能在 &lt;form runat="server"&gt; 之外被 RenderControl（匯出 PDF 所需）。
+        /// </summary>
         public override void VerifyRenderingInServerForm(Control control)
         {
             /* Verifies that the control is rendered */
         }
 
+        /// <summary>
+        /// 以程式碼載入賣家商品清單到 GridView1（目前未被呼叫，實際改由標記中的 SqlDataSource2 繫結）。
+        /// 無商品時顯示「No Products Added」並隱藏清單面板。
+        /// </summary>
         public void filldata()
         {
             String fetchCount = "SELECT COUNT(*) FROM violet_products WHERE uname='" + txtName.Text + "'";
@@ -200,6 +248,10 @@ namespace Website
             }
         }
 
+        /// <summary>
+        /// 賣家商品 GridView 每列繫結時觸發：替第 7 欄（Edit/Delete 指令欄）的第一個 LinkButton
+        /// 加上 JavaScript 確認對話框。注意：第一個按鈕實際上是「Edit」而非「Delete」。
+        /// </summary>
         protected void GridView1_RowDataBound(object sender, GridViewRowEventArgs e)
         {
             if (e.Row.RowType == DataControlRowType.DataRow)

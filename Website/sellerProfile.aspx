@@ -1,4 +1,5 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="sellerProfile.aspx.cs" Inherits="Website.sellerProfile" %>
+<%-- 賣家個人資料：僅 uid >= 5000 可停留，否則導向 profile.aspx；更新功能尚未完成。 --%>
 
 <!DOCTYPE html>
 
