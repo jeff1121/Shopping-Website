@@ -38,6 +38,14 @@ _Avoid_: test／prod 環境、上線（未指明階段時）
 環境中不可進入版控、且轉入正式營運時必須人工更換的值，例如資料庫帳號密碼、存取金鑰、寄信密碼。
 _Avoid_: 連線資訊、帳密（泛稱時）
 
+**部署身分（Deploy Identity）**：
+GitHub Actions 以 OIDC 登入 Azure 時使用的 Entra ID 應用程式身分（`gh-shopping-deploy`），只能部署資源，不能指派角色；不使用任何密碼或 client secret。
+_Avoid_: 服務帳號、SP（泛稱時）
+
+**一次性設定（Bootstrap）**：
+部署前只需執行一次、且不由 Bicep 管理的設定：Resource Group、部署身分、受控識別與其角色指派、GitHub Environment。由 `infra/bootstrap.sh` 完成，可重複執行；重建環境時必須先執行。
+_Avoid_: 初始化、前置作業（未指明內容時）
+
 ## Example dialogue
 
 > **開發者：** 「這個 migration 要在測試環境先跑嗎？」
