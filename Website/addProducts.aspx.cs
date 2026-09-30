@@ -23,7 +23,7 @@ namespace Website
     public partial class addProducts : System.Web.UI.Page
     {
         /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        SqlConnection con = Db.CreateConnection();
+        readonly SqlConnection con = Db.CreateConnection();
 
         /// <summary>
         /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時填入寫死的商品分類選項。

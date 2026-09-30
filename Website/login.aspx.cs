@@ -17,7 +17,7 @@ namespace Website
     public partial class login : System.Web.UI.Page
     {
         /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        SqlConnection con = Db.CreateConnection();
+        readonly SqlConnection con = Db.CreateConnection();
 
         /// <summary>
         /// 頁面載入事件：登入頁不需要額外初始化。

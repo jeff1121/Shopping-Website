@@ -18,7 +18,7 @@ namespace Website
     public partial class cart : System.Web.UI.Page
     {
         /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        SqlConnection con = Db.CreateConnection();
+        readonly SqlConnection con = Db.CreateConnection();
         /// <summary>
         /// 標記要加入的商品是否已存在於購物車（由 <see cref="checkdesignid"/> 設定）。
         /// 注意：為 static，會在所有使用者請求間共用。
