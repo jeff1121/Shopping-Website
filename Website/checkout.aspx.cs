@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -16,8 +17,8 @@ namespace Website
     /// </summary>
     public partial class checkout : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        readonly SqlConnection con = Db.CreateConnection();
 
         /// <summary>
         /// 頁面載入事件：已登入時更新頁首圖示與購物車徽章；首次載入時填入訂單明細、

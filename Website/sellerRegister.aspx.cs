@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -81,8 +82,8 @@ namespace Website
             // txtAddress 是 HTML textarea（runat=server），需讀取 Value
             String strAddress = txtAddress.Value;
 
-            //Connection（連線字串需在本機自行填入）
-            SqlConnection con = new SqlConnection(<enter your database connection>);
+            //Connection（透過 Db 從 Web.config 的 cmpConnectionString 讀取）
+            SqlConnection con = Db.CreateConnection();
 
             //Insertion
             SqlCommand cmd = new SqlCommand("INSERT INTO violet_user_login VALUES (@name, @email, @username, @password, @phone, @dob, @country, @state, @city, @gender, @address, @secq, @seca)", con);

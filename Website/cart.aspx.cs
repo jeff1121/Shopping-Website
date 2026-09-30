@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -16,8 +17,8 @@ namespace Website
     /// </summary>
     public partial class cart : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        readonly SqlConnection con = Db.CreateConnection();
         /// <summary>
         /// 標記要加入的商品是否已存在於購物車（由 <see cref="checkdesignid"/> 設定）。
         /// 注意：為 static，會在所有使用者請求間共用。

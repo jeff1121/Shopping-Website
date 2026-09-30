@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -19,8 +20,8 @@ namespace Website
     /// </remarks>
     public partial class sellerProfile : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        readonly SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        readonly SqlConnection con = Db.CreateConnection();
         /// <summary>目前登入帳號的 uid，用於判斷是否為賣家。</summary>
         int uid = 0000;
 

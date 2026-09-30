@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -71,8 +72,8 @@ namespace Website
         /// </remarks>
         protected void Submit_Click(object sender, EventArgs e)
         {
-            //Connection（連線字串需在本機自行填入）
-            SqlConnection con = new SqlConnection(<enter your database connection>);
+            //Connection（透過 Db 從 Web.config 的 cmpConnectionString 讀取）
+            SqlConnection con = Db.CreateConnection();
 
             SqlCommand cmd = new SqlCommand("SELECT password FROM violet_user_login WHERE username=@name OR email=@name", con);
             cmd.Parameters.AddWithValue("@name", txtName.Text);

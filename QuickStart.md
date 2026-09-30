@@ -1,7 +1,7 @@
 # QuickStart：安裝與啟動指南
 
 本文件說明如何從零開始，在本機把 Shopping Website（ASP.NET Web Forms + SQL Server）建置並執行起來。
-專案目前的原始碼**無法直接編譯**，需先完成下方「必要修正」章節中的步驟。
+專案已補齊建置所需檔案；開始前仍需設定本機資料庫連線字串。
 
 > 專案功能、架構與已知問題的完整說明請見 [README.md](README.md)。
 
@@ -32,8 +32,8 @@
 | IIS Express | 隨 Visual Studio 安裝 |
 | SQL Server | 2016 以上任一版本（Express / Developer / LocalDB 皆可） |
 | SQL 管理工具 | SQL Server Management Studio（SSMS）或 Azure Data Studio |
-| iTextSharp | 5.x（`itextsharp.dll`），供「訂單 PDF 匯出」使用 |
-| NuGet | 還原 `Microsoft.CodeDom.Providers.DotNetCompilerPlatform` 2.0.1 |
+| iTextSharp | 5.5.13.6（NuGet），供「訂單 PDF 匯出」使用 |
+| NuGet | 還原 `iTextSharp`、`BouncyCastle.Cryptography` 與 `Microsoft.CodeDom.Providers.DotNetCompilerPlatform` |
 
 ### macOS / Linux 使用者
 
@@ -216,26 +216,13 @@ GO
 | LocalDB | `Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=website;Integrated Security=True` |
 | Docker / SQL 驗證 | `Data Source=<主機>,1433;Initial Catalog=website;User ID=sa;Password=<你的強密碼>;TrustServerCertificate=True` |
 
-### 4.2 後置程式碼中的 12 個佔位字串
+### 4.2 後置程式碼的連線來源
 
-下列檔案含有無法編譯的佔位字串 `new SqlConnection(<enter your database connection>)`：
+12 個後置程式碼檔案已改由 `Website.Data.Db.CreateConnection()` 建立 `SqlConnection`，
+集中讀取 `Web.config` 的 `cmpConnectionString`。因此只需維護 Web.config 一處連線字串；
+請勿再把真實連線字串寫進 `.aspx.cs` 檔案。
 
-`addProducts.aspx.cs`、`cart.aspx.cs`、`checkout.aspx.cs`、`contact.aspx.cs`、`forgotpass.aspx.cs`、
-`index.aspx.cs`、`login.aspx.cs`、`profile.aspx.cs`、`register.aspx.cs`、`sellerProfile.aspx.cs`、
-`sellerRegister.aspx.cs`、`sellerSignIn.aspx.cs`
-
-**建議做法**：統一改為讀取 Web.config，之後只需維護一處（專案已參考 `System.Configuration`）：
-
-```csharp
-SqlConnection con = new SqlConnection(
-    System.Configuration.ConfigurationManager.ConnectionStrings["cmpConnectionString"].ConnectionString);
-```
-
-在 Visual Studio 中可用「在檔案中取代」（`Ctrl+Shift+H`）一次完成：
-
-- 尋找：`<enter your database connection>`
-- 取代為：`System.Configuration.ConfigurationManager.ConnectionStrings["cmpConnectionString"].ConnectionString`
-- 範圍：`Website` 資料夾，檔案類型 `*.cs`
+`Website.Data.Db.CreateMigratorConnection()` 會讀取 `migratorConnectionString`，供後續資料庫遷移工具使用。
 
 > 🔒 請勿將含有真實帳號密碼的連線字串提交到版本控制。
 
@@ -243,7 +230,7 @@ SqlConnection con = new SqlConnection(
 
 ## 5. 必要修正（建置前）
 
-以下項目在 Repo 中缺漏，不處理會導致建置失敗或功能異常。
+以下項目已在專案中補齊；保留本節供檢查與疑難排解。
 
 ### 5.0 版控與專案檔現況（先確認）
 
@@ -253,11 +240,11 @@ SqlConnection con = new SqlConnection(
 - `Website/img/products/apple.png`、`Website/img/products/appol.png`、`Website/img/products/img2.png`、
   `Website/img/products/human99/laptop.png` 已在 Git 中，但未列入 `Website.csproj` 的 `<Content Include>`；
   以 Web Application 專案發佈時若需要這些圖片，請在 Visual Studio 將它們加入專案。
-- `Website/css/style.css` 與 `Website/Properties/AssemblyInfo.cs` 被 `Website.csproj` 引用，但不在 Git 中。
+- `Website/css/style.css` 與 `Website/Properties/AssemblyInfo.cs` 已列入專案並應隨原始碼取得。
 
-### 5.1 缺少 `Properties/AssemblyInfo.cs`（建置失敗）
+### 5.1 `Properties/AssemblyInfo.cs`
 
-`Website.csproj` 引用了 `Properties\AssemblyInfo.cs`，但 Repo 中沒有此檔。擇一處理：
+`Website.csproj` 引用的 `Properties\AssemblyInfo.cs` 已納入專案，內容包含版本資訊與 CI 可替換的 `AssemblyInformationalVersion`。若檔案遺失，可依下列最小內容重建：
 
 - 建立 `Website/Properties/AssemblyInfo.cs`，最少內容：
 
@@ -271,24 +258,23 @@ SqlConnection con = new SqlConnection(
   [assembly: AssemblyFileVersion("1.0.0.0")]
   ```
 
-- 或在 Visual Studio 方案總管中，將顯示為遺失的 `AssemblyInfo.cs` 從專案中移除。
+### 5.2 iTextSharp NuGet 參考
 
-### 5.2 iTextSharp 參考路徑（建置失敗）
+`Website.csproj` 已改用 NuGet 還原的 iTextSharp 與 BouncyCastle.Cryptography：
 
-`Website.csproj` 中 iTextSharp 的 `HintPath` 指向原作者電腦上的 `..\..\..\..\Files\OrderInvoice\itextsharp.dll`。擇一處理：
+- `..\packages\iTextSharp.5.5.13.6\lib\net461\itextsharp.dll`
+- `..\packages\BouncyCastle.Cryptography.2.6.2\lib\net461\BouncyCastle.Cryptography.dll`
 
-- 透過 NuGet 安裝：套件管理器主控台執行 `Install-Package iTextSharp -Version 5.5.13.3`，再移除舊的 `itextsharp` 參考；
-- 或將 `itextsharp.dll` 放到專案可存取的位置，於「參考」中重新加入。
+若 Visual Studio 顯示找不到 `iTextSharp` 命名空間，請先執行 NuGet 還原。
 
-### 5.3 缺少 `css/style.css`（僅影響外觀）
+### 5.3 `css/style.css`
 
-所有頁面都以 `<link href="css/style.css">` 引用共用樣式，但此檔未納入版控。網站仍可執行，
-只是會失去共用樣式（各頁的內嵌 `<style>` 與 inline style 仍有效）。可自行建立空白的
-`Website/css/style.css` 以消除 404。
+所有頁面都以 `<link href="css/style.css">` 引用共用樣式；此檔已納入專案，僅提供中性基礎樣式，
+各頁的內嵌 `<style>` 與 inline style 仍是主要版面來源。
 
 ### 5.4 NuGet 還原
 
-`packages/` 已簽入 Roslyn 編譯器套件，一般不需額外動作。若出現 `csc.exe` 找不到之類的錯誤，
+`packages/` 可由 NuGet 還原取得。若出現 `csc.exe`、`itextsharp.dll` 或 `BouncyCastle.Cryptography.dll` 找不到之類的錯誤，
 在方案上按右鍵執行「還原 NuGet 套件」，或於命令列執行：
 
 ```powershell
@@ -408,9 +394,9 @@ msbuild Website.sln /p:Configuration=Debug
 
 | 症狀 | 原因與解法 |
 | --- | --- |
-| 編譯錯誤 `CS1525: Invalid expression term '<'` | 尚未替換 12 個 `<enter your database connection>` 佔位字串，見 4.2 |
-| 編譯錯誤 `CS2001: Source file 'Properties\AssemblyInfo.cs' could not be found` | 見 5.1 |
-| 找不到 `iTextSharp` 命名空間 | 見 5.2 |
+| 編譯錯誤 `CS1525: Invalid expression term '<'` | 工作區仍殘留舊版連線佔位字串，請同步最新程式碼並見 4.2 |
+| 編譯錯誤 `CS2001: Source file 'Properties\AssemblyInfo.cs' could not be found` | 確認 `Website/Properties/AssemblyInfo.cs` 存在，見 5.1 |
+| 找不到 `iTextSharp` 命名空間 | 請執行 NuGet 還原，見 5.2 |
 | `Format of the initialization string does not conform to specification` | `Web.config` 仍是 `Add connection string here`，見 4.1 |
 | `Invalid object name 'violet_xxx'` | 資料表未建立或連到錯誤的資料庫，見第 3 節 |
 | `Column name or number of supplied values does not match table definition` | 賣家註冊或上架商品的位置式 INSERT 欄位數不符，見第 7 節 |
