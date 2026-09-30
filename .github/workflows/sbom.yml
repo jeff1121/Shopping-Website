@@ -56,7 +56,16 @@ jobs:
       - name: 取得 GitHub 相依圖 SBOM（含 NuGet）
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" --jq .sbom > sbom-dependency-graph.spdx.json
+        # 此 API 偶爾回傳 HTTP 500（產生逾時），最多重試 3 次
+        run: |
+          for attempt in 1 2 3; do
+            if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" --jq .sbom > sbom-dependency-graph.spdx.json; then
+              exit 0
+            fi
+            echo "::warning::取得相依圖 SBOM 失敗（第 ${attempt} 次），$((attempt * 20)) 秒後重試"
+            sleep $((attempt * 20))
+          done
+          exit 1
 
       - name: 漏洞比對（Grype，Syft SBOM）
         id: grype
