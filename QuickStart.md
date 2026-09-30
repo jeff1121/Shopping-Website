@@ -66,9 +66,10 @@ Shopping-Website/
 ├── DbSql.sql                # 原始資料庫腳本（已過時，僅供參考）
 ├── QuickStart.md            # 本文件
 ├── README.md                # 專案說明
-├── packages/                # 已簽入的 NuGet 套件（Roslyn 編譯器）
+├── .github/workflows/       # CI：Lint、CodeQL、SBOM、建置等
 └── Website/                 # Web Forms 網站專案
     ├── *.aspx / *.aspx.cs   # 頁面與後置程式碼
+    ├── Data/Db.cs           # 後置程式碼集中建立 SQL 連線
     ├── Web.config           # 連線字串與編譯設定
     ├── Website.csproj       # 專案檔（舊式格式）
     └── img/                 # 靜態圖片與商品圖片
@@ -194,11 +195,11 @@ GO
 
 ## 4. 設定連線字串
 
-本專案有**兩處**需要設定連線字串，兩處都必須完成：
+本專案只需在 `Website/Web.config` 設定連線字串；後置程式碼會透過 `Website.Data.Db` 讀取同一份設定，不需要修改 `.aspx.cs`。本機執行至少要填入 `cmpConnectionString`。
 
 ### 4.1 `Website/Web.config`
 
-供頁面中的 `asp:SqlDataSource`（商品清單、搜尋、排序、分類、訂單歷史、賣家商品管理）使用：
+供頁面中的 `asp:SqlDataSource` 與後置程式碼（商品清單、搜尋、排序、分類、訂單歷史、賣家商品管理等）使用：
 
 ```xml
 <connectionStrings>
@@ -274,7 +275,7 @@ GO
 
 ### 5.4 NuGet 還原
 
-`packages/` 可由 NuGet 還原取得。若出現 `csc.exe`、`itextsharp.dll` 或 `BouncyCastle.Cryptography.dll` 找不到之類的錯誤，
+NuGet 還原會取得 iTextSharp、BouncyCastle.Cryptography 與 Roslyn 編譯器套件。若出現 `csc.exe`、`itextsharp.dll` 或 `BouncyCastle.Cryptography.dll` 找不到之類的錯誤，
 在方案上按右鍵執行「還原 NuGet 套件」，或於命令列執行：
 
 ```powershell
@@ -302,6 +303,10 @@ msbuild Website.sln /p:Configuration=Debug
 ```
 
 之後瀏覽 `http://localhost:8080/index.aspx`。
+
+### GitHub Actions 建置產物
+
+每次 PR 與 `main` push 都會執行「建置」workflow：在 Windows runner 還原 NuGet、以 MSBuild 發行網站、壓縮成 `site.zip`，並產生部署套件 SBOM。可在 GitHub Actions 的對應 workflow run 下載 `site` artifact 取得 `site.zip`。
 
 ---
 

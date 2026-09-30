@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.1（決策已確認；M1 已完成）**
+> 文件狀態：**v1.2（決策已確認；M2 已完成）**
 > 最後更新：2026-09-30
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -86,14 +86,14 @@
 | 項目 | 現況 | 影響 |
 | --- | --- | --- |
 | 框架 | .NET Framework 4.7.2、舊式 Web Application Project（`Website.csproj`） | CI 必須用 `windows-latest` 與 MSBuild；App Service 必須是 **Windows** |
-| 可建置性 | **目前無法編譯** | M2 處理 |
-| 連線字串 | 12 個後置程式碼含 `new SqlConnection(<enter your database connection>)`（`about`、`blog`、`categories` 以外的頁面）；`Web.config` 的 `cmpConnectionString` 為 `"Add connection string here"`；`asp:SqlDataSource` 以 `<%$ ConnectionStrings:cmpConnectionString %>` 讀取 | 外部化必須同時處理**程式碼**與 **`Web.config`** |
+| 可建置性 | **可在 Windows + MSBuild 編譯與發行**；本機執行仍需填入連線字串 | M2 已完成，PR #9 驗證 `site.zip` 產出 |
+| 連線字串 | 12 個後置程式碼已改由 `Website.Data.Db.CreateConnection()` 讀取 `cmpConnectionString`；`CreateMigratorConnection()` 讀取 `migratorConnectionString`；`Web.config` 兩者仍為 placeholder | 本機執行需填入 `cmpConnectionString`；M3 仍需導入環境變數替換與敏感設定外部化 |
 | 寄信 | `forgotpass.aspx.cs` 寫死 `smtp.gmail.com:587` 與佔位帳密，並以明碼寄出原密碼 | M3 外部化設定；M7 改成重設密碼連結 |
 | 圖片上傳 | `addProducts.aspx.cs` 以 `Server.MapPath("~/img/products/<Session["user"]>/")` 寫入網站目錄，`pimage` 存相對路徑 | M3 改寫到 Blob |
 | 預設圖 | `index.aspx` 的 `onerror` 退回 `img/products/human.png` | 此檔必須保留在部署套件中 |
-| PDF | `profile.aspx.cs` 以 iTextSharp `HTMLWorker` 將訂單表格轉 PDF，寫入 `Response.OutputStream`；參考路徑為原作者本機 | M2 改用 NuGet |
+| PDF | `profile.aspx.cs` 以 iTextSharp `HTMLWorker` 將訂單表格轉 PDF，寫入 `Response.OutputStream`；iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 由 NuGet 還原 | M2 已完成 |
 | `Global.asax` | **不存在** | M5 需新增以執行啟動 migration |
-| 缺少檔案 | `Properties/AssemblyInfo.cs`、`css/style.css` 被 csproj 參考但不在 Repo | 前者造成建置失敗 |
+| 缺少檔案 | `Properties/AssemblyInfo.cs`、`css/style.css` 已補入並列入專案 | M2 已完成 |
 | 版控 | 無 `.gitignore`；`packages/`、`Website.csproj.user` 已被追蹤 | M1 處理 |
 | 測試 | 無自動化測試 | 以建置成功 + 部署後冒煙測試作為品質閘門 |
 | Repo 可見性 | Public | CodeQL、Secret Scanning、Dependency Review、Scorecard **免費可用** |
@@ -191,6 +191,7 @@ flowchart LR
 - 觸發：`push`（`main`）、`pull_request`（僅產生與比對，不簽章）、`workflow_dispatch`。
 - 另外在 Repo → Insights → Dependency graph 啟用內建 **Export SBOM**。
 - 部署套件 SBOM 見 [7.3](#73-部署套件-sbom)。
+- 相依圖 SBOM API 偶爾回傳 HTTP 500；`sbom.yml` 已加入最多 3 次重試。
 
 ### 6.3 其他 CI 與治理
 
@@ -215,12 +216,13 @@ flowchart LR
 | 規則 | 設定 |
 | --- | --- |
 | 需經 PR 才能合併 | 是；**必要核准數 0**（單人維護，GitHub 不允許核准自己的 PR） |
-| 必要狀態檢查 | `建置`、`CodeQL`、`相依套件審查`、`Lint`（M2 之後加入 `建置`） |
+| 必要狀態檢查 | `建置`、`CodeQL`、`相依套件審查`、`Lint` |
 | Code scanning 合併保護 | 工具 `CodeQL`：安全警示 **High or higher**、一般警示 **Errors**（只針對 PR 新增的警示） |
+| 需解決 Review thread | 是；CodeQL 在 PR 留下的新警示留言（即使是 `note` 等級）會形成 Review thread，修正後會自動 resolved；若不修程式則需人工 resolve，否則無法合併 |
 | 禁止 | force push、刪除分支 |
 | 合併方式 | 僅允許 Squash merge，PR 標題即 Commit 訊息（繁體中文） |
 
-**M1 完成狀態（2026-09-30）**：PR #1、#3 已合併；首次掃描的既有警示已開 Issue（安全 #4～#6、品質 #7）。Scorecard 仍有 Code-Review、Branch-Protection（單人維護、核准數 0 的取捨）、Maintained（Repo 建立未滿 90 天）、Fuzzing、CII-Best-Practices 未達標，屬已知且接受。Dependabot PR #2（CodeDom 套件）待 M2 建置 CI 完成後處理。
+**M1 完成狀態（2026-09-30）**：PR #1、#3 已合併；首次掃描的既有警示已開 Issue（安全 #4～#6、品質 #7）。Scorecard 仍有 Code-Review、Branch-Protection（單人維護、核准數 0 的取捨）、Maintained（Repo 建立未滿 90 天）、Fuzzing、CII-Best-Practices 未達標，屬已知且接受。Dependabot PR #2 待建置 CI 綠燈後由另一分支處理。
 
 另有 Ruleset「保護 Demo 基準分支」鎖定 `demo/pre-implementation`（禁止更新、force push、刪除），保存開工前狀態供重複 Demo 使用。
 
@@ -232,11 +234,11 @@ flowchart LR
 
 | # | 工作 | 內容 |
 | --- | --- | --- |
-| 2-1 | 補 `Website/Properties/AssemblyInfo.cs` | 標準範本；`AssemblyVersion("1.0.0.0")`；`AssemblyInformationalVersion` 由 CI 以 `/p:InformationalVersion` 或檔案替換注入 `1.0.<run_number>+<短 SHA>` |
-| 2-2 | 補 `Website/css/style.css` | 最小檔案（共用樣式），避免部署缺檔與 404 |
-| 2-3 | iTextSharp 改 NuGet | `packages.config` 加入 `iTextSharp` `5.5.13.4`（或當時最新 5.5.13.x）；`Website.csproj` 的 `HintPath` 改為 `..\packages\iTextSharp.5.5.13.4\lib\itextsharp.dll`；`profile.aspx.cs` 不需修改 |
-| 2-4 | 暫時性編譯修正 | 12 處 `<enter your database connection>` 在 M3 才正式替換；若 M2 需先綠燈，則直接進行 M3 的 3-2 替換 |
-| 2-5 | README 授權說明 | 新增「第三方授權」段落：iTextSharp 5 為 AGPL-3.0 |
+| 2-1 | 補 `Website/Properties/AssemblyInfo.cs` | 已新增標準組件資訊；`AssemblyInformationalVersion` 來源碼固定為 `1.0.0-local`，CI 建置時替換為 `1.0.<run_number>+<短 SHA>` |
+| 2-2 | 補 `Website/css/style.css` | 已新增最小共用樣式，避免部署缺檔與 404 |
+| 2-3 | iTextSharp 改 NuGet | 已改由 NuGet 還原 `iTextSharp` 5.5.13.6 與 `BouncyCastle.Cryptography` 2.6.2（`lib/net461`）；`profile.aspx.cs` 維持既有 API |
+| 2-4 | 暫時性編譯修正 | 已提前完成 M3 的 3-1、3-2：新增 `Website.Data.Db`，12 處連線欄位改為 `readonly SqlConnection con = Db.CreateConnection();` |
+| 2-5 | README 授權說明 | 已新增「第三方授權」段落，註明 iTextSharp 5 授權與 BouncyCastle.Cryptography 相依套件 |
 
 ### 7.2 建置 CI（`.github/workflows/build.yml`）
 
@@ -245,15 +247,17 @@ flowchart LR
 | Runner | `windows-latest` |
 | 工具 | `microsoft/setup-msbuild`、`nuget/setup-nuget` |
 | 還原 | `nuget restore Website.sln` |
-| 建置與發行 | `msbuild Website\Website.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishUrl=<暫存目錄> /p:DeleteExistingFiles=true` |
-| 排除 | 發行結果刪除 `img/products/*/`（賣家子目錄，改由 Blob 提供），**保留** `img/products/human.png`（`index.aspx` 的預設圖） |
-| 打包 | 將發行目錄壓縮為 `site.zip` |
+| 建置與發行 | `msbuild Website\Website.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:DeployDefaultTarget=WebPublish /p:WebPublishMethod=FileSystem /p:PublishUrl=<暫存目錄> /p:DeleteExistingFiles=true /p:PublishProvider=FileSystem /m /nologo /v:minimal` |
+| 排除 | 發行結果刪除 `img/products/*/`（賣家子目錄，改由 Blob 提供），**保留** `img/products/human.png`（`index.aspx` 的預設圖）；同時檢查 `bin/Website.dll`、`Web.config`、`index.aspx` 等必要檔案 |
+| 打包 | 先以 XML 檢查 Release `Web.config` 的 `compilation` 不含 `debug="true"`，再將發行目錄壓縮為 `site.zip` |
 | 上傳 | `actions/upload-artifact`：`site.zip`（保留 30 天） |
 | 觸發 | `pull_request`、`push`（`main`）；`deploy.yml` 以 `workflow_call` 重用 |
 
 ### 7.3 部署套件 SBOM
 
-在 `build.yml` 產生 `site.zip` 後：Syft 掃描發行目錄（含 `bin/*.dll`）→ 產出 `sbom-package.spdx.json`、`sbom-package.cdx.json` → Grype 比對（分類 `grype-package`）→ `push main` 時以 `actions/attest-sbom` 對 `site.zip` 簽章，並以 `actions/attest-build-provenance` 產生建置來源證明。
+`build.yml` 採兩個 job：Windows `建置` job 產生 `site.zip`（artifact `site`，保留 30 天）；Ubuntu `部署套件 SBOM` job 下載並展開套件，由 Syft 掃描發行目錄（含 `bin/*.dll`），產出 `sbom-package.spdx.json`、`sbom-package.cdx.json`（artifact `sbom-package`，保留 90 天），Grype 比對並以 `grype-package` 分類上傳 SARIF（不阻擋）。非 PR 時會以 `actions/attest-sbom` 對 `site.zip` 簽章，並以 `actions/attest-build-provenance` 產生建置來源證明。
+
+**M2 完成狀態（2026-09-30）**：PR #9 已合併。專案可由 Windows runner 還原 NuGet、建置並以 WebPublish 輸出 `site.zip`；首次 CI 建置成功，套件內確認包含 `bin/Website.dll`、`itextsharp.dll`、`BouncyCastle.Cryptography.dll`、Roslyn 與 `css/style.css`。M2 同時提前完成 M3 的 3-1、3-2，並將 `建置` 加入 `main` Ruleset 必要檢查。
 
 ---
 
@@ -311,8 +315,8 @@ flowchart LR
 
 | # | 工作 | 內容 |
 | --- | --- | --- |
-| 3-1 | 新增 `Website/Data/Db.cs` | 靜態類別 `Db`：`CreateConnection()` 回傳 `new SqlConnection(ConfigurationManager.ConnectionStrings["cmpConnectionString"].ConnectionString)`；`CreateMigratorConnection()` 同理。放在 `Website/Data/` 並加入 `Website.csproj` 的 `<Compile Include>`（**不要**放 `App_Code`，Web Application Project 會重複編譯） |
-| 3-2 | 替換 12 處連線 | 12 個後置程式碼的 `con` 欄位改為 `Db.CreateConnection()`；**不改變**既有 SQL 與流程 |
+| 3-1 | 新增 `Website/Data/Db.cs` | **已於 M2 完成**：命名空間 `Website.Data`，靜態類別 `Db` 提供 `CreateConnection()` 與 `CreateMigratorConnection()`；分別讀取 `cmpConnectionString` 與 `migratorConnectionString`，設定缺漏時拋出 `ConfigurationErrorsException`；已加入 `Website.csproj` 的 `<Compile Include>`，且 `Web.config` 已新增 migrator 連線 placeholder |
+| 3-2 | 替換 12 處連線 | **已於 M2 完成**：12 個後置程式碼的 `con` 欄位改為 `readonly SqlConnection con = Db.CreateConnection();`；未改變既有 SQL 與流程 |
 | 3-3 | 新增 `Website/Config/AppSettings.cs` | 集中讀取 `SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`；提供 `Validate()`，列出仍含 `${` 的設定**名稱**（不輸出值），在 `Application_Start` 呼叫，缺漏時寫入 Application Insights 並拋出明確錯誤 |
 | 3-4 | 寄信外部化 | `forgotpass.aspx.cs` 改讀 `AppSettings` 的 SMTP 設定與寄件者 `SMTP_FROM`（ACS 要求寄件者必須是已連結網域的位址，如 `DoNotReply@xxxxxxxx.azurecomm.net`）；`EnableSsl = true`（STARTTLS 587） |
 | 3-5 | 圖片上傳改 Blob | 新增 NuGet `Azure.Storage.Blobs`、`Azure.Identity`（皆支援 .NET Framework 4.7.2）；新增 `Website/Data/ImageStore.cs`：以 `DefaultAzureCredential`（App Service 上即為系統受控識別）建立 `BlobContainerClient`，上傳路徑 `products/<賣家帳號>/<Guid>.<副檔名>`，設定 `Content-Type`，回傳 `IMAGE_BASE_URL + "/products/<賣家帳號>/<檔名>"`；`addProducts.aspx.cs` 改呼叫此類別，`pimage` 寫入完整網址 |
@@ -631,3 +635,4 @@ infra/
 | v0.2 | 2026-09-30 | 校正 OIDC subject 大小寫、Configuration Builders 3.x 注意事項、PDF `HTMLWorker` 影響、圖片上傳與 slot swap 衝突；新增待討論問題 |
 | v1.0 | 2026-09-30 | 依逐題討論結果定案：單一環境、East Asia + B1、Bicep 建立 Azure SQL、Key Vault、兩個 SQL 帳號與 deploymentScript、App 啟動時 DbUp migration、示範資料入 migration、商品圖片改 Blob + Front Door、ACS Email（SMTP）、iTextSharp NuGet、PR 只擋新增 High／Critical、完整 SBOM；新增 M7 安全修正與 M8 轉入正式營運、權限矩陣、成本估算；新增 CONTEXT.md 與 ADR |
 | v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；Syft 不解析 `packages.config`，改加 GitHub 相依圖 SBOM；markdownlint 關閉 MD013、MD033 |
+| v1.2 | 2026-09-30 | M2 完成：補齊建置缺檔、iTextSharp 改 NuGet、提前導入 `Website.Data.Db` 與連線 placeholder、加入 `build.yml` 產出 `site.zip` 與部署套件 SBOM；Ruleset 新增 `建置` 必要檢查與 review thread resolution 注意事項 |
