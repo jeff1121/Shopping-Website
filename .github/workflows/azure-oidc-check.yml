@@ -1,0 +1,55 @@
+# Azure OIDC 驗證（Plan.md §9.4）：確認 GitHub Environment `azure` 可經 OIDC 登入 Azure，
+# 並檢查 bootstrap 建立的 Resource Group、受控識別與部署身分角色是否就緒。
+name: Azure OIDC 驗證
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/azure-oidc-check.yml
+      - infra/bootstrap.sh
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: OIDC 登入檢查
+    # Fork 的 PR 無法取得 OIDC token，也不能使用 Environment 設定，直接略過。
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: azure
+    permissions:
+      id-token: write
+    steps:
+      - name: 登入 Azure（OIDC）
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 檢查 bootstrap 資源
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          SQL_ADMIN_LOGIN: ${{ vars.SQL_ADMIN_LOGIN }}
+          SQL_ADMIN_PASSWORD_SET: ${{ secrets.SQL_ADMIN_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          az group show -n "$RESOURCE_GROUP" --query "{name:name,location:location}" -o table
+          az identity list -g "$RESOURCE_GROUP" --query "[].name" -o tsv | sort | tee identities.txt
+          grep -qx id-shopping-web identities.txt
+          grep -qx id-shopping-deployscript identities.txt
+          roles=$(az role assignment list --assignee "$CLIENT_ID" -g "$RESOURCE_GROUP" --query "[].roleDefinitionName" -o tsv)
+          echo "$roles"
+          grep -qx Contributor <<<"$roles"
+          grep -qx "Storage Blob Data Contributor" <<<"$roles"
+          test -n "$SQL_ADMIN_LOGIN"
+          test "$SQL_ADMIN_PASSWORD_SET" = true
+          echo "::notice::OIDC 登入與 bootstrap 資源檢查通過"
