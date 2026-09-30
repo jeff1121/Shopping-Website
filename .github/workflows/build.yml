@@ -99,8 +99,10 @@ jobs:
             }
           }
 
-          $webConfig = Get-Content (Join-Path $publishDir 'Web.config') -Raw
-          if ($webConfig -match 'debug\s*=\s*["'']true["'']') {
+          # 以 XML 檢查 compilation 元素（註解中的 debug 字樣不影響判斷）
+          [xml]$webConfig = Get-Content (Join-Path $publishDir 'Web.config') -Raw
+          $compilation = $webConfig.configuration.'system.web'.compilation
+          if ($compilation -and $compilation.GetAttribute('debug') -eq 'true') {
             throw 'Release 發行結果的 Web.config 仍含 debug="true"。'
           }
 
