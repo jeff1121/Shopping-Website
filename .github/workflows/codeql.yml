@@ -1,0 +1,52 @@
+# CodeQL 品質掃描與安全掃描（Plan.md §6.1）
+# 同一次分析同時產出安全警示（security-severity）與程式碼品質警示（severity）。
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 每週一 02:00（台灣時間）= 週日 18:00 UTC
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: 分析 (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # actions：同時掃描 workflow 本身
+        language: [csharp, actions]
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 初始化 CodeQL
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: ${{ matrix.language }}
+          # C# 不需編譯即可分析，專案尚無法建置（M2 前）也能運作
+          build-mode: none
+          queries: security-and-quality
+
+      - name: 執行分析
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          category: /language:${{ matrix.language }}

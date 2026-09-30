@@ -60,7 +60,7 @@ cd Shopping-Website
 
 目錄重點：
 
-```
+```text
 Shopping-Website/
 ├── Website.sln              # Visual Studio 方案檔
 ├── DbSql.sql                # 原始資料庫腳本（已過時，僅供參考）

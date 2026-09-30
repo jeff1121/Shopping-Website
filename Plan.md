@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.0（決策已確認）**
+> 文件狀態：**v1.1（決策已確認，M1 實作中）**
 > 最後更新：2026-09-30
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -184,8 +184,8 @@ flowchart LR
 | 步驟 | 工具 | 產出 |
 | --- | --- | --- |
 | 產生 | `anchore/sbom-action`（Syft），掃描 Repo（含 `Website/packages.config`） | `sbom-source.spdx.json`、`sbom-source.cdx.json` |
-| 漏洞比對 | `anchore/scan-action`（Grype），輸入 SBOM，`severity-cutoff: high` | SARIF 上傳至 Code scanning（分類 `grype-source`） |
-| 簽章 | `actions/attest-sbom`（需 `id-token: write`、`attestations: write`） | 可用 `gh attestation verify` 驗證 |
+| 漏洞比對 | `anchore/scan-action`（Grype），輸入 SBOM，`severity-cutoff: high`、`fail-build: false`（試運行期間只回報；新增的高風險套件由 Dependency Review 在 PR 阻擋） | SARIF 上傳至 Code scanning（分類 `grype-source`） |
+| 簽章 | `actions/attest-sbom`，主體為 `git archive` 產生的 `source-<sha>.tar.gz`（需 `id-token: write`、`attestations: write`） | 可用 `gh attestation verify source-<sha>.tar.gz -R jeff1121/Shopping-Website` 驗證 |
 | 保存 | `actions/upload-artifact`，`retention-days: 90` | — |
 
 - 觸發：`push`（`main`）、`pull_request`（僅產生與比對，不簽章）、`workflow_dispatch`。
@@ -197,13 +197,13 @@ flowchart LR
 | # | 項目 | 檔案／設定 | 內容 |
 | --- | --- | --- | --- |
 | 1-1 | `.gitignore` | `.gitignore` | Visual Studio 範本；排除 `bin/`、`obj/`、`packages/`、`*.user`、`.vs/`、`secrets.xml` |
-| 1-2 | 移出已追蹤的產物 | `git rm -r --cached packages Website/Website.csproj.user` | 改由 NuGet 還原 |
-| 1-3 | `.editorconfig` | `.editorconfig` | `charset = utf-8-bom`、`end_of_line = crlf`（`.cs`、`.aspx`、`.config`、`.csproj`）；`.md`、`.yml`、`.bicep` 使用 `utf-8` + `lf` |
-| 1-4 | `.gitattributes` | `.gitattributes` | 固定上述行尾，避免跨平台變動 |
+| 1-2 | 移出已追蹤的產物 | `git rm -r --cached packages Website/obj Website/Website.csproj.user` | 改由 NuGet 還原；`img/products/human99/laptop.png` 仍保留追蹤（示範圖片） |
+| 1-3 | `.editorconfig` | `.editorconfig` | `.cs`、`.aspx`、`.csproj`、`.sln`：`utf-8-bom` + `crlf`；`.config`、`.sql`：`crlf`（不強制 BOM，沿用現況）；上述舊檔不檢查行尾空白與檔尾換行，避免純空白 diff；其餘（`.md`、`.yml`、`.bicep` 等）：`utf-8` + `lf`，全部規則皆檢查 |
+| 1-4 | `.gitattributes` | `.gitattributes` | 預設 `text=auto eol=lf`；CRLF 檔案類型設為 `-text`（Git 原樣保存、不轉換，避免整檔改寫）；圖片等設為 `binary` |
 | 1-5 | Dependabot | `.github/dependabot.yml` | `nuget`（目錄 `/Website`）與 `github-actions`（目錄 `/`）；每週一；各自合併成一個群組 PR；Commit 前綴為繁中 `相依套件：` |
 | 1-6 | Dependency Review | `.github/workflows/dependency-review.yml` | `fail-on-severity: high`；`deny-licenses: GPL-2.0-only, GPL-3.0-only, AGPL-3.0-only, AGPL-3.0-or-later`；`allow-dependencies-licenses: pkg:nuget/iTextSharp`（D12 例外）；PR 留言摘要 |
 | 1-7 | Secret Scanning + Push Protection | Repo → Settings → Code security | 全部啟用；另新增自訂樣式：`(?i)Password\s*=\s*[^;$\s{]+`（排除 `${...}` 權杖） |
-| 1-8 | Lint | `.github/workflows/lint.yml` | `markdownlint-cli2`（`*.md`）；編碼／行尾檢查腳本（依 `.editorconfig`，用 `editorconfig-checker`）；`sqlfluff lint --dialect tsql`（`db/`）；`actionlint`（workflow） |
+| 1-8 | Lint | `.github/workflows/lint.yml`、`.markdownlint-cli2.jsonc` | `markdownlint-cli2`（`**/*.md`；關閉 MD013 行長、MD033 HTML）；`editorconfig-checker`（依 `.editorconfig`）；`sqlfluff lint --dialect tsql`（`db/`、`Website/Migrations/`，目錄不存在時略過；舊 `DbSql.sql` 不檢查）；`actionlint`（下載腳本固定於 commit SHA） |
 | 1-9 | OpenSSF Scorecard | `.github/workflows/scorecard.yml` | 每週與 `push main`；結果上傳 Code scanning，並開啟 `publish_results` 取得徽章 |
 | 1-10 | Workflow 加固 | 所有 workflow | 所有第三方 Action 固定到 **commit SHA**（註解標示版本，Dependabot 會更新）；頂層 `permissions: {}`，逐 job 給最小權限；`concurrency` 取消同分支舊的執行 |
 | 1-11 | 分支規則（Ruleset） | Repo → Settings → Rules | 見下表 |
@@ -294,7 +294,7 @@ flowchart LR
 </appSettings>
 ```
 
-**注意事項**
+#### 注意事項
 
 - `mode="Token"` 是 3.x 語法（2.x 的 `Expand` 模式已移除）。環境變數未設定時，`${名稱}` 會**原樣保留**、不會報錯，因此需要 8.2 的啟動檢查。
 - 權杖是直接字串替換：密碼**不可含 `;`**。Bicep 產生的密碼字元集會排除 `;`、`'`、`"`、`{`、`}`。
@@ -323,7 +323,7 @@ flowchart LR
 
 ### 9.1 目錄結構
 
-```
+```text
 infra/
 ├── main.bicep                 # 進入點（targetScope = resourceGroup）
 ├── main.bicepparam            # 參數檔（不含任何密碼）
@@ -625,3 +625,4 @@ infra/
 | v0.1 | 2026-09-30 | 初版：決策 D1～D12 待確認、七個階段 |
 | v0.2 | 2026-09-30 | 校正 OIDC subject 大小寫、Configuration Builders 3.x 注意事項、PDF `HTMLWorker` 影響、圖片上傳與 slot swap 衝突；新增待討論問題 |
 | v1.0 | 2026-09-30 | 依逐題討論結果定案：單一環境、East Asia + B1、Bicep 建立 Azure SQL、Key Vault、兩個 SQL 帳號與 deploymentScript、App 啟動時 DbUp migration、示範資料入 migration、商品圖片改 Blob + Front Door、ACS Email（SMTP）、iTextSharp NuGet、PR 只擋新增 High／Critical、完整 SBOM；新增 M7 安全修正與 M8 轉入正式營運、權限矩陣、成本估算；新增 CONTEXT.md 與 ADR |
+| v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；markdownlint 關閉 MD013、MD033 |

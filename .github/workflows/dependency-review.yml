@@ -1,0 +1,35 @@
+# PR 相依套件審查：阻擋新增的高風險漏洞與不允許的授權（Plan.md §6.3 1-6）
+name: 相依套件審查
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: 相依套件審查
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 審查相依套件變更
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0-only, GPL-3.0-only, AGPL-3.0-only, AGPL-3.0-or-later
+          # iTextSharp 5 為 AGPL，依 ADR-0003 列為例外
+          allow-dependencies-licenses: pkg:nuget/iTextSharp
+          comment-summary-in-pr: on-failure

@@ -1,0 +1,35 @@
+# Visual Studio／建置產物
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+*.cache
+_ReSharper*/
+
+# NuGet（改由 packages.config 還原）
+packages/
+*.nupkg
+
+# 發行與部署產物
+publish/
+site.zip
+*.pubxml.user
+
+# 本機敏感設定（不可進版控）
+secrets.xml
+*.secrets.config
+.env
+.env.*
+
+# 賣家上傳的商品圖片（M3 起改存 Azure Blob；保留預設圖）
+Website/img/products/*/
+
+# SBOM／掃描產出
+sbom-*.json
+*.sarif
+
+# 作業系統
+.DS_Store
+Thumbs.db

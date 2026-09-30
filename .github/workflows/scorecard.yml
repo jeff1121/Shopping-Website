@@ -1,0 +1,50 @@
+# OpenSSF Scorecard：評估 Repo 供應鏈安全實務（Plan.md §6.3 1-9）
+# 注意：publish_results 會驗證此 workflow，不可加入頂層 env／defaults，且只能使用核准的 Action。
+name: Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 每週一 03:00（台灣時間）
+    - cron: '0 19 * * 0'
+  branch_protection_rule:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  analysis:
+    name: Scorecard 分析
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      id-token: write
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 執行 Scorecard
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: 保存結果
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 30
+
+      - name: 上傳結果至 Code scanning
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: results.sarif
+          category: scorecard

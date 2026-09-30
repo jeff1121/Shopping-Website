@@ -1,0 +1,44 @@
+name: 錯誤回報
+description: 回報網站或部署流程的錯誤
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 問題描述
+      description: 發生了什麼事？
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      placeholder: |
+        1. 進入 ...
+        2. 點選 ...
+        3. 看到錯誤 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期結果
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影響範圍
+      options:
+        - 會員功能（註冊、登入、購物車、結帳）
+        - 賣家功能（上架、管理商品）
+        - CI／CD 或部署
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 錯誤訊息或紀錄
+      description: 請先移除密碼、連線字串等敏感設定
+      render: text

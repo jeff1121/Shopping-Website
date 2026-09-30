@@ -1,0 +1,11 @@
+// markdownlint-cli2 設定（lint.yml 使用）
+{
+  "config": {
+    "default": true,
+    // 繁中段落與表格常超過 80 字元，不限制行長
+    "MD013": false,
+    // 允許 <details>、<br> 等必要的 HTML
+    "MD033": false
+  },
+  "ignores": ["node_modules/**", "packages/**"]
+}

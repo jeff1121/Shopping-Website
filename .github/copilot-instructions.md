@@ -41,6 +41,7 @@ Stock in `violet_products` is decremented on add-to-cart (`index.aspx.cs`), reba
 ## Database schema caveats
 
 `DbSql.sql` is out of date relative to the code (and has a `CREATE DATABSE` typo). The code actually expects:
+
 - `violet_user_login` (positional insert in `register.aspx.cs`, 14 columns): `uname, email, username, password, phone, dob, country, state, city, gender, address, secq, seca, uid`. Roles are encoded in `uid`: `generateUID()` assigns 1–4998 (customer); `uid > 5000` means seller (checked in `profile`/`sellerProfile`) and is never assigned by code.
 - `violet_products`: `pname, price, pimage, category, uname, keywords` plus `stock` — the seller link column is `uname`, not `sname`. `addProducts.aspx.cs` inserts only the first 6 positionally, so it fails if `stock` exists.
 - `violet_cart` (positional insert): `uname, sno, pimage, pname, price, quantity, total, sname`.
