@@ -468,6 +468,8 @@ sequenceDiagram
 
 ## 改進建議
 
+> CI/CD（CodeQL 品質／安全掃描、SBOM、Azure App Service 部署、連線資訊環境變數化）的完整規劃見 [Plan.md](Plan.md)。
+
 - 以 Master Page 或 User Control 抽出共用頁首/頁尾。
 - 集中管理連線字串（`ConfigurationManager.ConnectionStrings`），並抽出資料存取層。
 - 全面改用參數化查詢與 `using` 釋放連線。
