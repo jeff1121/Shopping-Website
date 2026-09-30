@@ -73,7 +73,7 @@
 3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
 4. 在 `Website/Web.config` 設定 `cmpConnectionString`；後置程式碼會透過 `Website.Data.Db` 讀取此設定。
 5. 執行 NuGet 還原，取得 iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2 與 Roslyn 編譯器。
-6. 開啟 `Website.sln`，在 `index.aspx` 按右鍵選「設定為起始頁」，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
+6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/`；`Web.config` 已將 `index.aspx` 設為預設文件，根網址即為首頁。
 7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
 
 ---
@@ -416,7 +416,7 @@ sequenceDiagram
 | `Web.config` | `system.codedom` | 使用 Roslyn 編譯器（C# `/langversion:default`） |
 | `Web.config` | `ValidationSettings:UnobtrusiveValidationMode=None` | 驗證控制項不需 jQuery |
 | `Web.Release.config` | `RemoveAttributes(debug)` | 發行時移除 debug |
-| `Website.csproj` | `IISExpressSSLPort=44337`、`IISUrl=https://localhost:44337/` | IIS Express 啟動設定；起始頁（`StartPageUrl`）原本在 `Website.csproj.user`，該檔已不進版控，需在本機設定（見 [QuickStart 6](QuickStart.md#6-建置與執行)） |
+| `Website.csproj` | `IISExpressSSLPort=44337`、`IISUrl=https://localhost:44337/` | IIS Express 啟動設定；`Website.csproj.user`（個人起始頁設定）不進版控；根網址由 `Web.config` 的 `defaultDocument` 導向 `index.aspx` |
 | `forgotpass.aspx.cs` | `"enter email id"`、`"enter password"` | Gmail SMTP 寄件帳密佔位字串 |
 
 ---
@@ -481,7 +481,6 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 
 - Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
 - `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder；本機執行至少需設定 `cmpConnectionString`。
-- `Website.csproj.user` 不進版控，新 clone 的專案沒有起始頁設定；`index.aspx` 也不在 IIS 預設文件清單中，直接開啟根網址會出現 403 或目錄錯誤，請改瀏覽 `/index.aspx` 或在專案屬性設定起始頁。
 - 部分已簽入商品圖片未列入 `Website.csproj`，發行套件可能不包含這些圖片。
 
 ### 功能缺陷
@@ -550,7 +549,6 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 - 全面改用參數化查詢與 `using` 釋放連線。
 - 密碼雜湊、重設密碼流程、角色授權。
 - 修正位置式 INSERT 為指定欄位的 INSERT。
-- 在 `Web.config` 加入 `defaultDocument`（`index.aspx`），讓根網址直接開啟首頁。
 - 串接金流（如 Stripe、PayPal）、訂單狀態追蹤、管理後台。
 - 響應式版面。
 - 遷移到 ASP.NET Core（Razor Pages / MVC）以支援跨平台。
