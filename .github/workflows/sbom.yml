@@ -1,0 +1,117 @@
+# 原始碼 SBOM：產生（Syft）→ 漏洞比對（Grype）→ 簽章（Attestation）→ 保存（Plan.md §6.2）
+name: SBOM
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-sbom:
+    name: 原始碼 SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      # 以下兩項僅供簽章步驟使用（PR 不簽章）
+      id-token: write
+      attestations: write
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 打包原始碼（作為簽章主體）
+        run: git archive --format=tar.gz --prefix=shopping-website/ -o "source-${GITHUB_SHA}.tar.gz" HEAD
+
+      - name: 產生 SBOM（SPDX）
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom-source.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: 產生 SBOM（CycloneDX）
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-source.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      # Syft 不解析 packages.config，NuGet 套件改取 GitHub 相依圖（反映 main 分支；PR 的套件變更由 Dependency Review 把關）
+      - name: 取得 GitHub 相依圖 SBOM（含 NuGet）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" --jq .sbom > sbom-dependency-graph.spdx.json
+
+      - name: 漏洞比對（Grype，Syft SBOM）
+        id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: sbom-source.spdx.json
+          output-format: sarif
+          severity-cutoff: high
+          # 試運行期間只回報不阻擋；新增的高風險相依套件由 Dependency Review 在 PR 阻擋
+          fail-build: false
+
+      - name: 上傳比對結果至 Code scanning
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: grype-source
+
+      - name: 漏洞比對（Grype，相依圖 SBOM）
+        id: grype-nuget
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: sbom-dependency-graph.spdx.json
+          output-format: sarif
+          output-file: grype-nuget.sarif
+          severity-cutoff: high
+          fail-build: false
+
+      - name: 上傳比對結果至 Code scanning（NuGet）
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: ${{ steps.grype-nuget.outputs.sarif }}
+          category: grype-nuget
+
+      - name: 簽章 SBOM（Syft）
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: source-${{ github.sha }}.tar.gz
+          sbom-path: sbom-source.spdx.json
+
+      - name: 簽章 SBOM（相依圖）
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: source-${{ github.sha }}.tar.gz
+          sbom-path: sbom-dependency-graph.spdx.json
+
+      - name: 保存 SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-source
+          path: |
+            sbom-source.spdx.json
+            sbom-source.cdx.json
+            sbom-dependency-graph.spdx.json
+            source-${{ github.sha }}.tar.gz
+          retention-days: 90
+          if-no-files-found: error

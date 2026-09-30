@@ -1,0 +1,65 @@
+# 文件、編碼／行尾、SQL 與 workflow 檢查（Plan.md §6.3 1-8）
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EDITORCONFIG_CHECKER_VERSION: '3.11.1'
+  SQLFLUFF_VERSION: '4.3.0'
+  ACTIONLINT_VERSION: '1.7.12'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Markdown（markdownlint-cli2）
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
+        with:
+          globs: '**/*.md'
+
+      - name: 設定 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: 安裝檢查工具
+        run: python -m pip install --disable-pip-version-check "editorconfig-checker==${EDITORCONFIG_CHECKER_VERSION}" "sqlfluff==${SQLFLUFF_VERSION}"
+
+      - name: 編碼與行尾（editorconfig-checker）
+        run: ec
+
+      - name: SQL（sqlfluff，T-SQL）
+        run: |
+          # 只檢查新的 migration／維運腳本；舊的 DbSql.sql 已過時，不納入
+          dirs=()
+          for d in db Website/Migrations; do [ -d "$d" ] && dirs+=("$d"); done
+          if [ ${#dirs[@]} -eq 0 ]; then
+            echo "尚無 SQL 腳本目錄，略過。"
+          else
+            sqlfluff lint --dialect tsql "${dirs[@]}"
+          fi
+
+      - name: Workflow（actionlint）
+        run: |
+          # 下載腳本固定於 v1.7.12 的 commit SHA
+          bash <(curl -sSfL "https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
+          ./actionlint -color

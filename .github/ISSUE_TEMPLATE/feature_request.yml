@@ -1,0 +1,21 @@
+name: 功能需求
+description: 提出新功能或改善建議
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解決的問題
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建議做法
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: 相關里程碑
+      placeholder: 例如：M3

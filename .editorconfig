@@ -1,0 +1,40 @@
+# 編碼與行尾規則；lint.yml 以 editorconfig-checker 驗證
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# 原專案的 Visual Studio 檔案：UTF-8 含 BOM、CRLF
+# 既有檔案多有行尾空白且無檔尾換行（Visual Studio 預設），不強制，以免產生大量純空白 diff
+[*.{cs,aspx,ascx,master,asax,csproj,sln}]
+charset = utf-8-bom
+end_of_line = crlf
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+# 設定檔與 SQL：CRLF（沿用現況，不強制 BOM）
+[*.{config,sql}]
+charset = unset
+end_of_line = crlf
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[*.{yml,yaml,bicep,bicepparam,json,ps1,sh}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# 二進位與第三方檔案不檢查
+[*.{png,jpg,jpeg,gif,ico,pdf,dll,zip}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[LICENSE]
+insert_final_newline = unset

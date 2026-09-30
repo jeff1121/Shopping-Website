@@ -125,7 +125,7 @@
 
 ## 專案結構
 
-```
+```text
 Shopping-Website/
 ├── .github/
 │   └── copilot-instructions.md     # 給 AI 程式助理的專案說明

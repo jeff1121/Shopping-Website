@@ -1,0 +1,22 @@
+# 固定行尾，避免跨平台（macOS／Windows）變動；與 .editorconfig 一致
+# Visual Studio 檔案以 -text 原樣保存 CRLF（Git 不轉換），行尾由 lint.yml 的 editorconfig-checker 把關
+* text=auto eol=lf
+
+*.cs      -text
+*.aspx    -text
+*.ascx    -text
+*.master  -text
+*.asax    -text
+*.csproj  -text
+*.sln     -text
+*.config  -text
+*.sql     -text
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.dll  binary
+*.zip  binary
