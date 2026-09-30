@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.2（決策已確認；M2 已完成）**
+> 文件狀態：**v1.3（決策已確認；M2 已完成；Azure 一次性設定已完成）**
 > 最後更新：2026-09-30
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -130,7 +130,7 @@ flowchart LR
 | 資源 | 名稱 | 規格與設定 |
 | --- | --- | --- |
 | App Service Plan | `asp-shopping` | Windows、**B1**、1 個執行個體 |
-| App Service | `app-shopping-xxxx` | .NET Framework v4.8 執行階段（相容 4.7.2）；`alwaysOn: true`、`httpsOnly: true`、`minTlsVersion: 1.2`、`ftpsState: Disabled`、`clientAffinityEnabled: true`；系統指派受控識別；`WEBSITE_RUN_FROM_PACKAGE=1` |
+| App Service | `app-shopping-xxxx` | .NET Framework v4.8 執行階段（相容 4.7.2）；`alwaysOn: true`、`httpsOnly: true`、`minTlsVersion: 1.2`、`ftpsState: Disabled`、`clientAffinityEnabled: true`；掛上使用者指派受控識別 `id-shopping-web`，`keyVaultReferenceIdentity` 指向此識別；`WEBSITE_RUN_FROM_PACKAGE=1` |
 | Azure SQL 邏輯伺服器 | `sql-shopping-xxxx` | SQL 驗證 + 管理員；防火牆規則「允許 Azure 服務存取」（`0.0.0.0`），供 App Service 與 `deploymentScript` 連線 |
 | Azure SQL Database | `sqldb-shopping` | **Basic**（5 DTU、2 GB）；定序 `SQL_Latin1_General_CP1_CI_AS` |
 | Key Vault | `kv-shopping-xxxx` | **RBAC 授權模式**、軟刪除、清除保護 |
@@ -140,9 +140,10 @@ flowchart LR
 | Email Communication Service | `ecs-shopping-xxxx` | Azure 受管網域（`xxxxxxxx.azurecomm.net`），並連結到上方 Communication Service |
 | Log Analytics | `log-shopping` | 保留 30 天 |
 | Application Insights | `appi-shopping` | Workspace-based |
+| 使用者指派受控識別 | `id-shopping-web` | App Service 使用：解析 Key Vault 參考、寫入 Blob |
 | 使用者指派受控識別 | `id-shopping-deployscript` | 供 `deploymentScript` 寫入 Key Vault |
 
-> GitHub OIDC 身分（App Registration）與 Resource Group 本身**不由 Bicep 建立**，由您手動建立一次（見 [9.4](#94-一次性手動步驟)）。
+> Resource Group、GitHub OIDC 身分（App Registration）與上述兩個使用者指派受控識別**不由 Bicep 建立**，而是由 `infra/bootstrap.sh` 建立一次並完成角色指派（見 [9.4](#94-一次性手動步驟)）；Bicep 以 `existing` 參照受控識別，且**不包含任何角色指派**。
 
 ---
 
@@ -319,7 +320,7 @@ flowchart LR
 | 3-2 | 替換 12 處連線 | **已於 M2 完成**：12 個後置程式碼的 `con` 欄位改為 `readonly SqlConnection con = Db.CreateConnection();`；未改變既有 SQL 與流程 |
 | 3-3 | 新增 `Website/Config/AppSettings.cs` | 集中讀取 `SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`；提供 `Validate()`，列出仍含 `${` 的設定**名稱**（不輸出值），在 `Application_Start` 呼叫，缺漏時寫入 Application Insights 並拋出明確錯誤 |
 | 3-4 | 寄信外部化 | `forgotpass.aspx.cs` 改讀 `AppSettings` 的 SMTP 設定與寄件者 `SMTP_FROM`（ACS 要求寄件者必須是已連結網域的位址，如 `DoNotReply@xxxxxxxx.azurecomm.net`）；`EnableSsl = true`（STARTTLS 587） |
-| 3-5 | 圖片上傳改 Blob | 新增 NuGet `Azure.Storage.Blobs`、`Azure.Identity`（皆支援 .NET Framework 4.7.2）；新增 `Website/Data/ImageStore.cs`：以 `DefaultAzureCredential`（App Service 上即為系統受控識別）建立 `BlobContainerClient`，上傳路徑 `products/<賣家帳號>/<Guid>.<副檔名>`，設定 `Content-Type`，回傳 `IMAGE_BASE_URL + "/products/<賣家帳號>/<檔名>"`；`addProducts.aspx.cs` 改呼叫此類別，`pimage` 寫入完整網址 |
+| 3-5 | 圖片上傳改 Blob | 新增 NuGet `Azure.Storage.Blobs`、`Azure.Identity`（皆支援 .NET Framework 4.7.2）；新增 `Website/Data/ImageStore.cs`：以 `DefaultAzureCredential`（App Service 上為使用者指派受控識別 `id-shopping-web`，由應用程式設定 `AZURE_CLIENT_ID` 指定）建立 `BlobContainerClient`，上傳路徑 `products/<賣家帳號>/<Guid>.<副檔名>`，設定 `Content-Type`，回傳 `IMAGE_BASE_URL + "/products/<賣家帳號>/<檔名>"`；`addProducts.aspx.cs` 改呼叫此類別，`pimage` 寫入完整網址 |
 | 3-6 | 顯示端相容 | `index`、`cart`、`checkout`、`profile` 以 `pimage` 直接當 `ImageUrl`，完整網址可直接使用，**不需修改**；`index.aspx` 的預設圖 `img/products/human.png` 保留在網站內 |
 | 3-7 | 本機開發 | 開發者在 Windows 設定使用者環境變數（`setx`），或使用 `Microsoft.Configuration.ConfigurationBuilders.UserSecrets`（`secrets.xml` 不進版控）；Blob 使用 Azurite（`STORAGE_BLOB_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1`）或以 `az login` 身分存取雲端 Storage |
 | 3-8 | 文件同步 | `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 的連線設定、圖片與寄信章節 |
@@ -344,7 +345,7 @@ infra/
     ├── storage.bicep          # Storage + 容器 products
     ├── frontdoor.bicep        # Front Door Standard：profile、endpoint、origin group、origin、route
     ├── email.bicep            # ACS + Email Communication Service + Azure 受管網域
-    └── appservice.bicep       # Plan + Web App + 應用程式設定（Key Vault 參考）+ 角色指派
+    └── appservice.bicep       # Plan + Web App + 應用程式設定（Key Vault 參考）+ 掛上 id-shopping-web
 ```
 
 ### 9.2 關鍵設計
@@ -355,7 +356,8 @@ infra/
 | 建立資料庫使用者 | `sql-users.bicep` 使用 `Microsoft.Resources/deploymentScripts`（`AzurePowerShell`），以使用者指派受控識別執行：① 若 Key Vault 中尚無 `sql-app-password`／`sql-migrator-password`，產生 32 字元隨機密碼並寫入；② 以管理員連線執行 `CREATE USER [shopping_migrator] WITH PASSWORD=...`、`ALTER ROLE db_ddladmin/db_datareader/db_datawriter ADD MEMBER`；`CREATE USER [shopping_app] WITH PASSWORD=...`、`ALTER ROLE db_datareader/db_datawriter ADD MEMBER`；③ 使用者已存在時改用 `ALTER USER ... WITH PASSWORD`，確保可重複執行 |
 | 為何需要「允許 Azure 服務」 | `deploymentScript` 容器與 App Service（B1 未設 VNet 整合）的對外 IP 皆不固定 |
 | App Service 設定 | 所有敏感設定為 `@Microsoft.KeyVault(VaultName=kv-shopping-xxxx;SecretName=...)`；非敏感設定為明文（見第 14 節） |
-| 角色指派 | App Service 系統識別 → Key Vault `Key Vault Secrets User`、Storage `Storage Blob Data Contributor`；deploymentScript 識別 → Key Vault `Key Vault Secrets Officer` |
+| 角色指派 | **Bicep 不做角色指派**。訂用帳戶的 Owner 受組織 ABAC 條件限制，無法指派 Owner、User Access Administrator、Role Based Access Control Administrator，因此部署身分無法取得指派角色的權限。改由 `infra/bootstrap.sh` 預建受控識別，並在 `rg-shopping` 範圍指派：`id-shopping-web` → `Key Vault Secrets User`、`Storage Blob Data Contributor`；`id-shopping-deployscript` → `Key Vault Secrets Officer`。RG 內只有本專案的 Key Vault 與 Storage，RG 範圍與資源範圍的實際效果相同 |
+| 受控識別參照 | Bicep 以 `resource ... existing` 取得兩個受控識別的資源 ID、`clientId`；Web App `identity.type: UserAssigned`，`keyVaultReferenceIdentity` 設為 `id-shopping-web` 的資源 ID，應用程式設定 `AZURE_CLIENT_ID` 設為其 `clientId` |
 | Front Door | origin 主機名稱為 Storage 的 Blob 主要端點，`originHostHeader` 相同；路由 `/*` → origin group，`httpsRedirect: Enabled`、`forwardingProtocol: HttpsOnly`、快取啟用（依 origin 標頭，上傳時設定 `Cache-Control: public, max-age=86400`） |
 | ACS Email | Bicep 建立 Email Communication Service、`AzureManagedDomain` 子資源、Communication Service（`linkedDomains` 指向受管網域）；輸出寄件網域供 `SMTP_FROM` 使用 |
 | 輸出 | `appName`、`appHostName`、`storageBlobEndpoint`、`frontDoorEndpoint`、`sqlServerFqdn`、`keyVaultName`、`emailFromDomain` |
@@ -368,18 +370,26 @@ infra/
 | `push main`（變更 `infra/**`）、`workflow_dispatch` | `az deployment group create --parameters infra/main.bicepparam sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}` |
 
 - 兩者皆使用 GitHub Environment **`azure`**（OIDC subject：`repo:jeff1121/Shopping-Website:environment:azure`）。
-- PR 的 `what-if` 也要能登入 Azure，因此 PR job 同樣宣告 `environment: azure`；Environment 的分支限制設為「`main` 與所有 PR」。
+- PR 的 `what-if` 也要能登入 Azure，因此 PR job 同樣宣告 `environment: azure`；Environment 的分支規則為 `main` 與 `refs/pull/*/merge`（比對 `GITHUB_REF`），不設審核者。Fork 的 PR 拿不到 OIDC token，job 需以 `if` 略過。
 
 ### 9.4 一次性手動步驟
 
-以下由您在本機執行一次（需訂用帳戶 Owner 或 User Access Administrator 權限）。計畫實作時會附上完整指令腳本 `infra/bootstrap.ps1`。
+第 1～4、6 步已寫成可重複執行的腳本 `infra/bootstrap.sh`（bash + Azure CLI + GitHub CLI，適用 macOS、Linux、WSL、Cloud Shell）。已存在的項目會略過；SQL 管理員密碼只在 Secret 不存在時產生，且不會輸出。重建 Demo 環境時執行：
 
-1. 建立 Resource Group：`az group create -n rg-shopping -l eastasia`
+```bash
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
+```
+
+執行後以 **Azure OIDC 驗證** workflow（`.github/workflows/azure-oidc-check.yml`，可手動觸發）確認 GitHub 可登入 Azure。
+
+1. 註冊 Resource Provider（含 `Microsoft.Cdn`、`Microsoft.ContainerInstance`），建立 Resource Group `rg-shopping`（East Asia，標籤 `project=shopping-website`、`owner=jeff.hou`、`purpose=demo`）。
 2. 建立 App Registration `gh-shopping-deploy` 與 Service Principal。
 3. 新增 Federated Credential：issuer `https://token.actions.githubusercontent.com`，subject `repo:jeff1121/Shopping-Website:environment:azure`，audience `api://AzureADTokenExchange`（**大小寫必須完全一致**）。
-4. 指派角色（範圍：`rg-shopping`）：`Contributor`、`Storage Blob Data Contributor`、`Role Based Access Control Administrator`（加上條件，只能指派 `Key Vault Secrets User`、`Key Vault Secrets Officer`、`Storage Blob Data Contributor`）。
-5. 建立 ACS SMTP 用的 App Registration `acs-shopping-smtp` 與 client secret；在 ACS 資源指派自訂角色（`Microsoft.Communication/CommunicationServices/Read`、`.../Write`、`Microsoft.Communication/EmailServices/write`）；將 secret 寫入 Key Vault `smtp-password`。此步驟需在第一次 `infra.yml` 部署完成後執行。
+4. 指派角色（範圍：`rg-shopping`）：部署身分 `Contributor`、`Storage Blob Data Contributor`；預建受控識別 `id-shopping-web`、`id-shopping-deployscript` 並指派資料角色（見 [9.2](#92-關鍵設計)）。**不**授予 Role Based Access Control Administrator，原因是組織 ABAC 條件限制。
+5. 建立 ACS SMTP 用的 App Registration `acs-shopping-smtp` 與 client secret；在 ACS 資源指派自訂角色（`Microsoft.Communication/CommunicationServices/Read`、`.../Write`、`Microsoft.Communication/EmailServices/write`）；將 secret 寫入 Key Vault `smtp-password`。此步驟需在第一次 `infra.yml` 部署完成後執行。自訂角色不在 ABAC 限制清單內，可由您自行指派。
 6. 在 GitHub 建立 Environment `azure`，設定第 14.2 節的 Variables 與 Secrets。
+
+**目前狀態（2026-09-30）**：第 1～4、6 步已完成，訂用帳戶為 BD-CIS-Testing（`ab1d83ae-0874-4c12-b989-bec89df9f4a6`），部署身分 App ID 為 `1ed97b12-9df8-42b8-95bb-d6005e611461`（非敏感識別碼）；第 5 步待 M4 首次部署後進行。
 
 ---
 
@@ -500,6 +510,7 @@ infra/
 | `IMAGE_BASE_URL` | 明文 | Bicep 輸出 | `https://<Front Door 端點>`（不含結尾 `/`） |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | 明文 | Bicep 輸出 | 監控 |
 | `WEBSITE_RUN_FROM_PACKAGE` | 明文 | Bicep | `1` |
+| `AZURE_CLIENT_ID` | 明文 | Bicep（`existing` 受控識別） | `id-shopping-web` 的 client ID，供 `DefaultAzureCredential` 選用使用者指派受控識別 |
 
 ### 14.2 GitHub Environment `azure`
 
@@ -509,8 +520,10 @@ infra/
 | `AZURE_TENANT_ID` | Variable | OIDC |
 | `AZURE_SUBSCRIPTION_ID` | Variable | OIDC |
 | `AZURE_RESOURCE_GROUP` | Variable | `rg-shopping` |
-| `SQL_ADMIN_LOGIN` | Variable | SQL 管理員名稱 |
-| `SQL_ADMIN_PASSWORD` | **Secret** | SQL 管理員密碼（由您設定；不可含 `;`） |
+| `SQL_ADMIN_LOGIN` | Variable | SQL 管理員名稱（`sqladminshop`） |
+| `SQL_ADMIN_PASSWORD` | **Secret** | SQL 管理員密碼（`bootstrap.sh` 產生 32 字元英數與 `-_`，不含 `;`；正式營運前由您更換） |
+
+- 分支規則：`main`、`refs/pull/*/merge`；不設審核者（M8 再開啟部署核准）。
 
 > 原則：任何密碼**只**存在 Key Vault 與 GitHub Environment Secret，**絕不**進入版控、Issue、PR 或對話紀錄。
 
@@ -536,6 +549,7 @@ infra/
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard | 每週、push main | 供應鏈評分 | M1 |
 | `.github/dependabot.yml` | — | 每週 | NuGet、Actions 更新 | M1 |
 | `.github/workflows/build.yml` | 建置 | PR、push main、`workflow_call` | MSBuild、`site.zip`、部署套件 SBOM | M2 |
+| `.github/workflows/azure-oidc-check.yml` | Azure OIDC 驗證 | PR（變更 bootstrap 或本檔）、手動 | 檢查 OIDC 登入與 bootstrap 資源 | M4 前置 |
 | `.github/workflows/infra.yml` | 基礎設施 | PR（what-if）、push main、手動 | Bicep | M4 |
 | `.github/workflows/deploy.yml` | 部署 | push main、手動 | 部署、範例圖片、冒煙測試、ZAP | M6 |
 
@@ -546,11 +560,11 @@ infra/
 | 身分 | 範圍 | 角色／權限 | 用途 |
 | --- | --- | --- | --- |
 | `gh-shopping-deploy`（GitHub OIDC） | `rg-shopping` | Contributor | Bicep 部署、App 部署 |
-| 同上 | `rg-shopping` | Role Based Access Control Administrator（限定可指派的角色） | Bicep 內的角色指派 |
 | 同上 | `rg-shopping` | Storage Blob Data Contributor | 上傳範例圖片（在 Storage 建立前即可指派） |
-| App Service 系統識別 | Key Vault | Key Vault Secrets User | 解析 Key Vault 參考 |
-| 同上 | Storage | Storage Blob Data Contributor | 上傳商品圖片 |
-| `id-shopping-deployscript` | Key Vault | Key Vault Secrets Officer | 產生並寫入 SQL 密碼 |
+| `id-shopping-web`（App Service） | `rg-shopping` | Key Vault Secrets User | 解析 Key Vault 參考 |
+| 同上 | `rg-shopping` | Storage Blob Data Contributor | 上傳商品圖片 |
+| `id-shopping-deployscript` | `rg-shopping` | Key Vault Secrets Officer | 產生並寫入 SQL 密碼 |
+| 您（bootstrap 執行者） | 訂用帳戶 | Owner（受組織 ABAC 條件限制：不可指派 Owner、User Access Administrator、RBAC Administrator） | 執行 `infra/bootstrap.sh` |
 | `shopping_app`（SQL） | `sqldb-shopping` | `db_datareader`、`db_datawriter` | 一般請求 |
 | `shopping_migrator`（SQL） | `sqldb-shopping` | `db_ddladmin`、`db_datareader`、`db_datawriter` | 啟動時 migration |
 | `acs-shopping-smtp`（Entra） | ACS | 自訂角色（Communication Read/Write、EmailServices write） | SMTP 寄信 |
@@ -601,9 +615,9 @@ infra/
 
 | # | 項目 | 時機 |
 | --- | --- | --- |
-| 1 | Azure 訂用帳戶，且具 Owner（或 Contributor + User Access Administrator）權限 | M4 之前 |
-| 2 | 執行 [9.4](#94-一次性手動步驟) 第 1～4、6 步（會提供 `infra/bootstrap.ps1`） | M4 之前 |
-| 3 | 在 GitHub Environment `azure` 設定 `SQL_ADMIN_LOGIN`、`SQL_ADMIN_PASSWORD`（**請勿**在對話、Issue 或 Commit 中提供密碼） | M4 之前 |
+| 1 | ~~Azure 訂用帳戶，且具 Owner 權限~~ **已完成**（BD-CIS-Testing） | M4 之前 |
+| 2 | ~~執行 [9.4](#94-一次性手動步驟) 第 1～4、6 步~~ **已完成**（`infra/bootstrap.sh`） | M4 之前 |
+| 3 | ~~在 GitHub Environment `azure` 設定 `SQL_ADMIN_LOGIN`、`SQL_ADMIN_PASSWORD`~~ **已完成**（密碼由腳本產生，未出現在對話或版控） | M4 之前 |
 | 4 | 執行 [9.4](#94-一次性手動步驟) 第 5 步（ACS SMTP） | 第一次基礎設施部署之後 |
 | 5 | 在 Repo 設定啟用 Secret Scanning、Push Protection、Code Quality 並建立 Ruleset（或授權我以 `gh` 設定） | M1 |
 | 6 | M8 的人工步驟 | 轉入正式營運時 |
@@ -636,3 +650,4 @@ infra/
 | v1.0 | 2026-09-30 | 依逐題討論結果定案：單一環境、East Asia + B1、Bicep 建立 Azure SQL、Key Vault、兩個 SQL 帳號與 deploymentScript、App 啟動時 DbUp migration、示範資料入 migration、商品圖片改 Blob + Front Door、ACS Email（SMTP）、iTextSharp NuGet、PR 只擋新增 High／Critical、完整 SBOM；新增 M7 安全修正與 M8 轉入正式營運、權限矩陣、成本估算；新增 CONTEXT.md 與 ADR |
 | v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；Syft 不解析 `packages.config`，改加 GitHub 相依圖 SBOM；markdownlint 關閉 MD013、MD033 |
 | v1.2 | 2026-09-30 | M2 完成：補齊建置缺檔、iTextSharp 改 NuGet、提前導入 `Website.Data.Db` 與連線 placeholder、加入 `build.yml` 產出 `site.zip` 與部署套件 SBOM；Ruleset 新增 `建置` 必要檢查與 review thread resolution 注意事項 |
+| v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow |
