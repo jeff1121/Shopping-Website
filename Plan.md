@@ -177,7 +177,7 @@ flowchart LR
 
 - **品質掃描**與**安全掃描**來自同一次分析，分別以警示的 `security-severity` 與 `severity` 分類呈現。
 - 同時在 Repo 設定啟用 **GitHub Code Quality**（若帳號可用），於 PR 顯示可維護性評分。
-- **既有警示處理**：首次掃描後，依 CodeQL 規則（如 `cs/sql-injection`、`cs/cleartext-storage-of-sensitive-information`）每類開一個 Issue，標籤 `security`、`M7`，不 dismiss。
+- **既有警示處理**：首次掃描後，**安全警示**依 CodeQL 規則（如 `cs/sql-injection`、`cs/web/xss`）每類開一個 Issue，標籤 `security`、`M7`；**品質警示**合併為一個追蹤 Issue（標籤 `quality`、`M7`），逐規則列出數量。一律不 dismiss。
 
 ### 6.2 原始碼 SBOM（`.github/workflows/sbom.yml`）
 
@@ -202,12 +202,13 @@ flowchart LR
 | 1-4 | `.gitattributes` | `.gitattributes` | 預設 `text=auto eol=lf`；CRLF 檔案類型設為 `-text`（Git 原樣保存、不轉換，避免整檔改寫）；圖片等設為 `binary` |
 | 1-5 | Dependabot | `.github/dependabot.yml` | `nuget`（目錄 `/Website`）與 `github-actions`（目錄 `/`）；每週一；各自合併成一個群組 PR；Commit 前綴為繁中 `相依套件：` |
 | 1-6 | Dependency Review | `.github/workflows/dependency-review.yml` | `fail-on-severity: high`；`deny-licenses: GPL-2.0-only, GPL-3.0-only, AGPL-3.0-only, AGPL-3.0-or-later`；`allow-dependencies-licenses: pkg:nuget/iTextSharp`（D12 例外）；PR 留言摘要 |
-| 1-7 | Secret Scanning + Push Protection | Repo → Settings → Code security | 全部啟用；另新增自訂樣式：`(?i)Password\s*=\s*[^;$\s{]+`（排除 `${...}` 權杖） |
-| 1-8 | Lint | `.github/workflows/lint.yml`、`.markdownlint-cli2.jsonc` | `markdownlint-cli2`（`**/*.md`；關閉 MD013 行長、MD033 HTML）；`editorconfig-checker`（依 `.editorconfig`）；`sqlfluff lint --dialect tsql`（`db/`、`Website/Migrations/`，目錄不存在時略過；舊 `DbSql.sql` 不檢查）；`actionlint`（下載腳本固定於 commit SHA） |
+| 1-7 | Secret Scanning + Push Protection | Repo → Settings → Code security | 已啟用 Secret Scanning、Push Protection、Dependabot 警示與安全更新、私下安全通報。**自訂樣式、非供應商樣式與有效性檢查需要 GitHub Advanced Security（個人帳號的公開 Repo 無法使用）**，因此改由 Web.config 只放 `${...}` 權杖並在 PR 範本檢查清單中人工確認 |
+| 1-8 | Lint | `.github/workflows/lint.yml`、`.markdownlint-cli2.jsonc` | `markdownlint-cli2`（`**/*.md`；關閉 MD013 行長、MD033 HTML）；`editorconfig-checker`（依 `.editorconfig`）；`sqlfluff lint --dialect tsql`（`db/`、`Website/Migrations/`，無 SQL 檔時略過；舊 `DbSql.sql` 不檢查）；`actionlint`。後三者以 **digest 固定的容器映像**執行（`docker://…@sha256:…`，滿足 Scorecard Pinned-Dependencies；Dependabot 不更新 `docker://`，升級時需手動更新 digest） |
 | 1-9 | OpenSSF Scorecard | `.github/workflows/scorecard.yml` | 每週與 `push main`；結果上傳 Code scanning，並開啟 `publish_results` 取得徽章 |
 | 1-10 | Workflow 加固 | 所有 workflow | 所有第三方 Action 固定到 **commit SHA**（註解標示版本，Dependabot 會更新）；頂層 `permissions: {}`，逐 job 給最小權限；`concurrency` 取消同分支舊的執行 |
 | 1-11 | 分支規則（Ruleset） | Repo → Settings → Rules | 見下表 |
 | 1-12 | 範本 | `.github/pull_request_template.md`、`.github/ISSUE_TEMPLATE/*.yml`、`.github/CODEOWNERS` | 繁體中文；CODEOWNERS 為 `* @jeff1121` |
+| 1-13 | 安全性政策 | `SECURITY.md` | 繁中；以 GitHub 私下安全通報（Private vulnerability reporting）回報漏洞 |
 
 **`main` 分支規則（Ruleset）**
 
@@ -218,6 +219,8 @@ flowchart LR
 | Code scanning 合併保護 | 工具 `CodeQL`：安全警示 **High or higher**、一般警示 **Errors**（只針對 PR 新增的警示） |
 | 禁止 | force push、刪除分支 |
 | 合併方式 | 僅允許 Squash merge，PR 標題即 Commit 訊息（繁體中文） |
+
+另有 Ruleset「保護 Demo 基準分支」鎖定 `demo/pre-implementation`（禁止更新、force push、刪除），保存開工前狀態供重複 Demo 使用。
 
 ---
 

@@ -13,11 +13,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  EDITORCONFIG_CHECKER_VERSION: '3.11.1'
-  SQLFLUFF_VERSION: '4.3.0'
-  ACTIONLINT_VERSION: '1.7.12'
-
 jobs:
   lint:
     name: Lint
@@ -25,6 +20,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    # 檢查工具皆使用以 digest 固定的容器映像（Scorecard Pinned-Dependencies）
     steps:
       - name: 取出原始碼
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,30 +32,18 @@ jobs:
         with:
           globs: '**/*.md'
 
-      - name: 設定 Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-
-      - name: 安裝檢查工具
-        run: python -m pip install --disable-pip-version-check "editorconfig-checker==${EDITORCONFIG_CHECKER_VERSION}" "sqlfluff==${SQLFLUFF_VERSION}"
-
       - name: 編碼與行尾（editorconfig-checker）
-        run: ec
+        uses: docker://mstruebing/editorconfig-checker@sha256:2ba6232bfa0058f72f5f7d7816711590aa764afab1542af30b3ecb4553587918 # 4.0.2
 
+      # 只檢查新的 migration／維運腳本；舊的 DbSql.sql 已過時，不納入
       - name: SQL（sqlfluff，T-SQL）
-        run: |
-          # 只檢查新的 migration／維運腳本；舊的 DbSql.sql 已過時，不納入
-          dirs=()
-          for d in db Website/Migrations; do [ -d "$d" ] && dirs+=("$d"); done
-          if [ ${#dirs[@]} -eq 0 ]; then
-            echo "尚無 SQL 腳本目錄，略過。"
-          else
-            sqlfluff lint --dialect tsql "${dirs[@]}"
-          fi
+        if: hashFiles('db/**/*.sql', 'Website/Migrations/**/*.sql') != ''
+        uses: docker://sqlfluff/sqlfluff@sha256:8003e7099a43661bb972bb29b6c66ef0954545586a047bd88cdbdfb6d758f144 # 4.3.0
+        with:
+          entrypoint: /bin/sh
+          args: -c "sqlfluff lint --dialect tsql $(for d in db Website/Migrations; do [ -d $d ] && printf '%s ' $d; done)"
 
       - name: Workflow（actionlint）
-        run: |
-          # 下載腳本固定於 v1.7.12 的 commit SHA
-          bash <(curl -sSfL "https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
-          ./actionlint -color
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12
+        with:
+          args: -color
