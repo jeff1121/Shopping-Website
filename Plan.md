@@ -183,8 +183,8 @@ flowchart LR
 
 | 步驟 | 工具 | 產出 |
 | --- | --- | --- |
-| 產生 | `anchore/sbom-action`（Syft），掃描 Repo（含 `Website/packages.config`） | `sbom-source.spdx.json`、`sbom-source.cdx.json` |
-| 漏洞比對 | `anchore/scan-action`（Grype），輸入 SBOM，`severity-cutoff: high`、`fail-build: false`（試運行期間只回報；新增的高風險套件由 Dependency Review 在 PR 阻擋） | SARIF 上傳至 Code scanning（分類 `grype-source`） |
+| 產生 | `anchore/sbom-action`（Syft），掃描 Repo；Syft 不解析 `packages.config`，NuGet 套件另由 GitHub 相依圖 API（`/dependency-graph/sbom`）取得 | `sbom-source.spdx.json`、`sbom-source.cdx.json`、`sbom-dependency-graph.spdx.json` |
+| 漏洞比對 | `anchore/scan-action`（Grype），輸入 SBOM，`severity-cutoff: high`、`fail-build: false`（試運行期間只回報；新增的高風險套件由 Dependency Review 在 PR 阻擋） | SARIF 上傳至 Code scanning（分類 `grype-source`、`grype-nuget`） |
 | 簽章 | `actions/attest-sbom`，主體為 `git archive` 產生的 `source-<sha>.tar.gz`（需 `id-token: write`、`attestations: write`） | 可用 `gh attestation verify source-<sha>.tar.gz -R jeff1121/Shopping-Website` 驗證 |
 | 保存 | `actions/upload-artifact`，`retention-days: 90` | — |
 
@@ -625,4 +625,4 @@ infra/
 | v0.1 | 2026-09-30 | 初版：決策 D1～D12 待確認、七個階段 |
 | v0.2 | 2026-09-30 | 校正 OIDC subject 大小寫、Configuration Builders 3.x 注意事項、PDF `HTMLWorker` 影響、圖片上傳與 slot swap 衝突；新增待討論問題 |
 | v1.0 | 2026-09-30 | 依逐題討論結果定案：單一環境、East Asia + B1、Bicep 建立 Azure SQL、Key Vault、兩個 SQL 帳號與 deploymentScript、App 啟動時 DbUp migration、示範資料入 migration、商品圖片改 Blob + Front Door、ACS Email（SMTP）、iTextSharp NuGet、PR 只擋新增 High／Critical、完整 SBOM；新增 M7 安全修正與 M8 轉入正式營運、權限矩陣、成本估算；新增 CONTEXT.md 與 ADR |
-| v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；markdownlint 關閉 MD013、MD033 |
+| v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；Syft 不解析 `packages.config`，改加 GitHub 相依圖 SBOM；markdownlint 關閉 MD013、MD033 |
