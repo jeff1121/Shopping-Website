@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.1（決策已確認，M1 實作中）**
+> 文件狀態：**v1.1（決策已確認；M1 已完成）**
 > 最後更新：2026-09-30
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -219,6 +219,8 @@ flowchart LR
 | Code scanning 合併保護 | 工具 `CodeQL`：安全警示 **High or higher**、一般警示 **Errors**（只針對 PR 新增的警示） |
 | 禁止 | force push、刪除分支 |
 | 合併方式 | 僅允許 Squash merge，PR 標題即 Commit 訊息（繁體中文） |
+
+**M1 完成狀態（2026-09-30）**：PR #1、#3 已合併；首次掃描的既有警示已開 Issue（安全 #4～#6、品質 #7）。Scorecard 仍有 Code-Review、Branch-Protection（單人維護、核准數 0 的取捨）、Maintained（Repo 建立未滿 90 天）、Fuzzing、CII-Best-Practices 未達標，屬已知且接受。Dependabot PR #2（CodeDom 套件）待 M2 建置 CI 完成後處理。
 
 另有 Ruleset「保護 Demo 基準分支」鎖定 `demo/pre-implementation`（禁止更新、force push、刪除），保存開工前狀態供重複 Demo 使用。
 

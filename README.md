@@ -47,7 +47,8 @@
 | 版控現況 | Repo 沒有 `.gitignore`；`Website/obj/Debug/` 兩個快取檔已被簽入；部分已簽入圖片未列入 `Website.csproj` |
 | 外部相依 | iTextSharp 以機器專屬路徑 `..\..\..\..\Files\OrderInvoice\itextsharp.dll` 參考，非 NuGet |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
-| 自動化測試 / CI / Lint | 無 |
+| 自動化測試 | 無 |
+| CI（GitHub Actions） | CodeQL 品質／安全掃描、SBOM（簽章）、相依套件審查、Lint、OpenSSF Scorecard、Dependabot（見 [Plan.md](Plan.md) M1） |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
