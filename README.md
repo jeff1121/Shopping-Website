@@ -49,7 +49,7 @@
 | 外部相依 | iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 透過 NuGet 管理 |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
-| CI（GitHub Actions） | CodeQL 品質／安全掃描、SBOM（簽章）、相依套件審查、Lint、OpenSSF Scorecard、Dependabot（見 [Plan.md](Plan.md) M1） |
+| CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [Plan.md](Plan.md) M1～M2） |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
@@ -130,6 +130,7 @@
 ```text
 Shopping-Website/
 ├── .github/
+│   ├── workflows/build.yml         # 建置 CI：Windows MSBuild、site.zip、部署套件 SBOM
 │   └── copilot-instructions.md     # 給 AI 程式助理的專案說明
 ├── DbSql.sql                       # 原始資料庫腳本（已過時，僅供參考）
 ├── LICENSE                         # MIT 授權
@@ -154,6 +155,9 @@ Shopping-Website/
     ├── blog.aspx(.cs)              # 部落格（靜態）
     ├── contact.aspx(.cs)           # 聯絡我們（寫入 violet_contact）
     ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
+    ├── Data/Db.cs                 # 集中建立 SQL 連線（cmp / migrator connection string）
+    ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
+    ├── css/style.css               # 共用基礎樣式
     ├── Web.config                  # 連線字串、編譯與驗證設定
     ├── Web.Debug.config            # Debug 組態轉換（僅範例）
     ├── Web.Release.config          # Release 組態轉換（移除 debug 屬性）
@@ -198,9 +202,9 @@ Shopping-Website/
 | 方式 | 使用位置 | 連線字串來源 |
 | --- | --- | --- |
 | 宣告式 `asp:SqlDataSource` | `index.aspx`（SqlDataSource1～5）、`categories.aspx`、`profile.aspx`（訂單歷史、賣家商品編輯/刪除） | `Web.config` 的 `cmpConnectionString` |
-| 命令式 ADO.NET | 各 `.aspx.cs` 的 `con` 欄位或區域變數 | 程式碼內的佔位字串（需自行填入） |
+| 命令式 ADO.NET | 各 `.aspx.cs` 的 `con` 欄位或區域變數 | `Website.Data.Db.CreateConnection()` 集中讀取 `Web.config` 的 `cmpConnectionString` |
 
-命令式查詢混用參數化查詢與字串串接，詳見[安全性說明](#安全性說明)。
+新增命令式 SQL 連線時請使用 `Website.Data.Db`，不要在頁面直接 `new SqlConnection(...)`。命令式查詢混用參數化查詢與字串串接，詳見[安全性說明](#安全性說明)。
 
 ### 頁面導覽
 
@@ -408,8 +412,9 @@ sequenceDiagram
 ### 建置與環境
 
 - Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
-- `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder，需在本機設定後才能連線。
+- `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder；本機執行至少需設定 `cmpConnectionString`。
 - `Website/obj/Debug/` 建置快取被簽入版控；Repo 沒有 `.gitignore`。
+- 部分已簽入商品圖片未列入 `Website.csproj`，發行套件可能不包含這些圖片。
 
 ### 功能缺陷
 
@@ -448,7 +453,7 @@ sequenceDiagram
 | 明碼密碼 | 密碼以明碼儲存、比對，忘記密碼功能還會以 Email 寄出原密碼 |
 | 權限控管 | 頁面未檢查角色；任何人都能直接開啟 `addProducts.aspx`、修改 `?id=`/`?quantity=` |
 | 檔案上傳 | 僅以副檔名檢查，使用原始檔名存檔，可能覆蓋既有檔案 |
-| 機密資訊 | 連線字串、SMTP 帳密需寫在原始碼中 |
+| 機密資訊 | 連線字串仍需填入本機 `Web.config`；SMTP 帳密仍是程式中的佔位字串，尚未外部化 |
 | 資訊洩漏 | `profile.aspx` 會把 SQL 語句輸出到頁面 |
 | 共用狀態 | `static` 欄位跨使用者共用（`forgotpass`、`cart`） |
 
@@ -473,7 +478,7 @@ sequenceDiagram
 > CI/CD（CodeQL 品質／安全掃描、SBOM、Azure App Service 部署、連線資訊環境變數化）的完整規劃見 [Plan.md](Plan.md)。
 
 - 以 Master Page 或 User Control 抽出共用頁首/頁尾。
-- 集中管理連線字串（`ConfigurationManager.ConnectionStrings`），並抽出資料存取層。
+- 持續擴充 `Website.Data.Db`／資料存取層，將查詢集中化並統一釋放連線。
 - 全面改用參數化查詢與 `using` 釋放連線。
 - 密碼雜湊、重設密碼流程、角色授權。
 - 修正位置式 INSERT 為指定欄位的 INSERT。
