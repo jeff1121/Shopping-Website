@@ -239,7 +239,7 @@ GO
 
 - Repo 已有 `.gitignore`：`bin/`、`obj/`、`packages/`、`*.user`、`.vs/` 與本機敏感設定（`secrets.xml`、`.env`）都不進版控。
 - `packages/` 不在 Repo 中，第一次建置前**必須**執行 NuGet 還原（見 5.4）。
-- `Website/Website.csproj.user` 不在 Repo 中，因此沒有預設起始頁（見第 6 節）。
+- `Website/Website.csproj.user` 不在 Repo 中；根網址改由 `Web.config` 的 `defaultDocument` 導向 `index.aspx`（見第 6 節）。
 - `.editorconfig` 與 `.gitattributes` 規定編碼與行尾：`.cs`、`.aspx`、`.csproj`、`.sln` 為 UTF-8 BOM + CRLF，`.config`、`.sql` 為 CRLF，其餘為 UTF-8 + LF。
 - `Website/img/products/apple.png`、`Website/img/products/appol.png`、`Website/img/products/img2.png`、
   `Website/img/products/human99/laptop.png` 已在 Git 中，但未列入 `Website.csproj` 的 `<Content Include>`；
@@ -292,10 +292,10 @@ nuget restore Website.sln
 ### Visual Studio
 
 1. 開啟 `Website.sln`。
-2. 確認 `Website` 為啟始專案，並在方案總管的 `index.aspx` 按右鍵選「設定為起始頁」。
-   起始頁原本記錄在 `Website.csproj.user`，此檔不進版控，新 clone 後需設定一次；`index.aspx` 不在 IIS 預設文件清單中，未設定時開啟根網址會出現 403 或目錄錯誤。
+2. 確認 `Website` 為啟始專案。
+   `Web.config` 的 `system.webServer/defaultDocument` 已將 `index.aspx` 設為預設文件，不需另外設定起始頁；個人起始頁設定存在 `Website.csproj.user`，此檔不進版控。
 3. `Ctrl+Shift+B` 建置方案。
-4. `F5`（偵錯）或 `Ctrl+F5`（不偵錯）啟動，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
+4. `F5`（偵錯）或 `Ctrl+F5`（不偵錯）啟動，瀏覽器會開啟 `https://localhost:44337/`，並顯示 `index.aspx` 首頁。
 5. 第一次使用 HTTPS 時，IIS Express 會詢問是否信任開發憑證，請選擇「是」。
 
 ### 命令列（Developer PowerShell for VS）
@@ -424,7 +424,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 
 | 症狀 | 原因與解法 |
 | --- | --- |
-| 開啟 `https://localhost:44337/` 出現 403 或目錄清單錯誤 | 未設定起始頁；請瀏覽 `/index.aspx` 或把 `index.aspx` 設為起始頁，見第 6 節 |
+| 開啟 `https://localhost:44337/` 出現 403 或目錄清單錯誤 | 確認 `Web.config` 保留 `system.webServer/defaultDocument`（`index.aspx`）；也可直接瀏覽 `/index.aspx` |
 | 找不到 `csc.exe` 或 `packages\...` 路徑 | 尚未執行 NuGet 還原（`packages/` 不在 Repo 中），見 5.4 |
 | 編譯錯誤 `CS1525: Invalid expression term '<'` | 工作區仍殘留舊版連線佔位字串，請同步最新程式碼並見 4.2 |
 | 編譯錯誤 `CS2001: Source file 'Properties\AssemblyInfo.cs' could not be found` | 確認 `Website/Properties/AssemblyInfo.cs` 存在，見 5.1 |
