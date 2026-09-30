@@ -114,7 +114,7 @@
 | --- | --- | --- |
 | Web 框架 | ASP.NET Web Forms | 每頁由 `.aspx` 標記 + `.aspx.cs` 後置程式碼 + `.aspx.designer.cs` 組成 |
 | 語言 / 執行環境 | C#、.NET Framework 4.7.2 | 命名空間統一為 `Website` |
-| 編譯器 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 2.0.1 | Roslyn，已簽入 `packages/` |
+| 編譯器 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0 | Roslyn，已簽入 `packages/` |
 | 資料存取 | ADO.NET | `SqlConnection` / `SqlCommand` / `SqlDataAdapter` 與 `asp:SqlDataSource` 並存 |
 | 資料庫 | Microsoft SQL Server | 所有資料表以 `violet_` 為前綴 |
 | PDF | iTextSharp 5.5.13.6（`HTMLWorker`） | 將訂單歷史面板轉成 A4 PDF；透過 NuGet 還原 |
@@ -502,7 +502,7 @@ sequenceDiagram
 | --- | --- | --- |
 | iTextSharp 5.5.13.6 | 訂單 PDF 匯出（`HTMLWorker`） | AGPL-3.0；決策背景見 [ADR 0003](docs/adr/0003-keep-itextsharp-agpl.md) |
 | BouncyCastle.Cryptography 2.6.2 | iTextSharp 加密相依套件 | MIT |
-| Microsoft.CodeDom.Providers.DotNetCompilerPlatform 2.0.1 | ASP.NET Web Forms Roslyn CodeDom 編譯器提供者 | MIT |
+| Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0 | ASP.NET Web Forms Roslyn CodeDom 編譯器提供者 | MIT |
 
 ---
 

@@ -1,5 +1,4 @@
 ﻿<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- 匯入 Roslyn CodeDom 套件的 MSBuild props；套件不存在時由下方 EnsureNuGetPackageBuildImports 產生錯誤。 -->
   <!-- 匯入 MSBuild 共用屬性。 -->
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -47,7 +46,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 組件參考：包含 Web Forms 所需的 System.Web、ADO.NET 的 System.Data，以及 PDF 匯出使用的 iTextSharp NuGet 套件。 -->
+    <!-- 組件參考：包含 Web Forms 所需的 System.Web、ADO.NET 的 System.Data、Roslyn CodeDom 與 PDF 匯出使用的 iTextSharp NuGet 套件。 -->
     <Reference Include="BouncyCastle.Cryptography">
       <HintPath>..\packages\BouncyCastle.Cryptography.2.6.2\lib\net461\BouncyCastle.Cryptography.dll</HintPath>
     </Reference>
@@ -282,6 +281,7 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <!-- 匯入 Roslyn CodeDom 4.1.0 的 MSBuild targets，負責複製 bin\roslyn 編譯器工具並同步 Web.config。 -->
   <Import Project="..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.4.1.0\build\net472\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.targets" Condition="Exists('..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.4.1.0\build\net472\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
