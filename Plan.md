@@ -369,7 +369,7 @@ infra/
 | `pull_request`（變更 `infra/**`） | `azure/login`（OIDC）→ `az bicep build` 檢查 → `az deployment group what-if`，結果貼到 PR 留言 |
 | `push main`（變更 `infra/**`）、`workflow_dispatch` | `az deployment group create --parameters infra/main.bicepparam sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}` |
 
-- 兩者皆使用 GitHub Environment **`azure`**（OIDC subject：`repo:jeff1121/Shopping-Website:environment:azure`）。
+- 兩者皆使用 GitHub Environment **`azure`**（OIDC subject：`repo:jeff1121@12440417/Shopping-Website@1395787848:environment:azure`，GitHub 的不可變格式，含帳號與 Repo 數字 ID）。
 - PR 的 `what-if` 也要能登入 Azure，因此 PR job 同樣宣告 `environment: azure`；Environment 的分支規則為 `main` 與 `refs/pull/*/merge`（比對 `GITHUB_REF`），不設審核者。Fork 的 PR 拿不到 OIDC token，job 需以 `if` 略過。
 
 ### 9.4 一次性手動步驟
@@ -384,7 +384,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 
 1. 註冊 Resource Provider（含 `Microsoft.Cdn`、`Microsoft.ContainerInstance`），建立 Resource Group `rg-shopping`（East Asia，標籤 `project=shopping-website`、`owner=jeff.hou`、`purpose=demo`）。
 2. 建立 App Registration `gh-shopping-deploy` 與 Service Principal。
-3. 新增 Federated Credential：issuer `https://token.actions.githubusercontent.com`，subject `repo:jeff1121/Shopping-Website:environment:azure`，audience `api://AzureADTokenExchange`（**大小寫必須完全一致**）。
+3. 新增 Federated Credential：issuer `https://token.actions.githubusercontent.com`，subject `repo:jeff1121@12440417/Shopping-Website@1395787848:environment:azure`，audience `api://AzureADTokenExchange`（**必須完全一致**）。本 Repo 啟用 GitHub 不可變 subject（`GET repos/jeff1121/Shopping-Website/actions/oidc/customization/sub` 的 `sub_claim_prefix`），`bootstrap.sh` 會讀取此前綴自動組出 subject。
 4. 指派角色（範圍：`rg-shopping`）：部署身分 `Contributor`、`Storage Blob Data Contributor`；預建受控識別 `id-shopping-web`、`id-shopping-deployscript` 並指派資料角色（見 [9.2](#92-關鍵設計)）。**不**授予 Role Based Access Control Administrator，原因是組織 ABAC 條件限制。
 5. 建立 ACS SMTP 用的 App Registration `acs-shopping-smtp` 與 client secret；在 ACS 資源指派自訂角色（`Microsoft.Communication/CommunicationServices/Read`、`.../Write`、`Microsoft.Communication/EmailServices/write`）；將 secret 寫入 Key Vault `smtp-password`。此步驟需在第一次 `infra.yml` 部署完成後執行。自訂角色不在 ABAC 限制清單內，可由您自行指派。
 6. 在 GitHub 建立 Environment `azure`，設定第 14.2 節的 Variables 與 Secrets。
@@ -606,7 +606,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | ACS 受管網域寄信量很低 | 大量忘記密碼請求被限流 | 試運行可接受；M8 改自有網域 |
 | InProc Session | 每次部署或重新啟動，使用者被登出 | 登入時由 `violet_cart` 還原購物車；日後擴充改 SQL Session State |
 | Key Vault 參考快取 | 更換密碼後 App 仍使用舊值 | 更換後重新啟動 App Service（M8 第 4 步） |
-| OIDC subject 大小寫 | 登入 Azure 失敗 | 一律使用 `jeff1121`；Environment 名稱固定為 `azure` |
+| OIDC subject 不符（格式或大小寫） | 登入 Azure 失敗（`AADSTS700213`） | `bootstrap.sh` 以 API 取得實際 `sub_claim_prefix`；Environment 名稱固定為 `azure`；以 Azure OIDC 驗證 workflow 確認 |
 | Dependabot 升級破壞相容性 | 建置或執行失敗 | 需通過建置與冒煙測試才能合併 |
 
 ---
@@ -650,4 +650,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | v1.0 | 2026-09-30 | 依逐題討論結果定案：單一環境、East Asia + B1、Bicep 建立 Azure SQL、Key Vault、兩個 SQL 帳號與 deploymentScript、App 啟動時 DbUp migration、示範資料入 migration、商品圖片改 Blob + Front Door、ACS Email（SMTP）、iTextSharp NuGet、PR 只擋新增 High／Critical、完整 SBOM；新增 M7 安全修正與 M8 轉入正式營運、權限矩陣、成本估算；新增 CONTEXT.md 與 ADR |
 | v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；Syft 不解析 `packages.config`，改加 GitHub 相依圖 SBOM；markdownlint 關閉 MD013、MD033 |
 | v1.2 | 2026-09-30 | M2 完成：補齊建置缺檔、iTextSharp 改 NuGet、提前導入 `Website.Data.Db` 與連線 placeholder、加入 `build.yml` 產出 `site.zip` 與部署套件 SBOM；Ruleset 新增 `建置` 必要檢查與 review thread resolution 注意事項 |
-| v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow |
+| v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow；OIDC subject 改為 GitHub 不可變格式（含帳號與 Repo ID），由腳本自動取得 |

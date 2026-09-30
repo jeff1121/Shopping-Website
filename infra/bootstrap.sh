@@ -77,17 +77,27 @@ SP_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv 2>/dev/null || az ad sp c
 echo "App ID：${APP_ID}；SP Object ID：$SP_ID"
 
 step "新增 Federated Credential（GitHub Environment ${GITHUB_ENV_NAME}）"
-FIC_SUBJECT="repo:${GITHUB_REPO}:environment:${GITHUB_ENV_NAME}"
-if [[ "$(az ad app federated-credential list --id "$APP_ID" --query "[?subject=='$FIC_SUBJECT'] | length(@)" -o tsv)" == "0" ]]; then
-  az ad app federated-credential create --id "$APP_ID" --parameters "{
-    \"name\": \"github-env-${GITHUB_ENV_NAME}\",
-    \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"$FIC_SUBJECT\",
-    \"audiences\": [\"api://AzureADTokenExchange\"],
-    \"description\": \"GitHub Actions environment ${GITHUB_ENV_NAME}\"
-  }" -o none
+# GitHub 可能使用含帳號與 Repo 數字 ID 的不可變 subject（repo:owner@id/repo@id:...），
+# 因此以 API 取得實際前綴；取不到時退回舊格式 repo:owner/repo。
+SUB_PREFIX=$(gh api "repos/${GITHUB_REPO}/actions/oidc/customization/sub" --jq '.sub_claim_prefix // empty' 2>/dev/null || true)
+FIC_SUBJECT="${SUB_PREFIX:-repo:${GITHUB_REPO}}:environment:${GITHUB_ENV_NAME}"
+FIC_NAME="github-env-${GITHUB_ENV_NAME}"
+FIC_JSON="{
+  \"name\": \"${FIC_NAME}\",
+  \"issuer\": \"https://token.actions.githubusercontent.com\",
+  \"subject\": \"${FIC_SUBJECT}\",
+  \"audiences\": [\"api://AzureADTokenExchange\"],
+  \"description\": \"GitHub Actions environment ${GITHUB_ENV_NAME}\"
+}"
+CURRENT_SUBJECT=$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='${FIC_NAME}'].subject | [0]" -o tsv)
+if [[ -z "$CURRENT_SUBJECT" ]]; then
+  az ad app federated-credential create --id "$APP_ID" --parameters "$FIC_JSON" -o none
+  echo "已建立"
+elif [[ "$CURRENT_SUBJECT" != "$FIC_SUBJECT" ]]; then
+  az ad app federated-credential update --id "$APP_ID" --federated-credential-id "$FIC_NAME" --parameters "$FIC_JSON" -o none
+  echo "已更新（原 subject：${CURRENT_SUBJECT}）"
 fi
-echo "Subject：$FIC_SUBJECT"
+echo "Subject：${FIC_SUBJECT}"
 
 step "指派部署身分角色（範圍：${RESOURCE_GROUP}）"
 assign_role "$SP_ID" "Contributor" "$RG_SCOPE"
