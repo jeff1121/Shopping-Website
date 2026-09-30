@@ -48,10 +48,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 組件參考：包含 Web Forms 所需的 System.Web、ADO.NET 的 System.Data，以及 PDF 匯出使用的 iTextSharp。 -->
-    <!-- iTextSharp 不在 NuGet 套件清單中，HintPath 指向原作者機器上的路徑；請改為本機 DLL 路徑或改用 NuGet 安裝 iTextSharp 5.x -->
+    <!-- 組件參考：包含 Web Forms 所需的 System.Web、ADO.NET 的 System.Data，以及 PDF 匯出使用的 iTextSharp NuGet 套件。 -->
+    <Reference Include="BouncyCastle.Cryptography">
+      <HintPath>..\packages\BouncyCastle.Cryptography.2.6.2\lib\net461\BouncyCastle.Cryptography.dll</HintPath>
+    </Reference>
     <Reference Include="itextsharp">
-      <HintPath>..\..\..\..\Files\OrderInvoice\itextsharp.dll</HintPath>
+      <HintPath>..\packages\iTextSharp.5.5.13.6\lib\net461\itextsharp.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Web.DynamicData" />
@@ -78,7 +80,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <!-- 內容檔：所有 .aspx 頁面、靜態圖片、Web.config 與共用 CSS（css\style.css 目前缺檔）。 -->
+    <!-- 內容檔：所有 .aspx 頁面、靜態圖片、Web.config 與共用 CSS。 -->
     <Content Include="about.aspx" />
     <Content Include="addProducts.aspx" />
     <Content Include="blog.aspx" />
@@ -86,7 +88,6 @@
     <Content Include="categories.aspx" />
     <Content Include="checkout.aspx" />
     <Content Include="contact.aspx" />
-    <!-- css\style.css 未納入版控（Repo 中不存在），頁面仍可執行但缺少共用樣式 -->
     <Content Include="css\style.css" />
     <Content Include="forgotpass.aspx" />
     <Content Include="img\add.jpg" />
@@ -180,6 +181,7 @@
     <Compile Include="contact.aspx.designer.cs">
       <DependentUpon>contact.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Data\Db.cs" />
     <Compile Include="forgotpass.aspx.cs">
       <DependentUpon>forgotpass.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -208,7 +210,6 @@
     <Compile Include="profile.aspx.designer.cs">
       <DependentUpon>profile.aspx</DependentUpon>
     </Compile>
-    <!-- Properties\AssemblyInfo.cs 未納入版控，建置前需自行建立或移除此行（見 QuickStart.md） -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="register.aspx.cs">
       <DependentUpon>register.aspx</DependentUpon>

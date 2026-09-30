@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Net.Mail;
 using System.Web;
@@ -16,8 +17,8 @@ namespace Website
     /// </summary>
     public partial class forgotpass : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        SqlConnection con = Db.CreateConnection();
         // 注意：以下為 static 欄位，會在所有使用者請求間共用，多人同時操作時會互相覆蓋
         /// <summary>資料庫中的安全問題答案。</summary>
         static string secans = "";

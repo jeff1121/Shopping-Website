@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.IO;
 using System.Linq;
 using System.Web;
@@ -24,8 +25,8 @@ namespace Website
     /// </remarks>
     public partial class profile : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        readonly SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        readonly SqlConnection con = Db.CreateConnection();
         /// <summary>目前登入帳號的 uid，&gt; 5000 視為賣家。</summary>
         int uid = 0000;
 

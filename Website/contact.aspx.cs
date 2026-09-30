@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -67,8 +68,8 @@ namespace Website
             // txtMessage 是 HTML textarea（runat=server），需讀取 Value 而非 Text
             String strMessage = txtMessage.Value;
 
-            // 本頁在方法內建立區域連線物件，連線字串需在本機自行填入。
-            SqlConnection con = new SqlConnection(<enter your database connection>);
+            // 本頁在方法內建立區域連線物件，透過 Db 從 Web.config 的 cmpConnectionString 讀取。
+            SqlConnection con = Db.CreateConnection();
 
             // 未指定欄位名稱，依 violet_contact 欄位順序 uname, email, message 寫入。
             SqlCommand cmd = new SqlCommand("INSERT INTO violet_contact VALUES (@name, @email, @message)", con);

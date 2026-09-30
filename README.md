@@ -34,6 +34,7 @@
 - [開發慣例](#開發慣例)
 - [改進建議](#改進建議)
 - [貢獻方式](#貢獻方式)
+- [第三方授權](#第三方授權)
 - [授權](#授權)
 
 ---
@@ -42,10 +43,10 @@
 
 | 項目 | 狀態 |
 | --- | --- |
-| 可否直接編譯 | ❌ 否。12 個後置程式碼檔案含佔位字串 `new SqlConnection(<enter your database connection>)`，`Web.config` 的連線字串為 `Add connection string here` |
-| 缺漏檔案 | `Website/Properties/AssemblyInfo.cs`（專案檔有引用，缺少會建置失敗）、`Website/css/style.css`（僅影響外觀） |
+| 可否直接編譯 | ✅ 專案檔缺漏與連線佔位語法已補齊；仍需在本機設定 `Web.config` 的連線字串才能實際執行 |
+| 缺漏檔案 | `Website/Properties/AssemblyInfo.cs` 與 `Website/css/style.css` 已補入專案 |
 | 版控現況 | Repo 沒有 `.gitignore`；`Website/obj/Debug/` 兩個快取檔已被簽入；部分已簽入圖片未列入 `Website.csproj` |
-| 外部相依 | iTextSharp 以機器專屬路徑 `..\..\..\..\Files\OrderInvoice\itextsharp.dll` 參考，非 NuGet |
+| 外部相依 | iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 透過 NuGet 管理 |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、SBOM（簽章）、相依套件審查、Lint、OpenSSF Scorecard、Dependabot（見 [Plan.md](Plan.md) M1） |
@@ -67,8 +68,8 @@
    ```
 
 3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
-4. 在 `Website/Web.config` 設定 `cmpConnectionString`，並把 12 個後置程式碼檔案中的 `<enter your database connection>` 改為讀取該連線字串。
-5. 補上 `Website/Properties/AssemblyInfo.cs`、修正 iTextSharp 參考（建議改用 NuGet `iTextSharp` 5.5.13.3）。
+4. 在 `Website/Web.config` 設定 `cmpConnectionString`；後置程式碼會透過 `Website.Data.Db` 讀取此設定。
+5. 執行 NuGet 還原，取得 iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2。
 6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
 7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
 
@@ -116,7 +117,7 @@
 | 編譯器 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 2.0.1 | Roslyn，已簽入 `packages/` |
 | 資料存取 | ADO.NET | `SqlConnection` / `SqlCommand` / `SqlDataAdapter` 與 `asp:SqlDataSource` 並存 |
 | 資料庫 | Microsoft SQL Server | 所有資料表以 `violet_` 為前綴 |
-| PDF | iTextSharp（`HTMLWorker`） | 將訂單歷史面板轉成 A4 PDF |
+| PDF | iTextSharp 5.5.13.6（`HTMLWorker`） | 將訂單歷史面板轉成 A4 PDF；透過 NuGet 還原 |
 | 郵件 | `System.Net.Mail.SmtpClient` | Gmail SMTP（`smtp.gmail.com:587`，SSL） |
 | 前端 | HTML、CSS（inline 與頁內 `<style>`） | 大量絕對定位排版；未使用 JavaScript 框架 |
 | 驗證 | Web Forms 驗證控制項 | `RequiredFieldValidator`、`RegularExpressionValidator`、`CompareValidator`；已關閉 Unobtrusive 模式 |
@@ -391,7 +392,8 @@ sequenceDiagram
 
 | 檔案 | 設定 | 說明 |
 | --- | --- | --- |
-| `Web.config` | `connectionStrings/cmpConnectionString` | 供 `asp:SqlDataSource` 使用，需自行填入 |
+| `Web.config` | `connectionStrings/cmpConnectionString` | 供 `asp:SqlDataSource` 與後置程式碼使用，需自行填入 |
+| `Web.config` | `connectionStrings/migratorConnectionString` | 供後續資料庫遷移工具使用，目前為 placeholder |
 | `Web.config` | `compilation debug="true" targetFramework="4.7.2"` | 開發模式編譯 |
 | `Web.config` | `system.codedom` | 使用 Roslyn 編譯器（C# `/langversion:default`） |
 | `Web.config` | `ValidationSettings:UnobtrusiveValidationMode=None` | 驗證控制項不需 jQuery |
@@ -405,9 +407,8 @@ sequenceDiagram
 
 ### 建置與環境
 
-- 12 個 `<enter your database connection>` 佔位字串無法編譯。
-- 缺少 `Properties/AssemblyInfo.cs`、`css/style.css`。
-- iTextSharp 參考路徑為原作者本機路徑。
+- Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
+- `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder，需在本機設定後才能連線。
 - `Website/obj/Debug/` 建置快取被簽入版控；Repo 沒有 `.gitignore`。
 
 ### 功能缺陷
@@ -492,6 +493,16 @@ sequenceDiagram
 5. 建立 Pull Request。
 
 提交前請確認：遵循 C# 命名慣例、資料庫變更已同步更新文件、未提交任何機密資訊。
+
+---
+
+## 第三方授權
+
+| 套件 | 用途 | 授權 |
+| --- | --- | --- |
+| iTextSharp 5.5.13.6 | 訂單 PDF 匯出（`HTMLWorker`） | AGPL-3.0；決策背景見 [ADR 0003](docs/adr/0003-keep-itextsharp-agpl.md) |
+| BouncyCastle.Cryptography 2.6.2 | iTextSharp 加密相依套件 | MIT |
+| Microsoft.CodeDom.Providers.DotNetCompilerPlatform 2.0.1 | ASP.NET Web Forms Roslyn CodeDom 編譯器提供者 | MIT |
 
 ---
 

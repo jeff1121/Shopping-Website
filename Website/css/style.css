@@ -1,0 +1,30 @@
+/*
+ * 共用基礎樣式：多數頁面仍以頁內 <style> 與 inline style 控制版面，
+ * 此檔僅提供中性預設值，避免影響既有頁面配置。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", Arial, sans-serif;
+  color: #333;
+  background-color: #fff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  text-decoration: underline;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Data;
 using System.IO;
 using System.Linq;
 using System.Web;
@@ -21,8 +22,8 @@ namespace Website
     /// </remarks>
     public partial class addProducts : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（連線字串需在本機自行填入）。</summary>
-        SqlConnection con = new SqlConnection(<enter your database connection>);
+        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
+        SqlConnection con = Db.CreateConnection();
 
         /// <summary>
         /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時填入寫死的商品分類選項。
