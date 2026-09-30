@@ -11,7 +11,8 @@
 
 本 Repo 位於 [Jeff1121/Shopping-Website](https://github.com/Jeff1121/Shopping-Website)，源自
 [DarylFernandes99/Shopping-Website](https://github.com/DarylFernandes99/Shopping-Website)，
-並補上完整的繁體中文程式碼註解與文件（功能與原專案相同，未修改程式邏輯）。
+並補上完整的繁體中文程式碼註解與文件。商業邏輯與原專案相同；目前只調整了 SQL 連線的建立方式
+（集中到 `Website.Data.Db`），並補齊建置所需的檔案與 NuGet 套件。
 
 > 🚀 **想直接跑起來？** 請看 [QuickStart.md](QuickStart.md)，內含資料庫建立腳本、連線字串設定、建置前必要修正與常見問題排除。
 
@@ -29,6 +30,7 @@
 - [核心流程](#核心流程)
 - [資料庫結構](#資料庫結構)
 - [設定檔說明](#設定檔說明)
+- [CI/CD 與 Azure 部署](#cicd-與-azure-部署)
 - [已知問題與限制](#已知問題與限制)
 - [安全性說明](#安全性說明)
 - [開發慣例](#開發慣例)
@@ -45,11 +47,12 @@
 | --- | --- |
 | 可否直接編譯 | ✅ 專案檔缺漏與連線佔位語法已補齊；仍需在本機設定 `Web.config` 的連線字串才能實際執行 |
 | 缺漏檔案 | `Website/Properties/AssemblyInfo.cs` 與 `Website/css/style.css` 已補入專案 |
-| 版控現況 | Repo 沒有 `.gitignore`；`Website/obj/Debug/` 兩個快取檔已被簽入；部分已簽入圖片未列入 `Website.csproj` |
-| 外部相依 | iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 透過 NuGet 管理 |
+| 版控現況 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 不進版控（NuGet 還原）；部分已簽入圖片未列入 `Website.csproj` |
+| 外部相依 | iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2、Roslyn CodeDom 4.1.0 皆透過 NuGet 管理 |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
-| CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [Plan.md](Plan.md) M1～M2） |
+| CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
+| Azure 部署 | 一次性設定已完成（Resource Group、OIDC 部署身分、受控識別、GitHub Environment `azure`）；Bicep 基礎設施與自動部署**尚未實作**（Plan M4～M6） |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
@@ -69,8 +72,8 @@
 
 3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
 4. 在 `Website/Web.config` 設定 `cmpConnectionString`；後置程式碼會透過 `Website.Data.Db` 讀取此設定。
-5. 執行 NuGet 還原，取得 iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2。
-6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
+5. 執行 NuGet 還原，取得 iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2 與 Roslyn 編譯器。
+6. 開啟 `Website.sln`，在 `index.aspx` 按右鍵選「設定為起始頁」，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
 7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
 
 ---
@@ -114,7 +117,7 @@
 | --- | --- | --- |
 | Web 框架 | ASP.NET Web Forms | 每頁由 `.aspx` 標記 + `.aspx.cs` 後置程式碼 + `.aspx.designer.cs` 組成 |
 | 語言 / 執行環境 | C#、.NET Framework 4.7.2 | 命名空間統一為 `Website` |
-| 編譯器 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0 | Roslyn，已簽入 `packages/` |
+| 編譯器 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0 | Roslyn，透過 NuGet 還原 |
 | 資料存取 | ADO.NET | `SqlConnection` / `SqlCommand` / `SqlDataAdapter` 與 `asp:SqlDataSource` 並存 |
 | 資料庫 | Microsoft SQL Server | 所有資料表以 `violet_` 為前綴 |
 | PDF | iTextSharp 5.5.13.6（`HTMLWorker`） | 將訂單歷史面板轉成 A4 PDF；透過 NuGet 還原 |
@@ -130,14 +133,27 @@
 ```text
 Shopping-Website/
 ├── .github/
-│   ├── workflows/build.yml         # 建置 CI：Windows MSBuild、site.zip、部署套件 SBOM
-│   └── copilot-instructions.md     # 給 AI 程式助理的專案說明
+│   ├── workflows/                  # GitHub Actions（見「CI/CD 與 Azure 部署」）
+│   ├── ISSUE_TEMPLATE/             # 繁中 Issue 範本（錯誤回報、功能建議）
+│   ├── pull_request_template.md    # 繁中 PR 範本與檢查清單
+│   ├── CODEOWNERS                  # 所有檔案由 @jeff1121 審查
+│   ├── dependabot.yml              # NuGet 與 Actions 每週更新
+│   └── copilot-instructions.md     # 給 AI 程式助理的專案說明（英文）
+├── docs/adr/                       # 架構決策紀錄（ADR 0001～0004）
+├── infra/
+│   └── bootstrap.sh                # Azure 與 GitHub 一次性設定腳本（可重複執行）
+├── .editorconfig                   # 編碼與行尾規則（VS 檔案 UTF-8 BOM + CRLF，其餘 UTF-8 + LF）
+├── .gitattributes                  # Git 行尾處理（CRLF 檔案原樣保存）
+├── .gitignore                      # 排除 bin/、obj/、packages/、*.user、本機敏感設定
+├── .markdownlint-cli2.jsonc        # Markdown Lint 設定
+├── CONTEXT.md                      # 專案用語定義
 ├── DbSql.sql                       # 原始資料庫腳本（已過時，僅供參考）
 ├── LICENSE                         # MIT 授權
+├── Plan.md                         # CI/CD 與 Azure 部署計畫書（含里程碑進度）
 ├── QuickStart.md                   # 安裝與啟動指南
 ├── README.md                       # 本文件
+├── SECURITY.md                     # 安全性政策與漏洞通報方式
 ├── Website.sln                     # Visual Studio 方案檔（VS 2019 格式）
-├── packages/                       # 已簽入的 NuGet 套件（Roslyn 編譯器）
 └── Website/                        # Web Forms 網站專案
     ├── index.aspx(.cs)             # 首頁 / 商品目錄、搜尋、排序、加入購物車
     ├── categories.aspx(.cs)        # 商品分類清單
@@ -155,17 +171,15 @@ Shopping-Website/
     ├── blog.aspx(.cs)              # 部落格（靜態）
     ├── contact.aspx(.cs)           # 聯絡我們（寫入 violet_contact）
     ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
-    ├── Data/Db.cs                 # 集中建立 SQL 連線（cmp / migrator connection string）
+    ├── Data/Db.cs                  # 集中建立 SQL 連線（cmp / migrator connection string）
     ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
     ├── css/style.css               # 共用基礎樣式
     ├── Web.config                  # 連線字串、編譯與驗證設定
     ├── Web.Debug.config            # Debug 組態轉換（僅範例）
     ├── Web.Release.config          # Release 組態轉換（移除 debug 屬性）
-    ├── Website.csproj              # 專案檔（舊式格式，需手動登錄新檔案）
-    ├── Website.csproj.user         # IIS Express 設定（SSL 埠 44337）
+    ├── Website.csproj              # 專案檔（舊式格式，需手動登錄新檔案；IIS Express SSL 埠 44337）
     ├── packages.config             # NuGet 套件清單
     ├── dummy.txt                   # 空白檔案（無用途）
-    ├── obj/Debug/                  # 誤簽入的建置快取
     └── img/
         ├── categories/             # 分類圖片（desktop、laptop、pant、shirt）
         ├── icons/                  # 頁首與資訊列圖示（search、man、bag、delivery…）
@@ -397,13 +411,67 @@ sequenceDiagram
 | 檔案 | 設定 | 說明 |
 | --- | --- | --- |
 | `Web.config` | `connectionStrings/cmpConnectionString` | 供 `asp:SqlDataSource` 與後置程式碼使用，需自行填入 |
-| `Web.config` | `connectionStrings/migratorConnectionString` | 供後續資料庫遷移工具使用，目前為 placeholder |
+| `Web.config` | `connectionStrings/migratorConnectionString` | 供後續資料庫 migration（Plan M5）使用，目前為 placeholder；由 `Db.CreateMigratorConnection()` 讀取 |
 | `Web.config` | `compilation debug="true" targetFramework="4.7.2"` | 開發模式編譯 |
 | `Web.config` | `system.codedom` | 使用 Roslyn 編譯器（C# `/langversion:default`） |
 | `Web.config` | `ValidationSettings:UnobtrusiveValidationMode=None` | 驗證控制項不需 jQuery |
 | `Web.Release.config` | `RemoveAttributes(debug)` | 發行時移除 debug |
-| `Website.csproj.user` | `IISExpressSSLPort=44337`、`StartPageUrl=index.aspx` | IIS Express 啟動設定 |
+| `Website.csproj` | `IISExpressSSLPort=44337`、`IISUrl=https://localhost:44337/` | IIS Express 啟動設定；起始頁（`StartPageUrl`）原本在 `Website.csproj.user`，該檔已不進版控，需在本機設定（見 [QuickStart 6](QuickStart.md#6-建置與執行)） |
 | `forgotpass.aspx.cs` | `"enter email id"`、`"enter password"` | Gmail SMTP 寄件帳密佔位字串 |
+
+---
+
+## CI/CD 與 Azure 部署
+
+完整規劃與進度見 [Plan.md](Plan.md)（里程碑 M1～M8）；關鍵決策見 [docs/adr/](docs/adr/)。
+
+### 進度
+
+| 里程碑 | 狀態 |
+| --- | --- |
+| M1 CI 掃描與 Repo 治理 | ✅ 已完成 |
+| M2 可建置與建置 CI | ✅ 已完成 |
+| M3 設定外部化與程式調整 | 🟡 部分完成（`Website.Data.Db` 已導入） |
+| M4 Azure 基礎設施（Bicep） | 🟡 一次性設定已完成；Bicep 與 `infra.yml` 未開始 |
+| M5～M8 Migration、自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
+
+### GitHub Actions workflow
+
+| 檔案 | 名稱 | 觸發 | 內容 |
+| --- | --- | --- | --- |
+| `codeql.yml` | CodeQL | PR、push `main`、每週 | C# 與 Actions 的品質＋安全掃描（`security-and-quality`） |
+| `sbom.yml` | 原始碼 SBOM | PR、push `main`、手動 | Syft＋GitHub 相依圖產生 SPDX／CycloneDX，Grype 比對漏洞，`main` 上簽章 |
+| `dependency-review.yml` | 相依套件審查 | PR | 阻擋新增的 High 以上漏洞與 GPL／AGPL 授權（iTextSharp 例外） |
+| `lint.yml` | Lint | PR、push `main` | markdownlint、editorconfig-checker、sqlfluff、actionlint |
+| `scorecard.yml` | OpenSSF Scorecard | 每週、push `main` | 供應鏈安全評分 |
+| `build.yml` | 建置 | PR、push `main`、手動、`workflow_call` | Windows MSBuild 發行 → `site.zip`；部署套件 SBOM 與簽章 |
+| `azure-oidc-check.yml` | Azure OIDC 驗證 | PR（變更 bootstrap）、手動 | 確認 GitHub 能以 OIDC 登入 Azure，並檢查一次性設定的資源 |
+
+所有 Action 都固定到 commit SHA，頂層 `permissions: {}`，每個 job 只給最小權限。Dependabot 每週更新 NuGet 與 Actions。
+掃描結果集中在 GitHub → Security → Code scanning；既有警示以 Issue #4～#7 追蹤，預計在 M7 修正。
+
+### 本機 Lint
+
+```bash
+npx -y markdownlint-cli2@0.22.0 '**/*.md'
+docker run --rm -v "$PWD:/check" -w /check mstruebing/editorconfig-checker@sha256:2ba6232bfa0058f72f5f7d7816711590aa764afab1542af30b3ecb4553587918
+docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+```
+
+### Azure 一次性設定
+
+部署目標為 Azure App Service（Windows）＋ Azure SQL，區域 East Asia，Resource Group `rg-shopping`。
+GitHub Actions 以 **OIDC** 登入 Azure，不使用任何 client secret；相關設定放在 GitHub Environment `azure`（Variables：`AZURE_CLIENT_ID`、`AZURE_TENANT_ID`、`AZURE_SUBSCRIPTION_ID`、`AZURE_RESOURCE_GROUP`、`SQL_ADMIN_LOGIN`；Secret：`SQL_ADMIN_PASSWORD`）。
+
+這些設定由 [`infra/bootstrap.sh`](infra/bootstrap.sh) 建立，腳本可重複執行，重建 Demo 環境時使用：
+
+```bash
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
+```
+
+腳本會建立 Resource Group、部署身分 `gh-shopping-deploy`（含 Federated Credential）、使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 與角色指派，並設定 GitHub Environment。
+由於訂用帳戶的 Owner 受組織 ABAC 條件限制，角色指派一律在這個腳本完成，Bicep 不做角色指派（[ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md)）。
+完成後可手動執行「Azure OIDC 驗證」workflow 確認。
 
 ---
 
@@ -413,7 +481,7 @@ sequenceDiagram
 
 - Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
 - `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder；本機執行至少需設定 `cmpConnectionString`。
-- `Website/obj/Debug/` 建置快取被簽入版控；Repo 沒有 `.gitignore`。
+- `Website.csproj.user` 不進版控，新 clone 的專案沒有起始頁設定；`index.aspx` 也不在 IIS 預設文件清單中，直接開啟根網址會出現 403 或目錄錯誤，請改瀏覽 `/index.aspx` 或在專案屬性設定起始頁。
 - 部分已簽入商品圖片未列入 `Website.csproj`，發行套件可能不包含這些圖片。
 
 ### 功能缺陷
@@ -482,7 +550,7 @@ sequenceDiagram
 - 全面改用參數化查詢與 `using` 釋放連線。
 - 密碼雜湊、重設密碼流程、角色授權。
 - 修正位置式 INSERT 為指定欄位的 INSERT。
-- 加入 `.gitignore`（排除 `bin/`、`obj/`、`packages/`）。
+- 在 `Web.config` 加入 `defaultDocument`（`index.aspx`），讓根網址直接開啟首頁。
 - 串接金流（如 Stripe、PayPal）、訂單狀態追蹤、管理後台。
 - 響應式版面。
 - 遷移到 ASP.NET Core（Razor Pages / MVC）以支援跨平台。
@@ -491,13 +559,18 @@ sequenceDiagram
 
 ## 貢獻方式
 
-1. Fork 本 Repo。
-2. 建立功能分支：`git checkout -b feature/功能名稱`。
-3. 提交變更：`git commit -m "說明變更內容"`。
-4. 推送分支：`git push origin feature/功能名稱`。
-5. 建立 Pull Request。
+`main` 受 Ruleset 保護，所有變更都必須經過 Pull Request：
 
-提交前請確認：遵循 C# 命名慣例、資料庫變更已同步更新文件、未提交任何機密資訊。
+1. Fork 本 Repo（或由維護者直接建立分支）。
+2. 建立功能分支：`git checkout -b feature/功能名稱`。
+3. 提交變更，Commit 訊息使用繁體中文。
+4. 推送前先在本機執行 Lint（指令見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)）。
+5. 建立 Pull Request，依 [PR 範本](.github/pull_request_template.md)填寫變更摘要、檢查清單與驗證方式。
+6. 必要檢查 `建置`、`CodeQL`、`相依套件審查`、`Lint` 全部通過，且所有 Review thread（包含 CodeQL 自動留言）都已解決後，才能以 Squash 合併；PR 標題即為 Commit 訊息。
+
+提交前請確認：遵循 C# 命名慣例、新增程式都有繁中 `/// <summary>` 註解、資料庫變更已同步更新文件、未提交任何機密資訊。
+安全漏洞請依 [SECURITY.md](SECURITY.md) 私下通報，不要開公開 Issue。
+`demo/pre-implementation` 分支保存開工前的狀態供 Demo 使用，已鎖定，請勿推送。
 
 ---
 

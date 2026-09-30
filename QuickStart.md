@@ -66,7 +66,9 @@ Shopping-Website/
 ├── DbSql.sql                # 原始資料庫腳本（已過時，僅供參考）
 ├── QuickStart.md            # 本文件
 ├── README.md                # 專案說明
-├── .github/workflows/       # CI：Lint、CodeQL、SBOM、建置等
+├── Plan.md                  # CI/CD 與 Azure 部署計畫書
+├── .github/workflows/       # CI：Lint、CodeQL、SBOM、建置、Azure OIDC 驗證
+├── infra/bootstrap.sh       # Azure 與 GitHub 一次性設定腳本
 └── Website/                 # Web Forms 網站專案
     ├── *.aspx / *.aspx.cs   # 頁面與後置程式碼
     ├── Data/Db.cs           # 後置程式碼集中建立 SQL 連線
@@ -235,9 +237,10 @@ GO
 
 ### 5.0 版控與專案檔現況（先確認）
 
-- Repo 目前**沒有** `.gitignore`。
-- `git ls-files` 顯示 `Website/obj/Debug/DesignTimeResolveAssemblyReferences.cache` 與
-  `Website/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache` 已被簽入，這是建置快取，不是執行所需檔案。
+- Repo 已有 `.gitignore`：`bin/`、`obj/`、`packages/`、`*.user`、`.vs/` 與本機敏感設定（`secrets.xml`、`.env`）都不進版控。
+- `packages/` 不在 Repo 中，第一次建置前**必須**執行 NuGet 還原（見 5.4）。
+- `Website/Website.csproj.user` 不在 Repo 中，因此沒有預設起始頁（見第 6 節）。
+- `.editorconfig` 與 `.gitattributes` 規定編碼與行尾：`.cs`、`.aspx`、`.csproj`、`.sln` 為 UTF-8 BOM + CRLF，`.config`、`.sql` 為 CRLF，其餘為 UTF-8 + LF。
 - `Website/img/products/apple.png`、`Website/img/products/appol.png`、`Website/img/products/img2.png`、
   `Website/img/products/human99/laptop.png` 已在 Git 中，但未列入 `Website.csproj` 的 `<Content Include>`；
   以 Web Application 專案發佈時若需要這些圖片，請在 Visual Studio 將它們加入專案。
@@ -275,7 +278,7 @@ GO
 
 ### 5.4 NuGet 還原
 
-NuGet 還原會取得 iTextSharp、BouncyCastle.Cryptography 與 Roslyn 編譯器套件。若出現 `csc.exe`、`itextsharp.dll` 或 `BouncyCastle.Cryptography.dll` 找不到之類的錯誤，
+NuGet 還原會取得 iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2 與 Roslyn 編譯器套件（Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0）。若出現 `csc.exe`、`itextsharp.dll` 或 `BouncyCastle.Cryptography.dll` 找不到之類的錯誤，
 在方案上按右鍵執行「還原 NuGet 套件」，或於命令列執行：
 
 ```powershell
@@ -289,7 +292,8 @@ nuget restore Website.sln
 ### Visual Studio
 
 1. 開啟 `Website.sln`。
-2. 確認 `Website` 為啟始專案（預設起始頁為 `index.aspx`）。
+2. 確認 `Website` 為啟始專案，並在方案總管的 `index.aspx` 按右鍵選「設定為起始頁」。
+   起始頁原本記錄在 `Website.csproj.user`，此檔不進版控，新 clone 後需設定一次；`index.aspx` 不在 IIS 預設文件清單中，未設定時開啟根網址會出現 403 或目錄錯誤。
 3. `Ctrl+Shift+B` 建置方案。
 4. `F5`（偵錯）或 `Ctrl+F5`（不偵錯）啟動，瀏覽器會開啟 `https://localhost:44337/index.aspx`。
 5. 第一次使用 HTTPS 時，IIS Express 會詢問是否信任開發憑證，請選擇「是」。
@@ -306,7 +310,15 @@ msbuild Website.sln /p:Configuration=Debug
 
 ### GitHub Actions 建置產物
 
-每次 PR 與 `main` push 都會執行「建置」workflow：在 Windows runner 還原 NuGet、以 MSBuild 發行網站、壓縮成 `site.zip`，並產生部署套件 SBOM。可在 GitHub Actions 的對應 workflow run 下載 `site` artifact 取得 `site.zip`。
+每次 PR 與 `main` push 都會執行「建置」workflow：在 Windows runner 還原 NuGet、以 MSBuild 發行網站、壓縮成 `site.zip`，並產生部署套件 SBOM。可在 GitHub Actions 的對應 workflow run 下載 `site` artifact 取得 `site.zip`（保留 30 天）。
+
+`main` 上產出的 `site.zip` 附有建置來源證明與 SBOM 簽章，可用下列指令驗證：
+
+```bash
+gh attestation verify site.zip -R jeff1121/Shopping-Website
+```
+
+其他 CI（CodeQL、SBOM、相依套件審查、Lint、Scorecard）與本機 Lint 指令請見 [README 的 CI/CD 與 Azure 部署](README.md#cicd-與-azure-部署)。
 
 ---
 
@@ -393,12 +405,27 @@ msbuild Website.sln /p:Configuration=Debug
 - 確保 `img/products/` 具寫入權限；
 - 正式環境請使用獨立的 SQL 帳號，勿使用 `sa`。
 
+### Azure 部署（進行中）
+
+自動部署到 Azure App Service 仍在實作中（[Plan.md](Plan.md) M4～M6），目前只完成一次性設定。
+要在新的訂用帳戶重建這些設定，需要 Azure CLI、GitHub CLI（具 Repo admin 權限）與 Python 3，並在 macOS、Linux、WSL 或 Cloud Shell 執行：
+
+```bash
+az login
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
+```
+
+腳本可重複執行，已存在的項目會略過；SQL 管理員密碼只在 GitHub Secret 不存在時產生，且不會顯示。
+完成後到 GitHub Actions 手動執行「Azure OIDC 驗證」workflow，確認 GitHub 可以登入 Azure。細節見 [README](README.md#azure-一次性設定)。
+
 ---
 
 ## 10. 常見問題排除
 
 | 症狀 | 原因與解法 |
 | --- | --- |
+| 開啟 `https://localhost:44337/` 出現 403 或目錄清單錯誤 | 未設定起始頁；請瀏覽 `/index.aspx` 或把 `index.aspx` 設為起始頁，見第 6 節 |
+| 找不到 `csc.exe` 或 `packages\...` 路徑 | 尚未執行 NuGet 還原（`packages/` 不在 Repo 中），見 5.4 |
 | 編譯錯誤 `CS1525: Invalid expression term '<'` | 工作區仍殘留舊版連線佔位字串，請同步最新程式碼並見 4.2 |
 | 編譯錯誤 `CS2001: Source file 'Properties\AssemblyInfo.cs' could not be found` | 確認 `Website/Properties/AssemblyInfo.cs` 存在，見 5.1 |
 | 找不到 `iTextSharp` 命名空間 | 請執行 NuGet 還原，見 5.2 |

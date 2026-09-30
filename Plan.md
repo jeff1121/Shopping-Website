@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.3（決策已確認；M2 已完成；Azure 一次性設定已完成）**
+> 文件狀態：**v1.3.1（決策已確認；M1、M2 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-09-30
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -94,7 +94,8 @@
 | PDF | `profile.aspx.cs` 以 iTextSharp `HTMLWorker` 將訂單表格轉 PDF，寫入 `Response.OutputStream`；iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 由 NuGet 還原 | M2 已完成 |
 | `Global.asax` | **不存在** | M5 需新增以執行啟動 migration |
 | 缺少檔案 | `Properties/AssemblyInfo.cs`、`css/style.css` 已補入並列入專案 | M2 已完成 |
-| 版控 | 無 `.gitignore`；`packages/`、`Website.csproj.user` 已被追蹤 | M1 處理 |
+| 版控 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 已移出版控，改由 NuGet 還原 | M1 已完成 |
+| Azure | 訂用帳戶 BD-CIS-Testing；`rg-shopping`、OIDC 部署身分、兩個使用者指派受控識別與 GitHub Environment `azure` 已由 `infra/bootstrap.sh` 建立；Owner 受組織 ABAC 條件限制，不能指派高權限角色 | Bicep 不做角色指派（[ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md)）；M4 尚未開始 |
 | 測試 | 無自動化測試 | 以建置成功 + 部署後冒煙測試作為品質閘門 |
 | Repo 可見性 | Public | CodeQL、Secret Scanning、Dependency Review、Scorecard **免費可用** |
 
@@ -149,16 +150,16 @@ flowchart LR
 
 ## 5. 里程碑總覽
 
-| 里程碑 | 內容 | 前置條件 | 預估工時 |
-| --- | --- | --- | --- |
-| **M1** CI 掃描與 Repo 治理 | CodeQL、原始碼 SBOM、Dependency Review、Dependabot、Secret Scanning、Scorecard、Lint、`.gitignore`、`.editorconfig`、分支規則 | 無 | 1 天 |
-| **M2** 可建置與建置 CI | 補缺檔、iTextSharp 改 NuGet、`build.yml`、部署套件 SBOM | 無（可與 M1 平行） | 1 天 |
-| **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 |
-| **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 |
-| **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 |
-| **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 |
-| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 |
-| **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 |
+| 里程碑 | 內容 | 前置條件 | 預估工時 | 狀態 |
+| --- | --- | --- | --- | --- |
+| **M1** CI 掃描與 Repo 治理 | CodeQL、原始碼 SBOM、Dependency Review、Dependabot、Secret Scanning、Scorecard、Lint、`.gitignore`、`.editorconfig`、分支規則 | 無 | 1 天 | ✅ 已完成（PR #1、#3、#8） |
+| **M2** 可建置與建置 CI | 補缺檔、iTextSharp 改 NuGet、`build.yml`、部署套件 SBOM | 無（可與 M1 平行） | 1 天 | ✅ 已完成（PR #9、#10） |
+| **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | 🟡 部分完成（3-1、3-2 已於 M2 完成） |
+| **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | 🟡 前置作業已完成（9.4 第 1～4、6 步，PR #11）；Bicep 未開始 |
+| **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ⬜ 未開始 |
+| **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ⬜ 未開始 |
+| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ⬜ 未開始（Issue #4～#7 追蹤） |
+| **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
 
 ---
 
@@ -223,7 +224,7 @@ flowchart LR
 | 禁止 | force push、刪除分支 |
 | 合併方式 | 僅允許 Squash merge，PR 標題即 Commit 訊息（繁體中文） |
 
-**M1 完成狀態（2026-09-30）**：PR #1、#3 已合併；首次掃描的既有警示已開 Issue（安全 #4～#6、品質 #7）。Scorecard 仍有 Code-Review、Branch-Protection（單人維護、核准數 0 的取捨）、Maintained（Repo 建立未滿 90 天）、Fuzzing、CII-Best-Practices 未達標，屬已知且接受。Dependabot PR #2 待建置 CI 綠燈後由另一分支處理。
+**M1 完成狀態（2026-09-30）**：PR #1、#3 已合併；首次掃描的既有警示已開 Issue（安全 #4～#6、品質 #7）。Scorecard 仍有 Code-Review、Branch-Protection（單人維護、核准數 0 的取捨）、Maintained（Repo 建立未滿 90 天）、Fuzzing、CII-Best-Practices 未達標，屬已知且接受。Dependabot PR #2（CodeDom 2.0.1 → 4.1.0）已在建置 CI 綠燈後合併，`Web.config` 的編譯器版本同步為 `4.1.0.0`。
 
 另有 Ruleset「保護 Demo 基準分支」鎖定 `demo/pre-implementation`（禁止更新、force push、刪除），保存開工前狀態供重複 Demo 使用。
 
@@ -356,7 +357,7 @@ infra/
 | 建立資料庫使用者 | `sql-users.bicep` 使用 `Microsoft.Resources/deploymentScripts`（`AzurePowerShell`），以使用者指派受控識別執行：① 若 Key Vault 中尚無 `sql-app-password`／`sql-migrator-password`，產生 32 字元隨機密碼並寫入；② 以管理員連線執行 `CREATE USER [shopping_migrator] WITH PASSWORD=...`、`ALTER ROLE db_ddladmin/db_datareader/db_datawriter ADD MEMBER`；`CREATE USER [shopping_app] WITH PASSWORD=...`、`ALTER ROLE db_datareader/db_datawriter ADD MEMBER`；③ 使用者已存在時改用 `ALTER USER ... WITH PASSWORD`，確保可重複執行 |
 | 為何需要「允許 Azure 服務」 | `deploymentScript` 容器與 App Service（B1 未設 VNet 整合）的對外 IP 皆不固定 |
 | App Service 設定 | 所有敏感設定為 `@Microsoft.KeyVault(VaultName=kv-shopping-xxxx;SecretName=...)`；非敏感設定為明文（見第 14 節） |
-| 角色指派 | **Bicep 不做角色指派**。訂用帳戶的 Owner 受組織 ABAC 條件限制，無法指派 Owner、User Access Administrator、Role Based Access Control Administrator，因此部署身分無法取得指派角色的權限。改由 `infra/bootstrap.sh` 預建受控識別，並在 `rg-shopping` 範圍指派：`id-shopping-web` → `Key Vault Secrets User`、`Storage Blob Data Contributor`；`id-shopping-deployscript` → `Key Vault Secrets Officer`。RG 內只有本專案的 Key Vault 與 Storage，RG 範圍與資源範圍的實際效果相同 |
+| 角色指派 | **Bicep 不做角色指派**。訂用帳戶的 Owner 受組織 ABAC 條件限制，無法指派 Owner、User Access Administrator、Role Based Access Control Administrator，因此部署身分無法取得指派角色的權限。改由 `infra/bootstrap.sh` 預建受控識別，並在 `rg-shopping` 範圍指派：`id-shopping-web` → `Key Vault Secrets User`、`Storage Blob Data Contributor`；`id-shopping-deployscript` → `Key Vault Secrets Officer`。RG 內只有本專案的 Key Vault 與 Storage，RG 範圍與資源範圍的實際效果相同（[ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md)） |
 | 受控識別參照 | Bicep 以 `resource ... existing` 取得兩個受控識別的資源 ID、`clientId`；Web App `identity.type: UserAssigned`，`keyVaultReferenceIdentity` 設為 `id-shopping-web` 的資源 ID，應用程式設定 `AZURE_CLIENT_ID` 設為其 `clientId` |
 | Front Door | origin 主機名稱為 Storage 的 Blob 主要端點，`originHostHeader` 相同；路由 `/*` → origin group，`httpsRedirect: Enabled`、`forwardingProtocol: HttpsOnly`、快取啟用（依 origin 標頭，上傳時設定 `Cache-Control: public, max-age=86400`） |
 | ACS Email | Bicep 建立 Email Communication Service、`AzureManagedDomain` 子資源、Communication Service（`linkedDomains` 指向受管網域）；輸出寄件網域供 `SMTP_FROM` 使用 |
@@ -619,16 +620,17 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | 2 | ~~執行 [9.4](#94-一次性手動步驟) 第 1～4、6 步~~ **已完成**（`infra/bootstrap.sh`） | M4 之前 |
 | 3 | ~~在 GitHub Environment `azure` 設定 `SQL_ADMIN_LOGIN`、`SQL_ADMIN_PASSWORD`~~ **已完成**（密碼由腳本產生，未出現在對話或版控） | M4 之前 |
 | 4 | 執行 [9.4](#94-一次性手動步驟) 第 5 步（ACS SMTP） | 第一次基礎設施部署之後 |
-| 5 | 在 Repo 設定啟用 Secret Scanning、Push Protection、Code Quality 並建立 Ruleset（或授權我以 `gh` 設定） | M1 |
+| 5 | ~~在 Repo 設定啟用 Secret Scanning、Push Protection、Code Quality 並建立 Ruleset~~ **已完成**（以 `gh` 設定，見 [6.3](#63-其他-ci-與治理)） | M1 |
 | 6 | M8 的人工步驟 | 轉入正式營運時 |
 
 ---
 
 ## 20. 驗收標準
 
-- [ ] 每個 PR 自動執行建置、CodeQL、原始碼 SBOM、相依套件審查、Lint，結果顯示在 PR；新增 High／Critical 警示時無法合併。
-- [ ] Code scanning 可看到 CodeQL、Grype（原始碼與部署套件）、Scorecard 的結果。
-- [ ] `push main` 產出原始碼與部署套件 SBOM（SPDX、CycloneDX），並有可用 `gh attestation verify` 驗證的簽章。
+- [x] 每個 PR 自動執行建置、CodeQL、原始碼 SBOM、相依套件審查、Lint，結果顯示在 PR；新增 High／Critical 警示時無法合併。
+- [x] Code scanning 可看到 CodeQL、Grype（原始碼與部署套件）、Scorecard 的結果。
+- [x] `push main` 產出原始碼與部署套件 SBOM（SPDX、CycloneDX），並有可用 `gh attestation verify` 驗證的簽章。
+- [x] GitHub Actions 可經 OIDC 登入 Azure（Azure OIDC 驗證 workflow 在 PR 與 `main` 皆通過），Repo 與 workflow 中沒有任何 Azure 密碼或 client secret。
 - [ ] Repo 中搜尋不到任何連線字串、帳號密碼、`<enter your database connection>`。
 - [ ] `infra.yml` 可從空的 Resource Group 建立全部資源，且重複執行不會失敗、不會改變既有密碼。
 - [ ] App Service 應用程式設定中，所有敏感設定都是 Key Vault 參考。
@@ -651,3 +653,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | v1.1 | 2026-09-30 | M1 實作校正：`.editorconfig`／`.gitattributes` 依現況（`.config`、`.sql` 無 BOM，舊檔不檢查行尾空白；CRLF 檔以 `-text` 保存）；移出 `Website/obj`；Grype 只回報不阻擋；SBOM 簽章主體為原始碼 tar.gz；Syft 不解析 `packages.config`，改加 GitHub 相依圖 SBOM；markdownlint 關閉 MD013、MD033 |
 | v1.2 | 2026-09-30 | M2 完成：補齊建置缺檔、iTextSharp 改 NuGet、提前導入 `Website.Data.Db` 與連線 placeholder、加入 `build.yml` 產出 `site.zip` 與部署套件 SBOM；Ruleset 新增 `建置` 必要檢查與 review thread resolution 注意事項 |
 | v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow；OIDC subject 改為 GitHub 不可變格式（含帳號與 Repo ID），由腳本自動取得 |
+| v1.3.1 | 2026-09-30 | 文件同步：§3 更新版控現況並新增 Azure 列；§5 新增狀態欄；M1 補記 Dependabot PR #2 已合併；§19 第 5 項標為完成；§20 勾選已達成項目並新增 OIDC 驗收條件；新增 [ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md) |
