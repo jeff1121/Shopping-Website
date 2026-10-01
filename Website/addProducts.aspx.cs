@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -21,9 +20,6 @@ namespace Website
     /// </remarks>
     public partial class addProducts : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        readonly SqlConnection con = Db.CreateConnection();
-
         /// <summary>
         /// 頁面載入事件：處理共用頁首的登入狀態顯示；首次載入時填入寫死的商品分類選項。
         /// 注意：未登入時不會填入分類，也沒有阻擋未登入或非賣家存取。
@@ -43,16 +39,7 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
                 if (!Page.IsPostBack)
                 {
                     selectCategory.Items.Clear();
@@ -83,13 +70,10 @@ namespace Website
         /// 驗證並上傳商品圖片，成功後寫入商品資料：
         /// 1. 僅接受 <see cref="ImageStore.IsSupportedExtension"/> 允許的副檔名（jpg、jpeg、png、gif、webp，不分大小寫）；
         /// 2. 圖片經 <see cref="ImageStore.Upload"/> 寫入 Blob「products/&lt;賣家帳號&gt;/&lt;GUID&gt;.副檔名」，取得完整網址；
-        /// 3. 查出登入者姓名 uname 作為賣家欄位，以參數化查詢寫入 violet_products；
+        /// 3. 查出登入者姓名 uname 作為賣家欄位，以參數化、指定欄位的 INSERT 寫入 violet_products（stock 為 0）；
         /// 4. 完成後導向 profile.aspx。
         /// </summary>
-        /// <remarks>
-        /// INSERT 未指定欄位且只提供六個值；若 violet_products 含 stock 等額外 NOT NULL 欄位，會出現欄位數不符或預設值需求（M7 修正）。
-        /// 目前只檢查副檔名，尚未檢查檔案內容與大小（M7 修正）。
-        /// </remarks>
+        /// <remarks>目前只檢查副檔名，尚未檢查檔案內容與大小（M7 修正）。</remarks>
         public void uploadImg()
         {
             if (uploadImage.HasFile)
@@ -105,31 +89,12 @@ namespace Website
                 {
                     // 圖片寫入 Blob，資料庫儲存經 Front Door 提供的完整網址，頁面 <img> 可直接使用
                     string Image = ImageStore.Upload(uploadImage.PostedFile.InputStream, Session["user"].ToString(), fileExt);
-                    string name = txtName.Text;
+                    string uname = Db.GetUname(Session["user"]);
 
-                    String uname = "";
-                    con.Open();
-                    SqlCommand cmd = new SqlCommand("SELECT uname FROM violet_user_login WHERE username=@user OR email=@user", con);
-                    cmd.Parameters.AddWithValue("@user", Session["user"].ToString());
-                    SqlDataReader read = cmd.ExecuteReader();
-                    while (read.Read())
-                    {
-                        uname = read["uname"].ToString();
-                    }
-                    con.Close();
-
-                    // 位置式 INSERT：依序為 pname, price, pimage, category, uname, keywords（未含 stock 欄位）
-                    SqlCommand cmd1 = new SqlCommand("INSERT INTO violet_products VALUES(@pname, @price, @Image, @category, @uname, @keywords)", con);
-                    cmd1.Parameters.AddWithValue("@pname", name);
-                    cmd1.Parameters.AddWithValue("Image", Image);
-                    cmd1.Parameters.AddWithValue("@price", txtPrice.Text);
-                    cmd1.Parameters.AddWithValue("@category", selectCategory.SelectedItem.ToString());
-                    cmd1.Parameters.AddWithValue("@uname", uname);
-                    cmd1.Parameters.AddWithValue("@keywords", txtKeywords.Value);
-
-                    con.Open();
-                    cmd1.ExecuteNonQuery();
-                    con.Close();
+                    // 新商品庫存為 0，賣家需在 profile.aspx 的商品清單編輯庫存後才可購買
+                    Db.Execute("INSERT INTO violet_products (pname, price, pimage, category, uname, keywords, stock) VALUES (@pname, @price, @pimage, @category, @uname, @keywords, 0)",
+                        Db.Param("@pname", txtName.Text), Db.Param("@price", txtPrice.Text), Db.Param("@pimage", Image),
+                        Db.Param("@category", selectCategory.SelectedItem.Text), Db.Param("@uname", uname), Db.Param("@keywords", txtKeywords.Value));
 
                     Label1.Text = "Image Uploaded";
                     Label1.ForeColor = System.Drawing.Color.ForestGreen;

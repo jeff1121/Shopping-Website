@@ -344,8 +344,10 @@
     </Compile>
     <Compile Include="Config\AppSettings.cs" />
     <Compile Include="Data\DatabaseMigrator.cs" />
+    <Compile Include="Data\CartSession.cs" />
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\ImageStore.cs" />
+    <Compile Include="Data\UserAccounts.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>

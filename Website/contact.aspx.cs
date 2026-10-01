@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -32,17 +31,7 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                // Session["count"] 存放購物車 DataTable，列數即購物車品項數
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
             }
         }
 
@@ -58,8 +47,7 @@ namespace Website
         }
 
         /// <summary>
-        /// 送出按鈕：以參數化查詢將 (姓名, Email, 留言) 依欄位順序寫入 violet_contact，
-        /// 成功後清空表單並顯示 lblErrorMsg（此處實際作為「已送出」提示訊息）。
+        /// 送出按鈕：將 (姓名, Email, 留言) 以參數化、指定欄位的 INSERT 寫入 violet_contact，成功後清空表單並顯示 lblErrorMsg（此處實際作為「已送出」提示訊息）。
         /// </summary>
         /// <param name="sender">觸發送出事件的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
@@ -68,19 +56,8 @@ namespace Website
             // txtMessage 是 HTML textarea（runat=server），需讀取 Value 而非 Text
             String strMessage = txtMessage.Value;
 
-            // 本頁在方法內建立區域連線物件，透過 Db 從 Web.config 的 cmpConnectionString 讀取。
-            SqlConnection con = Db.CreateConnection();
-
-            // 未指定欄位名稱，依 violet_contact 欄位順序 uname, email, message 寫入。
-            SqlCommand cmd = new SqlCommand("INSERT INTO violet_contact VALUES (@name, @email, @message)", con);
-            cmd.Parameters.AddWithValue("@name", txtName.Text);
-            cmd.Parameters.AddWithValue("@email", txtEmail.Text);
-            cmd.Parameters.AddWithValue("@message", strMessage);
-
-            // 執行留言寫入。
-            con.Open();
-            cmd.ExecuteNonQuery();
-            con.Close();
+            Db.Execute("INSERT INTO violet_contact (uname, email, message) VALUES (@name, @email, @message)",
+                Db.Param("@name", txtName.Text), Db.Param("@email", txtEmail.Text), Db.Param("@message", strMessage));
 
             // 清空表單並顯示送出成功訊息
             txtName.Text = "";

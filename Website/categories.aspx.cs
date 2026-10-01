@@ -1,4 +1,5 @@
 ﻿using System;
+using Website.Data;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -31,17 +32,7 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                // Session["count"] 存放購物車 DataTable，列數即購物車品項數
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
             }
         }
 

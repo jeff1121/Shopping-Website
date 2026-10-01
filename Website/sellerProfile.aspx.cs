@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -20,50 +19,45 @@ namespace Website
     /// </remarks>
     public partial class sellerProfile : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        readonly SqlConnection con = Db.CreateConnection();
-        /// <summary>目前登入帳號的 uid，用於判斷是否為賣家。</summary>
-        int uid = 0000;
+        /// <summary>
+        /// 目前登入帳號的 uid，用於判斷是否為賣家。存於 ViewState，PostBack 後仍保留。
+        /// </summary>
+        int uid
+        {
+            get { return ViewState["uid"] == null ? 0 : (int)ViewState["uid"]; }
+            set { ViewState["uid"] = value; }
+        }
 
         /// <summary>
         /// 頁面載入事件：未登入則導向登入頁；首次載入時讀取帳號資料填入表單。
-        /// uid &lt; 5000 （一般會員）會被導向 profile.aspx；uid = 5000 因條件寫法會被允許停留。
-        /// 最後停用所有輸入欄位並隱藏送出按鈕。
+        /// 非賣家（uid ≤ 5000）會被導向 profile.aspx。最後停用所有輸入欄位並隱藏送出按鈕。
         /// </summary>
         /// <param name="sender">ASP.NET Web Forms 傳入的事件來源。</param>
         /// <param name="e">頁面載入事件資料。</param>
-        /// <remarks>
-        /// 讀取 Session["user"] 後以 username 或 email 查詢 violet_user_login；uid 只在首次載入設定，
-        /// PostBack 時欄位值回到 0，導致同頁事件可能先被導向 profile.aspx。
-        /// </remarks>
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["user"] != null)
-            {
-                btnLogout.Visible = true;
-                Menu1.Visible = false;
-            }
-            else
+            if (Session["user"] == null)
             {
                 Response.Redirect("~/login.aspx");
+                return;
             }
 
-            SqlCommand cmd = new SqlCommand("SELECT * FROM violet_user_login where username=@name OR email=@name", con);
-            cmd.Parameters.AddWithValue("@name", Session["user"]);
+            btnLogout.Visible = true;
+            Menu1.Visible = false;
 
             if (!Page.IsPostBack)
             {
                 validateAge.ValueToCompare = DateTime.Today.ToShortDateString();
-                con.Open();
-                SqlDataReader read = cmd.ExecuteReader();
-                while (read.Read())
+                DataTable account = Db.Query("SELECT * FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", Session["user"].ToString()));
+                if (account.Rows.Count == 1)
                 {
+                    DataRow read = account.Rows[0];
                     txtName.Text = read["uname"].ToString();
                     txtEmail.Text = read["email"].ToString();
                     txtUsername.Text = Session["user"].ToString();
                     txtPhone.Text = read["phone"].ToString();
-                    txtDOB.Text = read["dob"].ToString();
-                    txtDOB.Text = txtDOB.Text.Substring(0, 10);
+                    // 以伺服器區域設定的短日期格式顯示，與 validateAge 的比較值格式一致
+                    txtDOB.Text = Convert.ToDateTime(read["dob"]).ToShortDateString();
                     selectCountry.Text = read["country"].ToString();
                     selectState.Text = read["state"].ToString();
                     selectCity.Text = read["city"].ToString();
@@ -71,16 +65,14 @@ namespace Website
                     txtAddress.InnerText = read["address"].ToString();
                     uid = Convert.ToInt32(read["uid"]);
                 }
-                con.Close();
             }
 
-            // 注意：uid 只在首次載入時讀取，PostBack 時為 0，會被導向 profile.aspx
-            if (uid < 5000)
+            if (!UserAccounts.IsSeller(uid))
             {
                 Response.Redirect("~/profile.aspx");
+                return;
             }
 
-            //Disable Fields
             disableInput();
             Submit.Visible = false;
         }

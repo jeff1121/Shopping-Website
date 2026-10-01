@@ -93,7 +93,7 @@
 ### 一般會員（已登入）
 
 - 頁首顯示登出、個人資料、購物車圖示與購物車品項數徽章。
-- 選擇數量（1～10，且不超過庫存）加入購物車；庫存為 0 時顯示「售完」並停用按鈕。
+- 選擇數量（1～10，且不超過庫存）加入購物車（需先登入，未登入會導向登入頁）；庫存為 0 時顯示「售完」並停用按鈕。
 - 購物車：修改數量、移除品項、查看總金額（Grand Total）。
 - 購物車同時存在 Session 與資料庫，下次登入會自動還原。
 - 結帳：系統產生訂單編號與日期，按下「Place Order」後建立訂單（**無金流**）。
@@ -180,7 +180,9 @@ Shopping-Website/
     ├── contact.aspx(.cs)           # 聯絡我們（寫入 violet_contact）
     ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
     ├── Config/AppSettings.cs       # 集中讀取 SMTP／Blob／圖片網址設定與啟動檢查
-    ├── Data/Db.cs                  # 集中建立 SQL 連線（cmp / migrator connection string）
+    ├── Data/Db.cs                  # 集中建立 SQL 連線，提供參數化查詢 Query／Execute／Scalar
+    ├── Data/CartSession.cs         # 購物車 Session（DataTable）的建立、讀取與登入還原
+    ├── Data/UserAccounts.cs        # 帳號建立與 uid（會員／賣家）指派
     ├── Data/DatabaseMigrator.cs    # 啟動時以 DbUp 套用 migration（sp_getapplock 防止並行）
     ├── Data/ImageStore.cs          # 商品圖片上傳到 Blob，回傳完整網址
     ├── Global.asax(.cs)            # 啟動時檢查設定並套用 migration；失敗時所有請求回應 500
@@ -256,11 +258,9 @@ flowchart LR
 | Key | 型別 | 寫入位置 | 用途 |
 | --- | --- | --- | --- |
 | `Session["user"]` | string | `login`、`sellerSignIn` | 登入時輸入的文字（使用者名稱**或** Email）。查詢以 `WHERE username=@x OR email=@x` 解析；不為 null 即視為已登入；登出時設為 null |
-| `Session["uname"]` | string | `login` | 使用者姓名（`violet_user_login.uname`），是購物車、訂單、商品中實際儲存的關聯鍵 |
-| `Session["count"]` | `DataTable` | `login`、`cart`、`checkout` | 購物車內容，欄位 `sno, pimage, pname, price, quantity, total, uname`；列數即頁首徽章數字。`uname` 欄位在不同流程中語意不一致：從商品加入時放賣家姓名，登入還原時讀自 `violet_cart.uname`（買家姓名） |
+| `Session["uname"]` | string | `login`、`sellerSignIn` | 使用者姓名（`violet_user_login.uname`），是購物車、訂單、商品中實際儲存的關聯鍵 |
+| `Session["count"]` | `DataTable` | `login`、`sellerSignIn`、`cart`、`checkout` | 購物車內容，由 `Website.Data.CartSession` 統一建立與讀取，欄位 `sno, pimage, pname, price, quantity, total, uname`（`uname` 欄位放**賣家**姓名，登入還原時讀自 `violet_cart.sname`）；列數即頁首徽章數字，下單後清空 |
 | `Session["addproduct"]` | string | `index`、`cart` | `"true"` 表示剛從首頁按下加入購物車，`cart.aspx` 才會新增品項，處理後重設為 `"false"` |
-| `Session["oldQuantity"]` | string | `cart` | 修改數量前的原數量，用於計算庫存差額 |
-| `Session["count1"]` | — | 無 | `profile.aspx.cs` 誤讀此 key，導致該頁徽章永遠顯示 0 |
 
 登出只清除 `Session["user"]`，其餘 Session 值會保留到 Session 逾時或下次登入覆寫。
 
@@ -272,15 +272,15 @@ flowchart LR
 | --- | --- | --- | --- |
 | `index.aspx` | 首頁商品目錄、排序、搜尋、分類篩選、加入購物車 | `violet_products` | `Page_Load`、`productsDisplay_ItemCommand`、`productsDisplay_ItemDataBound`、`btnSearch_Click`、`sortPrice_SelectedIndexChanged`、`searchIcon_Click` |
 | `categories.aspx` | 列出所有分類 | `violet_categories` | `DataList1_ItemCommand` |
-| `cart.aspx` | 購物車顯示、新增、修改、移除 | `violet_cart`、`violet_products`、`violet_user_login` | `filldata`、`GridView1_RowDeleting`、`GridView1_SelectedIndexChanged`、`modify`、`btnUpdate_Click`、`DropDownList1_SelectedIndexChanged`、`checkdesignid`、`updatequantity`、`savecartdetail`、`grandTotal` |
+| `cart.aspx` | 購物車顯示、新增、修改、移除 | `violet_cart`、`violet_products`、`violet_user_login` | `filldata`、`GridView1_RowDeleting`、`GridView1_SelectedIndexChanged`、`modify`、`btnUpdate_Click`、`savecartdetail`、`grandTotal` |
 | `checkout.aspx` | 結帳、產生訂單編號、建立訂單 | `violet_order`、`violet_cart`、`violet_user_login` | `filldata`、`calculateOrderID`、`btnCheckout_Click`、`grandTotal` |
-| `login.aspx` | 會員登入、還原購物車 | `violet_user_login`、`violet_cart` | `Submit_Click`、`fillsavedCart` |
-| `register.aspx` | 一般會員註冊 | `violet_user_login` | `Submit_Click`、`generateUID` |
+| `login.aspx` | 會員登入、還原購物車 | `violet_user_login`、`violet_cart` | `Submit_Click` |
+| `register.aspx` | 一般會員註冊 | `violet_user_login` | `Submit_Click` |
 | `forgotpass.aspx` | 安全問題驗證後寄出密碼 | `violet_user_login` | `submit_Click`、`submitAns_Click` |
-| `profile.aspx` | 個人資料、訂單歷史與 PDF、賣家商品管理 | `violet_user_login`、`violet_order`、`violet_products` | `Page_Load`、`Update_Click`、`Submit_Click`、`DownloadPDF`、`exportpdf`、`GridView1_RowDataBound`、`btnAddProduct_Click` |
+| `profile.aspx` | 個人資料、訂單歷史與 PDF、賣家商品管理（未登入導向登入頁） | `violet_user_login`、`violet_order`、`violet_products` | `Page_Load`、`Update_Click`、`Submit_Click`、`DownloadPDF`、`exportpdf`、`GridView1_RowDataBound`、`btnAddProduct_Click` |
 | `addProducts.aspx` | 賣家上架商品與上傳圖片 | `violet_products`、`violet_user_login` | `Submit_Click`、`uploadImg` |
-| `sellerRegister.aspx` | 賣家註冊（表單同會員註冊） | `violet_user_login` | `Submit_Click` |
-| `sellerSignIn.aspx` | 賣家登入（只設定 `Session["user"]`） | `violet_user_login` | `Submit_Click` |
+| `sellerRegister.aspx` | 賣家註冊（表單同會員註冊，指派 5001 以上的 uid） | `violet_user_login` | `Submit_Click` |
+| `sellerSignIn.aspx` | 賣家登入（與 `login.aspx` 相同設定 Session 並還原購物車） | `violet_user_login`、`violet_cart` | `Submit_Click` |
 | `sellerProfile.aspx` | 賣家個人資料（更新功能未完成） | `violet_user_login` | `Page_Load`、`Update_Click`、`Submit_Click` |
 | `about.aspx` / `blog.aspx` | 靜態內容 | — | `Page_Load`、`btnLogout_Click` |
 | `contact.aspx` | 聯絡表單 | `violet_contact` | `Submit_Click` |
@@ -293,9 +293,9 @@ flowchart LR
 
 ### 登入與購物車還原
 
-1. `login.aspx` 以 `username` 或 `email` 查出 `uname` 與 `password`，以**明碼**比對。
-2. 成功後設定 `Session["uname"]`、`Session["user"]`，並呼叫 `fillsavedCart()`。
-3. `fillsavedCart()` 從 `violet_cart` 讀出該使用者的品項，重建購物車 `DataTable`（`sno` 重新從 1 編號、`total` 重新計算）存入 `Session["count"]`。
+1. `login.aspx`（與 `sellerSignIn.aspx`）以 `username` 或 `email` 查出帳號，必須剛好一筆且密碼相符（**明碼**比對）。
+2. 成功後設定 `Session["uname"]`、`Session["user"]`，並呼叫 `CartSession.LoadFromDatabase()`。
+3. `LoadFromDatabase()` 從 `violet_cart` 依 `sno` 讀出該使用者的品項，重建購物車 `DataTable`（`sno` 重新從 1 編號）存入 `Session["count"]`。
 
 ### 加入購物車與庫存
 
@@ -306,28 +306,33 @@ sequenceDiagram
     participant C as cart.aspx
     participant DB as SQL Server
     U->>I: 選擇數量，按加入購物車
-    I->>DB: SELECT stock（查庫存）
-    I->>DB: UPDATE stock = 庫存 - 數量（預扣）
+    alt 未登入
+        I->>U: 導向 login.aspx（不預扣庫存）
+    end
+    I->>DB: UPDATE stock = stock - 數量 WHERE stock >= 數量（原子預扣）
+    alt 庫存不足
+        I->>I: 停留首頁，不加入購物車
+    end
     I->>C: Redirect cart.aspx?id=商品&quantity=數量（Session addproduct = true）
     alt 購物車為空
         C->>DB: 查商品 → INSERT violet_cart（sno=1）
     else 商品已在購物車
-        C->>C: 只累加 Session 中的數量（不同步 violet_cart）
+        C->>DB: 累加數量與小計，同步 UPDATE violet_cart
     else 新商品
         C->>DB: 查商品 → INSERT violet_cart（sno=列數+1）
     end
     C->>C: Session addproduct = false，顯示 Grand Total
 ```
 
-- **修改數量**：按「Modify」→ 選新數量 →「Update」，庫存調整為 `stock + 舊數量 - 新數量`，同步更新 Session 與 `violet_cart`。
+- **修改數量**：按「Modify」→ 選新數量 →「Update」，庫存以單一 UPDATE 調整為 `stock + 舊數量 - 新數量`（結果不可小於 0），舊數量取自購物車列，小計由伺服器計算，同步更新 Session 與 `violet_cart`。
 - **移除品項**：按「Remove Item(s)」，數量加回庫存，從 Session 與 `violet_cart` 刪除，剩餘品項 `sno` 重新編號為 1..N。
-- 首頁數量下拉選單最多列出 10，且不超過目前庫存；購物車編輯面板則列出 1..庫存（無上限 10）。
+- 首頁數量下拉選單最多列出 10，且不超過目前庫存；購物車編輯面板列出 1..（目前數量 + 剩餘庫存）。
 
 ### 結帳與訂單
 
 1. `checkout.aspx` 顯示購物車明細、今天日期與訂單編號。
 2. 訂單編號格式：`#` + 時 + 分 + 秒 + 日 + 月 + 年（皆未補零）+ 5 碼隨機英數字，例如 2026/9/29 22:35:12 產生 `#2235122992026aBc9x`。
-3. 按「Place Order」後，購物車每一列以同一訂單編號寫入 `violet_order`，並刪除該使用者的 `violet_cart` 資料。
+3. 按「Place Order」後，購物車每一列以同一訂單編號寫入 `violet_order`，刪除該使用者的 `violet_cart` 資料並清空 `Session["count"]`；未登入或購物車為空時導回購物車頁。
 4. 付款方式僅為頁面文字，**沒有任何金流整合**。
 
 ### 訂單 PDF
@@ -337,10 +342,11 @@ sequenceDiagram
 
 ### 賣家上架與商品管理
 
-1. `addProducts.aspx` 驗證副檔名（jpg、jpeg、png、gif、webp，不分大小寫），由 `Website.Data.ImageStore` 上傳到 Blob 容器 `products` 的 `<登入帳號>/<GUID>.<副檔名>`。
-2. 資料庫中 `pimage` 儲存圖片完整網址（`IMAGE_BASE_URL/products/...`，Azure 上經 Front Door 提供），`uname` 儲存賣家姓名；舊資料的相對路徑仍可顯示。
-3. 分類選項寫死為 `Computer`、`Computer Accesories`，須與 `violet_categories.name` 一致。
-4. `profile.aspx` 的 `SqlDataSource2` 提供賣家商品清單的編輯（價格、庫存、關鍵字）與刪除。
+1. `addProducts.aspx` 新增的商品庫存為 0，需到 `profile.aspx` 的商品清單按「Edit」設定 Stock 後才可購買。
+2. `addProducts.aspx` 驗證副檔名（jpg、jpeg、png、gif、webp，不分大小寫），由 `Website.Data.ImageStore` 上傳到 Blob 容器 `products` 的 `<登入帳號>/<GUID>.<副檔名>`。
+3. 資料庫中 `pimage` 儲存圖片完整網址（`IMAGE_BASE_URL/products/...`，Azure 上經 Front Door 提供），`uname` 儲存賣家姓名；舊資料的相對路徑仍可顯示。
+4. 分類選項寫死為 `Computer`、`Computer Accesories`，須與 `violet_categories.name` 一致。
+5. `profile.aspx` 的 `SqlDataSource2` 提供賣家商品清單的編輯（價格、庫存、關鍵字）與刪除。
 
 ### 忘記密碼
 
@@ -351,12 +357,12 @@ sequenceDiagram
 
 | uid 範圍 | 角色 | 來源 |
 | --- | --- | --- |
-| 1～4998 | 一般會員 | `register.aspx.cs` 的 `generateUID()` 隨機產生且不重複 |
-| > 5000 | 賣家 | 程式沒有任何地方會指派，需手動以 SQL 設定 |
+| 1～4998 | 一般會員 | `register.aspx.cs` 呼叫 `UserAccounts.GenerateUid()` 隨機產生且不重複 |
+| 5001～9999 | 賣家 | `sellerRegister.aspx.cs` 呼叫 `UserAccounts.GenerateUid()` 隨機產生且不重複 |
 
 - `profile.aspx`：`uid > 5000` 顯示賣家區塊。
-- `sellerProfile.aspx`：`uid < 5000` 導向 `profile.aspx`。
-- 兩頁的邊界條件不一致：`uid = 5000` 可停留在 `sellerProfile.aspx`，但在 `profile.aspx` 不會顯示賣家區塊。測試賣家時請將 `uid` 設為 5001 以上。
+- `sellerProfile.aspx`：未登入導向登入頁，`uid ≤ 5000`（`UserAccounts.IsSeller` 為 false）導向 `profile.aspx`。
+- 兩頁的 `uid` 都存於 ViewState，PostBack 後仍保留。
 
 ---
 
@@ -452,7 +458,8 @@ sequenceDiagram
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
 | M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
-| M7～M8 安全修正、轉入正式營運 | ⬜ 未開始 |
+| M7 應用程式安全修正 | 🔄 進行中（PR A 參數化查詢與資料存取已完成；密碼雜湊、權限檢查、回應標頭待完成） |
+| M8 轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
 
@@ -530,17 +537,11 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 | 位置 | 問題 |
 | --- | --- |
-| `sellerRegister.aspx.cs` | INSERT 只提供 13 個值，在含 `uid` 的 14 欄結構下會失敗；也不會指派賣家 uid |
-| `addProducts.aspx.cs` | INSERT 只提供 6 個值（缺 `stock`），在含 `stock` 的結構下會失敗；未選檔案時 `Substring(1)` 會拋例外；未檢查登入或賣家身分 |
-| `cart.aspx.cs` | 未經首頁直接開啟時 `Session["addproduct"]` 為 null → `NullReferenceException`；同商品重複加入只更新 Session，不同步 `violet_cart`；`availabledesignid` 為 `static`，所有使用者共用 |
-| `checkout.aspx.cs` | 下單後未清空 `Session["count"]`，徽章仍顯示舊數量；未登入或購物車為空時按下單會拋例外 |
-| `register.aspx.cs` | `generateUID()` 抽到重複 uid 時未關閉連線即 `continue`，下一輪 `Open()` 會拋例外 |
-| `forgotpass.aspx.cs` | 帳號、密碼、答案存在 `static` 欄位，多人同時使用會互相覆蓋；查無帳號時未關閉連線 |
-| `profile.aspx.cs` | 徽章讀取 `Session["count1"]`；`uid` 只在首次載入讀取，PostBack 後賣家區塊會消失；`Submit_Click` 以 `Response.Write` 輸出 SQL（除錯殘留）；刪除確認對話框掛在「Edit」按鈕上 |
-| `sellerProfile.aspx.cs` | 更新/送出功能未實作；PostBack 後 `uid` 為 0 會被導向 `profile.aspx` |
-| `sellerSignIn.aspx` | 選單沒有連結；登入後不設定 `Session["uname"]`、不還原購物車 |
-| `login.aspx.cs` | 查無帳號時密碼為空字串，理論上空白密碼可通過比對（前端有必填驗證） |
-| `index.aspx.cs` | 每個商品繫結時各查一次庫存（N+1 查詢）；搜尋按鈕的 null 判斷永遠成立 |
+| `addProducts.aspx.cs` | 未選檔案時 `Substring(1)` 會拋例外；未檢查登入或賣家身分（M7 PR C） |
+| `forgotpass.aspx.cs` | 帳號、密碼、答案存在 `static` 欄位，多人同時使用會互相覆蓋（M7 PR B 改為重設連結） |
+| `profile.aspx` | 刪除確認對話框掛在「Edit」按鈕上；`SqlDataSource2` 的更新/刪除未檢查商品擁有者（M7 PR C） |
+| `sellerProfile.aspx.cs` | 更新/送出功能未實作 |
+| `sellerSignIn.aspx` | 選單沒有連結 |
 | `register.aspx` | 國家/州/城市的驗證器被註解，選 `Select` 也會被接受；州/城市選項為固定的印度地名 |
 
 ### 設計限制
@@ -559,14 +560,14 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 | 風險 | 說明 |
 | --- | --- |
-| SQL Injection | `cart`、`checkout`、`index`、`login`（`fillsavedCart`）、`profile` 等多處以字串串接 SQL，且部分值來自查詢字串（`?id=`） |
+| SQL Injection | 已修正：程式碼中的 SQL 全部經 `Website.Data.Db` 以參數化查詢執行（M7 PR A） |
 | 明碼密碼 | 密碼以明碼儲存、比對，忘記密碼功能還會以 Email 寄出原密碼 |
 | 權限控管 | 頁面未檢查角色；任何人都能直接開啟 `addProducts.aspx`、修改 `?id=`/`?quantity=` |
 | 檔案上傳 | 僅以副檔名檢查，未檢查檔案內容與大小（檔名已改為 GUID，不會覆蓋） |
-| 資訊洩漏 | `profile.aspx` 會把 SQL 語句輸出到頁面 |
-| 共用狀態 | `static` 欄位跨使用者共用（`forgotpass`、`cart`） |
+| 資訊洩漏 | 已移除 `profile.aspx` 輸出 SQL 的除錯程式；錯誤頁與回應標頭仍待 M7 PR D |
+| 共用狀態 | `forgotpass` 的 `static` 欄位跨使用者共用（`cart` 已修正） |
 
-建議修正方向：全面改用參數化查詢、以雜湊（如 PBKDF2 / bcrypt）儲存密碼並改為重設密碼連結、
+建議修正方向：以雜湊（如 PBKDF2 / bcrypt）儲存密碼並改為重設密碼連結、
 加入頁面權限檢查、上傳時驗證檔案內容與大小（Plan M7）。
 
 ---
@@ -575,7 +576,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 - **新增頁面**：建立 `.aspx`、`.aspx.cs`、`.aspx.designer.cs` 三個檔案，並登錄到 `Website.csproj`；複製既有頁面的頁首/頁尾與 `Page_Load` 登入狀態邏輯。
 - **新增伺服器控制項**：同步更新 `.aspx.designer.cs`（在 Visual Studio 設計工具中儲存即會自動產生）。
-- **修改資料表**：因位置式 INSERT，調整欄位順序或數量時需同步修改對應的程式碼，並一併更新 `QuickStart.md` 與本文件的資料庫章節。
+- **資料存取**：一律使用 `Website.Data.Db`（`Query`／`Execute`／`Scalar`／`Param`）執行參數化 SQL，INSERT 必須列出欄位名稱；購物車 Session 透過 `Website.Data.CartSession` 存取。
+- **修改資料表**：新增 migration 腳本，並一併更新 `QuickStart.md` 與本文件的資料庫章節。
 - **程式碼註解**：所有類別、方法、欄位皆以繁體中文 XML 文件註解（`/// <summary>`）說明；每個 `.aspx` 第二行以 `<%-- --%>` 說明頁面用途；設定檔（`Web.config`、`Website.csproj` 等）以 XML 註解說明。
 - **designer 檔註解**：`.aspx.designer.cs` 的每個控制項欄位都有「型別「ID」：用途」格式的繁中註解。Visual Studio 重新產生此檔時會還原為英文預設註解，提交前請補回或還原。
 - **機密資訊**：不要提交真實連線字串或 SMTP 密碼；新增設定一律在 `Web.config` 用 `${名稱}` 權杖，並經 `Website.Config.AppSettings` 讀取。

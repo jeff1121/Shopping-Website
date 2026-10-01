@@ -19,9 +19,6 @@ namespace Website
     /// </summary>
     public partial class index : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        readonly SqlConnection con = Db.CreateConnection();
-
         /// <summary>
         /// 頁面載入事件：
         /// 1. 若網址帶有 ?category=，改用 SqlDataSource5 顯示該分類商品；
@@ -46,24 +43,15 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
             }
         }
 
         /// <summary>
         /// 商品 DataList 的項目命令事件。點擊「加入購物車」（CommandName="addtocart"）時：
-        /// 1. 設定 Session["addproduct"]="true"，讓 cart.aspx 知道要新增品項；
-        /// 2. 查詢目前庫存並扣除所選數量（庫存在加入購物車時即預扣）；
-        /// 3. 導向 cart.aspx?id=商品名稱&amp;quantity=數量。
+        /// 1. 以單一 UPDATE 在庫存足夠時扣除所選數量（庫存在加入購物車時即預扣），避免同時下單造成負庫存；
+        /// 2. 扣除成功才設定 Session["addproduct"]="true"，讓 cart.aspx 知道要新增品項；
+        /// 3. 導向 cart.aspx?id=商品名稱&amp;quantity=數量（皆經 URL 編碼）。庫存不足時重新整理首頁。
         /// </summary>
         /// <param name="source">觸發命令事件的 DataList。</param>
         /// <param name="e">包含 CommandName、CommandArgument 與項目控制項的事件資料。</param>
@@ -71,31 +59,32 @@ namespace Website
         {
             if (e.CommandName == "addtocart")
             {
-                Session["addproduct"] = "true";
-                // 取得該列的數量下拉選單與商品名稱標籤
-                DropDownList number = (DropDownList)( e.Item.FindControl("DropDownList1") );
-                Label lbl = (Label)( e.Item.FindControl("Label1") );
-
-                SqlCommand cmd = new SqlCommand("SELECT stock FROM violet_products WHERE pname=@pname", con);
-                cmd.Parameters.AddWithValue("@pname", lbl.Text);
-                con.Open();
-                SqlDataReader read = cmd.ExecuteReader();
-                int q = 0;
-                while (read.Read())
+                // 未登入時不預扣庫存，先導向登入頁（購物車需登入才會保存）
+                if (Session["user"] == null)
                 {
-                    q = Convert.ToInt32(read["stock"].ToString());
+                    Response.Redirect("~/login.aspx");
+                    return;
                 }
-                con.Close();
-                int updateStock = q - Convert.ToInt32(number.SelectedItem.ToString());
-                // 注意：字串串接 SQL，存在 SQL Injection 風險
-                String update = "UPDATE violet_products SET stock=" + updateStock + " WHERE pname='" + lbl.Text + "'";
-                SqlCommand cmd1 = new SqlCommand(update, con);
-                // 執行庫存扣減。
-                con.Open();
-                cmd1.ExecuteNonQuery();
-                con.Close();
 
-                Response.Redirect("~/cart.aspx?id=" + e.CommandArgument.ToString() + "&quantity=" + number.SelectedItem.ToString());
+                // 取得該列的數量下拉選單
+                DropDownList number = (DropDownList)e.Item.FindControl("DropDownList1");
+                string pname = e.CommandArgument.ToString();
+                int quantity;
+                if (!int.TryParse(number.SelectedValue, out quantity) || quantity < 1)
+                {
+                    return;
+                }
+
+                int updated = Db.Execute("UPDATE violet_products SET stock = stock - @quantity WHERE pname=@pname AND stock >= @quantity",
+                    Db.Param("@quantity", quantity), Db.Param("@pname", pname));
+                if (updated == 0)
+                {
+                    Response.Redirect("~/index.aspx");
+                    return;
+                }
+
+                Session["addproduct"] = "true";
+                Response.Redirect("~/cart.aspx?id=" + HttpUtility.UrlEncode(pname) + "&quantity=" + quantity);
             }
         }
 
@@ -111,14 +100,14 @@ namespace Website
         }
 
         /// <summary>
-        /// 搜尋按鈕：改用 SqlDataSource2（以 searchProducts 文字對 keywords 欄位做 LIKE 模糊比對）重新繫結商品清單。
+        /// 搜尋按鈕：搜尋框有輸入時，改用 SqlDataSource2（以 searchProducts 文字對 keywords 欄位做 LIKE 模糊比對）重新繫結商品清單；
+        /// 未輸入時維持目前清單。
         /// </summary>
         /// <param name="sender">觸發搜尋事件的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnSearch_Click(object sender, EventArgs e)
         {
-            // 注意：此條件對 TextBox 物件呼叫 ToString()，永遠不會是 null
-            if (searchProducts.ToString() != null)
+            if (!string.IsNullOrWhiteSpace(searchProducts.Text))
             {
                 productsDisplay.DataSourceID = null;
                 productsDisplay.DataSource = SqlDataSource2;
@@ -153,39 +142,28 @@ namespace Website
         }
 
         /// <summary>
-        /// 商品 DataList 每一項繫結完成後觸發：依該商品庫存填入數量下拉選單（最多 1～10）。
+        /// 商品 DataList 每一項繫結完成後觸發：依該商品庫存（取自繫結資料的 stock 欄位，不另查資料庫）填入數量下拉選單（最多 1～10）。
         /// 庫存為 0 時停用選單與加入購物車按鈕，並將按鈕圖片換成 img/sold.png（售完）。
-        /// 注意：每個品項都會額外查詢一次資料庫（N+1 查詢）。
         /// </summary>
         /// <param name="sender">正在繫結項目的 DataList。</param>
         /// <param name="e">包含目前項目與控制項的繫結事件資料。</param>
         protected void productsDisplay_ItemDataBound(object sender, DataListItemEventArgs e)
         {
-            DropDownList number = (DropDownList)( e.Item.FindControl("DropDownList1") );
-            Label lbl = (Label)( e.Item.FindControl("Label1") );
-            ImageButton imgBtn = (ImageButton)( e.Item.FindControl("ImageButton1") );
-
-            SqlCommand cmd = new SqlCommand("SELECT stock FROM violet_products WHERE pname=@pname", con);
-            cmd.Parameters.AddWithValue("@pname", lbl.Text);
-            con.Open();
-            SqlDataReader read = cmd.ExecuteReader();
-            int q = 0;
-            while (read.Read())
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem)
             {
-                q = Convert.ToInt32(read["stock"].ToString());
+                return;
             }
-            con.Close();
 
-            int i;
-            if (q > 0)
+            DropDownList number = (DropDownList)e.Item.FindControl("DropDownList1");
+            ImageButton imgBtn = (ImageButton)e.Item.FindControl("ImageButton1");
+            int stock = Convert.ToInt32(DataBinder.Eval(e.Item.DataItem, "stock"));
+
+            if (stock > 0)
             {
                 // 選項為 1..庫存量，最多列到 10
-                for (i = 1; i <= q; i++)
+                for (int i = 1; i <= Math.Min(stock, 10); i++)
                 {
-                    String n = i.ToString();
-                    number.Items.Add(n);
-                    if (i == 10)
-                        break;
+                    number.Items.Add(i.ToString());
                 }
             }
             else
