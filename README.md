@@ -52,7 +52,7 @@
 | 資料庫結構 | 網站啟動時以 DbUp 自動套用 `Website/Migrations/*.sql`（建表＋示範資料）；`DbSql.sql` 已過時，僅供參考，見 [QuickStart.md](QuickStart.md#3-建立資料庫) |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
-| Azure 部署 | 一次性設定與 Bicep 基礎設施（`infra/`、`infra.yml`）已完成並部署；應用程式自動部署**尚未實作**（Plan M5～M6），目前網站網址回應 503 |
+| Azure 部署 | Bicep 基礎設施（`infra/`、`infra.yml`）與自動部署（`deploy.yml`）：合併到 `main` 後建置、部署到 App Service，並執行冒煙測試、ZAP Baseline；失敗時自動回滾 |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
@@ -451,7 +451,8 @@ sequenceDiagram
 | M3 設定外部化與程式調整 | ✅ 已完成（Configuration Builders、`AppSettings`、SMTP 與 Blob 圖片上傳） |
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
-| M6～M8 自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
+| M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
+| M7～M8 安全修正、轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
 
@@ -465,6 +466,7 @@ sequenceDiagram
 | `build.yml` | 建置 | PR、push `main`、手動、`workflow_call` | Windows MSBuild 發行 → `site.zip`；部署套件 SBOM 與簽章 |
 | `infra.yml` | 基礎設施 | PR、push `main`（變更 `infra/**`）、手動 | PR：Bicep lint 與 what-if（結果貼到 PR 留言）；`main`：部署到 `rg-shopping` |
 | `azure-oidc-check.yml` | Azure OIDC 驗證 | PR（變更 bootstrap）、手動 | 確認 GitHub 能以 OIDC 登入 Azure，並檢查一次性設定的資源 |
+| `deploy.yml` | 部署 | push `main`（不含只改 `infra/**`、文件）、手動 | 呼叫 `建置` → 上傳範例圖片到 Blob → `az webapp deploy` → 冒煙測試（失敗自動回滾上一版）→ ZAP Baseline（artifact `zap-baseline`）；手動輸入 `run-id` 可回滾到指定執行 |
 
 所有 Action 都固定到 commit SHA，頂層 `permissions: {}`，每個 job 只給最小權限。Dependabot 每週更新 NuGet 與 Actions。
 掃描結果集中在 GitHub → Security → Code scanning；既有警示以 Issue #4～#7 追蹤，預計在 M7 修正。
@@ -505,6 +507,14 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 ```
 
 本機檢查 Bicep：`az bicep build --file infra/main.bicep` 與 `az bicep lint --file infra/main.bicep`。
+
+### 應用程式部署與監控
+
+- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常，且示範圖片可經 Front Door 取得。
+- 冒煙測試失敗時自動重新部署上一個成功的版本；也可手動執行「部署」並輸入要回滾的 run ID。
+- OWASP ZAP Baseline 報告為 artifact `zap-baseline`，略過規則寫在 `.zap/rules.tsv`。
+- Application Insights 可用性測試每 5 分鐘自 3 個位置請求首頁，2 個以上失敗時觸發警示；設定 GitHub 變數 `ALERT_EMAIL` 後才會寄信。
+- 應用程式記錄（`Trace`，含啟動錯誤與 migration 紀錄）送到 Log Analytics `log-shopping`，以 `AppServiceAppLogs | where Level == "Error"` 查詢。
 
 ---
 

@@ -389,9 +389,9 @@ Azure 上使用 Azure Communication Services Email 的 SMTP 介面（`smtp.azure
 - 依第 4 節設定應用程式集區可讀到的環境變數（或在 IIS 設定中加入）；
 - 正式環境請使用獨立的 SQL 帳號，勿使用 `sa`。
 
-### Azure 部署（進行中）
+### Azure 部署
 
-Azure 基礎設施已由 Bicep 部署（「基礎設施」workflow）；應用程式的自動部署仍在實作中（[Plan.md](Plan.md) M5～M6）。
+Azure 基礎設施由 Bicep 部署（「基礎設施」workflow）；程式合併到 `main` 後由「部署」workflow 自動建置、部署並執行冒煙測試（[Plan.md](Plan.md) M6）。
 要在新的訂用帳戶重建這些設定，需要 Azure CLI、GitHub CLI（具 Repo admin 權限）與 Python 3，並在 macOS、Linux、WSL 或 Cloud Shell 執行：
 
 ```bash
@@ -433,3 +433,5 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 下單後購物車徽章仍顯示舊數量 | 結帳未清空 `Session["count"]`，重新登入即恢復（已知問題） |
 | 上架商品時出現 Blob 連線錯誤 | Azurite 未啟動或容器 `products` 不存在，見 4.3；Azure 上請確認 `id-shopping-web` 具 Storage Blob Data Contributor |
 | 首頁商品圖片破圖 | `pimage` 網址錯誤或容器不可匿名讀取；頁面會自動改顯示 `img/products/human.png` |
+| Azure 上每個頁面都顯示「網站啟動失敗」（HTTP 500） | 遠端請求不顯示細節；到 Log Analytics `log-shopping` 查詢 `AppServiceAppLogs \| where Level == "Error"`（錯誤內容在 `StackTrace` 欄位），記錄約有數分鐘延遲 |
+| 「部署」workflow 冒煙測試失敗 | 已自動回滾上一版；依上一列查詢記錄。若與基礎設施變更同時合併，可能是部署早於「基礎設施」完成，等它完成後重新執行「部署」 |

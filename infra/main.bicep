@@ -15,6 +15,9 @@ param sqlAdminPassword string
 @description('ACS SMTP 使用者名稱；完成 9.4 第 5 步之前保持空字串')
 param smtpUserName string = ''
 
+@description('可用性告警收件信箱（GitHub 變數 ALERT_EMAIL）；空字串時告警只顯示在 Azure 入口網站')
+param alertEmail string = ''
+
 @description('共用資源標籤')
 param tags object = {
   project: 'shopping-website'
@@ -127,6 +130,18 @@ module appService 'modules/appservice.bicep' = {
     smtpFrom: 'DoNotReply@${email.outputs.fromDomain}'
     smtpUserName: smtpUserName
     appInsightsConnectionString: monitoring.outputs.connectionString
+    logAnalyticsWorkspaceId: monitoring.outputs.workspaceId
+  }
+}
+
+module availability 'modules/availability.bicep' = {
+  name: 'availability'
+  params: {
+    location: location
+    tags: tags
+    appInsightsId: monitoring.outputs.appInsightsId
+    appHostName: appService.outputs.hostName
+    alertEmail: alertEmail
   }
 }
 

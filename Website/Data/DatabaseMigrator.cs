@@ -37,11 +37,13 @@ namespace Website.Data
             {
                 using (SqlConnection lockConnection = Db.CreateMigratorConnection())
                 {
+                    // 連線開啟後 ConnectionString 會移除密碼（Persist Security Info=False），須在 Open 前取得
+                    string connectionString = lockConnection.ConnectionString;
                     lockConnection.Open();
                     AcquireLock(lockConnection);
                     try
                     {
-                        Upgrade(lockConnection.ConnectionString);
+                        Upgrade(connectionString);
                     }
                     finally
                     {

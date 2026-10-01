@@ -33,3 +33,6 @@ output appInsightsId string = appInsights.id
 
 @description('Application Insights 連線字串（非機密，作為應用程式設定）')
 output connectionString string = appInsights.properties.ConnectionString
+
+@description('Log Analytics 工作區資源 ID（App Service 診斷設定的目的地）')
+output workspaceId string = workspace.id

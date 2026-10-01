@@ -1,0 +1,193 @@
+# 部署到 Azure App Service（Plan.md §11）：重用 build.yml 產出 site.zip → 上傳示範商品圖片 →
+# 部署（啟動時執行 migration）→ 冒煙測試（失敗時自動回滾到上一個成功版本）→ ZAP Baseline。
+name: 部署
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - infra/**
+      - .github/workflows/infra.yml
+      - docs/**
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: 回滾：改部署指定「部署」執行（run ID）的 site 套件；留空則建置並部署目前版本
+        required: false
+        default: ''
+
+permissions: {}
+
+concurrency:
+  # 部署依序執行、不取消進行中的部署
+  group: deploy-azure
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 建置
+    if: inputs.run-id == ''
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      attestations: write
+
+  deploy:
+    name: 部署到 App Service
+    needs: build
+    # 回滾時略過建置；建置失敗或取消時不部署
+    if: always() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.run-id != ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: azure
+      url: ${{ steps.names.outputs.app-url }}
+    permissions:
+      contents: read
+      id-token: write
+      # 下載其他執行的 site 套件（回滾）
+      actions: read
+    outputs:
+      app-url: ${{ steps.names.outputs.app-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 下載本次建置的網站套件
+        if: inputs.run-id == ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site
+          path: package
+
+      - name: 下載指定執行的網站套件（回滾）
+        if: inputs.run-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site
+          path: package
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: 登入 Azure（OIDC）
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 取得資源名稱
+        id: names
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          app=$(az webapp list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'app-shopping-')].name | [0]" -o tsv)
+          storage=$(az storage account list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'stshopping')].name | [0]" -o tsv)
+          host=$(az webapp show -g "$RESOURCE_GROUP" -n "$app" --query defaultHostName -o tsv)
+          image_base_url=$(az webapp config appsettings list -g "$RESOURCE_GROUP" -n "$app" \
+            --query "[?name=='IMAGE_BASE_URL'].value | [0]" -o tsv)
+          if [[ -z "$app" || -z "$storage" || -z "$host" || -z "$image_base_url" ]]; then
+            echo '::error::找不到 App Service、儲存體帳戶或 IMAGE_BASE_URL，請先執行「基礎設施」workflow。'
+            exit 1
+          fi
+          {
+            echo "app=$app"
+            echo "storage=$storage"
+            echo "app-url=https://$host"
+            echo "image-base-url=$image_base_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 上傳示範商品圖片
+        env:
+          STORAGE: ${{ steps.names.outputs.storage }}
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name "$STORAGE" \
+            --auth-mode login \
+            --destination products \
+            --destination-path demo_seller \
+            --source Website/img/products/demo_seller \
+            --content-cache-control 'public, max-age=86400' \
+            --overwrite true \
+            -o none
+
+      - name: 部署網站套件
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP: ${{ steps.names.outputs.app }}
+        run: |
+          set -euo pipefail
+          az webapp deploy -g "$RESOURCE_GROUP" -n "$APP" --src-path package/site.zip --type zip --timeout 900000 -o none
+
+      - name: 冒煙測試
+        id: smoke
+        env:
+          APP_URL: ${{ steps.names.outputs.app-url }}
+          IMAGE_BASE_URL: ${{ steps.names.outputs.image-base-url }}
+        run: .github/scripts/smoke-test.sh "$APP_URL" "$IMAGE_BASE_URL"
+
+      - name: 冒煙測試失敗時回滾到上一個成功版本
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP: ${{ steps.names.outputs.app }}
+          APP_URL: ${{ steps.names.outputs.app-url }}
+          IMAGE_BASE_URL: ${{ steps.names.outputs.image-base-url }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # 找最近一個成功、且 site 套件尚未過期的部署執行（回滾執行本身沒有 site 套件，會被略過）
+          previous=''
+          for id in $(gh run list -R "$GITHUB_REPOSITORY" --workflow deploy.yml --branch main --status success \
+              --limit 20 --json databaseId --jq '.[].databaseId'); do
+            [[ "$id" == "$CURRENT_RUN_ID" ]] && continue
+            if [[ -n $(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
+                --jq '.artifacts[] | select(.name == "site" and .expired == false) | .id') ]]; then
+              previous="$id"
+              break
+            fi
+          done
+          if [[ -z "$previous" ]]; then
+            echo '::error::找不到可回滾的成功部署，網站維持目前版本。'
+            exit 1
+          fi
+          echo "回滾到部署執行 $previous"
+          rm -rf rollback
+          gh run download "$previous" -R "$GITHUB_REPOSITORY" -n site -D rollback
+          az webapp deploy -g "$RESOURCE_GROUP" -n "$APP" --src-path rollback/site.zip --type zip --timeout 900000 -o none
+          .github/scripts/smoke-test.sh "$APP_URL" "$IMAGE_BASE_URL"
+          echo "::warning::已回滾到部署執行 $previous；本次版本未上線。"
+          {
+            echo '## ⚠️ 已回滾'
+            echo
+            echo "冒煙測試失敗，網站已回滾到部署執行 [$previous]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$previous)。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  zap:
+    name: ZAP Baseline
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 試運行：只產出報告（artifact zap-baseline），不阻擋、不建立 Issue
+      - name: ZAP Baseline 掃描
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: ${{ needs.deploy.outputs.app-url }}
+          rules_file_name: .zap/rules.tsv
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-baseline

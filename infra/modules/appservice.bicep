@@ -42,6 +42,9 @@ param smtpUserName string
 @description('Application Insights 連線字串')
 param appInsightsConnectionString string
 
+@description('Log Analytics 工作區資源 ID；App Service 的 AppServiceAppLogs 送到這裡')
+param logAnalyticsWorkspaceId string
+
 // 組出 Key Vault 參考字串
 var kvRef = 'VaultName=${keyVaultName};SecretName='
 
@@ -63,6 +66,8 @@ var baseSettings = {
   APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
   // Windows App Service 的 Application Insights 免程式碼代理程式
   ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
+  // AppServiceAppLogs 的最低追蹤層級（大小寫有別）；Information 才看得到 migration 執行紀錄
+  APPSERVICEAPPLOGS_TRACE_LEVEL: 'Information'
   WEBSITE_RUN_FROM_PACKAGE: '1'
 }
 
@@ -139,6 +144,25 @@ resource scmBasicAuth 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@20
   name: 'scm'
   properties: {
     allow: false
+  }
+}
+
+// 診斷設定：System.Diagnostics.Trace（經 Web.Release.config 的 AzureMonitorTraceListener）與 HTTP 記錄送到 Log Analytics
+resource diagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: site
+  name: 'to-log-analytics'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'AppServiceAppLogs'
+        enabled: true
+      }
+      {
+        category: 'AppServiceHTTPLogs'
+        enabled: true
+      }
+    ]
   }
 }
 

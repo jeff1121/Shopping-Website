@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.6（決策已確認；M1～M5 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.7（決策已確認；M1～M6 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -157,7 +157,7 @@ flowchart LR
 | **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | ✅ 已完成（3-1、3-2 於 M2；其餘於 M3 PR） |
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
-| **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ⬜ 未開始 |
+| **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ✅ 已完成（另修正 M5 migrator 連線字串遺失密碼；App 記錄送 Log Analytics） |
 | **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ⬜ 未開始（Issue #4～#7 追蹤） |
 | **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
 
@@ -449,21 +449,24 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 | 項目 | 設定 |
 | --- | --- |
-| 觸發 | `push main`（不含只變更 `infra/**`、`*.md`）、`workflow_dispatch` |
-| 流程 | ① 呼叫 `build.yml`（`workflow_call`）取得 `site.zip` → ② `environment: azure`，`azure/login`（OIDC）→ ③ 範例圖片上傳：`az storage blob upload-batch -d products -s Website/img/products --pattern 'demo_seller/*' --overwrite false --auth-mode login` → ④ `azure/webapps-deploy`（`package: site.zip`，搭配 `WEBSITE_RUN_FROM_PACKAGE=1`）→ ⑤ 等待啟動（啟動時會執行 migration）→ ⑥ 冒煙測試 → ⑦ ZAP Baseline |
+| 觸發 | `push main`（`paths-ignore`：`infra/**`、`infra.yml`、`docs/**`、`**/*.md`）、`workflow_dispatch`（輸入 `run-id` 時為回滾，略過建置） |
+| 流程 | ① 呼叫 `build.yml`（`workflow_call`）取得 `site.zip` → ② `environment: azure`，`azure/login`（OIDC）→ ③ 以 `az webapp list`、`az storage account list` 與 App 設定 `IMAGE_BASE_URL` 找出資源名稱與圖片網址 → ④ 範例圖片上傳：`az storage blob upload-batch -d products --destination-path products/demo_seller --overwrite true --auth-mode login`（`Cache-Control: public, max-age=86400`）→ ⑤ `az webapp deploy --type zip`（搭配 `WEBSITE_RUN_FROM_PACKAGE=1`，經 Entra ID 驗證，不需基本驗證）→ ⑥ 冒煙測試（含啟動時的 migration 等待）→ ⑦ ZAP Baseline（獨立 job） |
 | 並行 | `concurrency: deploy-azure`，不取消進行中的部署 |
-| 回滾 | 冒煙測試失敗時，重新部署上一個成功執行的 `site.zip` artifact（`workflow_dispatch` 可指定 run ID）；migration 為只新增，不需回滾 schema |
+| 回滾 | 冒煙測試失敗時，自動找出上一個成功的 `部署` 執行（artifact `site` 未過期），重新部署並再跑一次冒煙測試，job 仍標示失敗；手動回滾以 `workflow_dispatch` 輸入 `run-id`。migration 為只新增，不需回滾 schema |
 | 核准 | 試運行不設；M8 在 Environment `azure` 開啟 **Required reviewers：`jeff1121`** |
 
 > 範例圖片來源：M5 時把現有 `Website/img/products/` 中要當示範的圖片整理到 `Website/img/products/demo_seller/`。
+>
+> **實作調整**：圖片上傳改為 `--overwrite true`（圖片在 Git 中版控，覆寫可讓修改後的圖片生效，結果冪等）；部署改用 `az webapp deploy`（Azure CLI 已內建，少一個第三方 Action）。`infra/**` 與程式同時變更時，兩個 workflow 會在 `main` 平行執行；若部署早於基礎設施完成而失敗，重新執行「部署」即可。
 
 ### 11.2 部署後驗證
 
 | # | 項目 | 內容 |
 | --- | --- | --- |
-| 6-1 | 冒煙測試 | `curl` 檢查 `/index.aspx`、`/login.aspx`、`/categories.aspx` 回應 200 且不含 `Server Error`；檢查一張示範商品圖片經 Front Door 回應 200 |
-| 6-2 | OWASP ZAP Baseline | `zaproxy/action-baseline` 掃描 App Service 網址；規則檔 `.zap/rules.tsv`；結果為 artifact，不阻擋部署（試運行） |
-| 6-3 | 可用性監控 | Application Insights 標準可用性測試，每 5 分鐘自 3 個位置請求首頁；失敗時以 Action Group 寄信給您 |
+| 6-1 | 冒煙測試 | `.github/scripts/smoke-test.sh`：`/index.aspx`（含「Demo Smart Watch」，代表 migration 與示範資料已就緒）、`/login.aspx`、`/categories.aspx` 回應 200 且不含 `Server Error`、「網站啟動失敗」；`products/demo_seller/watch.png` 經 Front Door 回應 200 且為 `image/*`。每 10 秒重試、最多 30 次 |
+| 6-2 | OWASP ZAP Baseline | `zaproxy/action-baseline` 掃描 App Service 網址；規則檔 `.zap/rules.tsv`；報告為 artifact `zap-baseline`，不建立 Issue、不阻擋部署（試運行） |
+| 6-3 | 可用性監控 | `infra/modules/availability.bicep`：標準可用性測試 `avail-shopping-home`，每 5 分鐘自香港、新加坡、日本 3 個位置請求 `/index.aspx`；2 個以上位置失敗時觸發警示 `alert-shopping-availability`（Azure 入口網站可見）。試運行不寄信；設定 GitHub 變數 `ALERT_EMAIL` 後才建立 Action Group `ag-shopping` 寄信 |
+| 6-5 | 應用程式記錄 | `Web.Release.config` 加入 `AzureMonitorTraceListener`，Bicep 診斷設定把 `AppServiceAppLogs`、`AppServiceHTTPLogs` 送到 Log Analytics `log-shopping`（`APPSERVICEAPPLOGS_TRACE_LEVEL=Information`）；啟動失敗時以 `AppServiceAppLogs \| where Level == "Error"` 查詢。Application Insights 免程式碼代理程式不收集 `Trace`，因此需要此設定 |
 | 6-4 | 端對端測試（選用） | Playwright：示範會員登入 → 加入購物車 → 結帳 → 匯出 PDF；手動觸發 |
 
 ---
@@ -539,6 +542,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | `AZURE_RESOURCE_GROUP` | Variable | `rg-shopping` |
 | `SQL_ADMIN_LOGIN` | Variable | SQL 管理員名稱（`sqladminshop`） |
 | `SMTP_USER_NAME` | Variable | ACS SMTP 使用者名稱，由 `infra/smtp-setup.sh` 設定 |
+| `ALERT_EMAIL` | Variable（選用） | 可用性警示收件信箱；未設定時不建立 Action Group，只在入口網站顯示警示 |
 | `SQL_ADMIN_PASSWORD` | **Secret** | SQL 管理員密碼（`bootstrap.sh` 產生 32 字元英數與 `-_`，不含 `;`；正式營運前由您更換） |
 
 - 分支規則：`main`、`refs/pull/*/merge`；不設審核者（M8 再開啟部署核准）。
@@ -674,3 +678,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | v1.4 | 2026-10-01 | M3 完成：Configuration Builders 3.0 以環境變數代入連線字串與 appSettings（新增 `SQL_ENCRYPT`，`SQL_SERVER` 改含 `tcp:` 與連接埠）、`AppSettings` 啟動檢查與 `Global.asax`、SMTP 外部化、商品圖片改由 `ImageStore` 上傳 Blob；NuGet 加入 Azure.Storage.Blobs、Azure.Identity、dbup-sqlserver 與遞移相依套件及 binding redirect |
 | v1.5 | 2026-10-01 | M4 完成：Bicep（8 個模組，無角色指派）、`infra.yml`（PR what-if 留言、`main` 部署）、`sql-users` deploymentScript、`infra/smtp-setup.sh`（9.4 第 5 步）；新增 GitHub 變數 `SMTP_USER_NAME`；Storage 停用共用金鑰、App Service 停用基本驗證、Application Insights 代理程式 |
 | v1.6 | 2026-10-01 | M5 完成：`DatabaseMigrator`（DbUp + `sp_getapplock`）於 `Application_Start` 套用 `Website/Migrations/0001`～`0004`（建表冪等、示範分類／帳號／商品）；新增 `db/cleanup/remove_demo_data.sql` 與 `img/products/demo_seller/`；QuickStart §3 改為只需建立空資料庫 |
+| v1.7 | 2026-10-01 | M6 完成：`deploy.yml`（呼叫 `build.yml`、範例圖片 `--overwrite true` 上傳 Blob、`az webapp deploy`、冒煙測試 `.github/scripts/smoke-test.sh`、失敗自動回滾、ZAP Baseline）、可用性測試與警示（`ALERT_EMAIL` 選用）、App 記錄經 `AzureMonitorTraceListener` 與診斷設定送 Log Analytics；修正 `DatabaseMigrator` 於 `Open()` 後讀取 `ConnectionString` 遺失密碼的問題（實際部署驗證發現） |
