@@ -422,5 +422,6 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 首頁商品圖片破圖 | `pimage` 網址錯誤或容器不可匿名讀取；頁面會自動改顯示 `img/products/human.png` |
 | Azure 上每個頁面都顯示「網站啟動失敗」（HTTP 500） | 遠端請求不顯示細節；到 Log Analytics `log-shopping` 查詢 `AppServiceAppLogs \| where Level == "Error"`（錯誤內容在 `StackTrace` 欄位），記錄約有數分鐘延遲 |
 | Azure 上顯示「Something Went Wrong」錯誤頁 | 發生未處理例外；遠端只顯示一般訊息（`customErrors mode="RemoteOnly"`），到 Log Analytics 查詢 `AppServiceAppLogs` 中的「未處理的例外」，可看到頁面路徑、例外類型與堆疊；本機瀏覽則直接顯示詳細錯誤 |
+| 本機登入後又回到未登入狀態、購物車清空 | Cookie 設定 `requireSSL="true"`，只會經 HTTPS 傳送；請用 `https://localhost:44337/`，不要用 IIS Express 的 HTTP 埠 |
 | 瀏覽器主控台出現 `Content Security Policy` 阻擋訊息 | 新增的外部腳本、樣式或字型來源不在 `Web.config` 的 CSP 允許清單中；改用本站檔案，或在 `Content-Security-Policy` 對應指令加入該來源 |
 | 「部署」workflow 冒煙測試失敗 | 已自動回滾上一版；依上一列查詢記錄。若與基礎設施變更同時合併，可能是部署早於「基礎設施」完成，等它完成後重新執行「部署」 |
