@@ -3,12 +3,13 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Web;
 using Website.Config;
+using Website.Data;
 
 namespace Website
 {
     /// <summary>
     /// 應用程式層級事件處理（Global.asax）。
-    /// 啟動時檢查必要設定；失敗時記錄錯誤，並讓之後每個請求都回應 500，避免網站以不完整設定運作。
+    /// 啟動時檢查必要設定並套用資料庫 migration；失敗時記錄錯誤，並讓之後每個請求都回應 500，避免網站以不完整設定運作。
     /// </summary>
     public class Global : HttpApplication
     {
@@ -16,7 +17,8 @@ namespace Website
         private static Exception startupError;
 
         /// <summary>
-        /// 應用程式啟動事件：呼叫 <see cref="AppSettings.Validate"/> 檢查環境變數是否齊全。
+        /// 應用程式啟動事件：呼叫 <see cref="AppSettings.Validate"/> 檢查環境變數是否齊全，
+        /// 再以 <see cref="DatabaseMigrator.Run"/> 套用資料庫 migration。
         /// 錯誤只包含設定名稱，寫入 Trace（App Service 應用程式記錄／Application Insights 會收集）。
         /// </summary>
         /// <param name="sender">事件來源。</param>
@@ -26,8 +28,13 @@ namespace Website
             try
             {
                 AppSettings.Validate();
+                DatabaseMigrator.Run();
             }
             catch (ConfigurationErrorsException ex)
+            {
+                RecordStartupError(ex);
+            }
+            catch (InvalidOperationException ex)
             {
                 RecordStartupError(ex);
             }

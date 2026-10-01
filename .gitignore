@@ -25,6 +25,8 @@ secrets.xml
 
 # 賣家上傳的商品圖片（M3 起改存 Azure Blob；保留預設圖）
 Website/img/products/*/
+# 示範商品圖片需進版控（M5 種子資料引用，M6 部署時上傳 Blob）
+!Website/img/products/demo_seller/
 
 # SBOM／掃描產出
 sbom-*.json

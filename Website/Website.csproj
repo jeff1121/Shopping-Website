@@ -277,6 +277,10 @@
     <Content Include="img\products\img1.png" />
     <Content Include="img\products\printer.png" />
     <Content Include="img\products\watch.png" />
+    <Content Include="img\products\demo_seller\arcade.png" />
+    <Content Include="img\products\demo_seller\laptop.png" />
+    <Content Include="img\products\demo_seller\printer.png" />
+    <Content Include="img\products\demo_seller\watch.png" />
     <Content Include="img\sold.png" />
     <Content Include="index.aspx" />
     <Content Include="login.aspx" />
@@ -339,6 +343,7 @@
       <DependentUpon>contact.aspx</DependentUpon>
     </Compile>
     <Compile Include="Config\AppSettings.cs" />
+    <Compile Include="Data\DatabaseMigrator.cs" />
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\ImageStore.cs" />
     <Compile Include="Global.asax.cs">
@@ -401,6 +406,13 @@
     <Compile Include="sellerSignIn.aspx.designer.cs">
       <DependentUpon>sellerSignIn.aspx</DependentUpon>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 資料庫 migration：以內嵌資源打包進組件，啟動時由 Data\DatabaseMigrator.cs 依名稱順序執行。 -->
+    <EmbeddedResource Include="Migrations\0001_create_tables.sql" />
+    <EmbeddedResource Include="Migrations\0002_seed_categories.sql" />
+    <EmbeddedResource Include="Migrations\0003_seed_demo_users.sql" />
+    <EmbeddedResource Include="Migrations\0004_seed_demo_products.sql" />
   </ItemGroup>
   <ItemGroup>
     <!-- 非編譯檔：NuGet packages.config 與 Web.config 的 Debug/Release 轉換檔。 -->

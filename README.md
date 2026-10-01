@@ -49,7 +49,7 @@
 | 缺漏檔案 | `Website/Properties/AssemblyInfo.cs` 與 `Website/css/style.css` 已補入專案 |
 | 版控現況 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 不進版控（NuGet 還原）；部分已簽入圖片未列入 `Website.csproj` |
 | 外部相依 | 全部透過 NuGet（`packages.config`）管理：iTextSharp 5.5.13.6、Roslyn CodeDom 4.1.0、Configuration Builders 3.0、Azure.Storage.Blobs 12、Azure.Identity 1、dbup-sqlserver 5 與其遞移相依套件 |
-| 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
+| 資料庫結構 | 網站啟動時以 DbUp 自動套用 `Website/Migrations/*.sql`（建表＋示範資料）；`DbSql.sql` 已過時，僅供參考，見 [QuickStart.md](QuickStart.md#3-建立資料庫) |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
 | Azure 部署 | 一次性設定與 Bicep 基礎設施（`infra/`、`infra.yml`）已完成並部署；應用程式自動部署**尚未實作**（Plan M5～M6），目前網站網址回應 503 |
@@ -70,11 +70,11 @@
    cd Shopping-Website
    ```
 
-3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
+3. 依 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)建立空的 `website` 資料庫與 SQL 登入；資料表與示範資料由網站啟動時自動建立（**不要**執行 `DbSql.sql`）。
 4. 依 [QuickStart.md 第 4 節](QuickStart.md#4-設定環境變數)設定環境變數（`SQL_*`、`SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`）；`Web.config` 不含任何真實連線資訊。
 5. 執行 NuGet 還原，取得 `packages.config` 列出的套件（iTextSharp、Roslyn 編譯器、Configuration Builders、Azure Storage／Identity、DbUp 等）。
 6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/`；`Web.config` 已將 `index.aspx` 設為預設文件，根網址即為首頁。
-7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
+7. 以示範帳號 `demo_customer`／`demo_seller`（密碼 `Demo@1234`）登入；或自行註冊後，以 SQL 將 `uid` 改為大於 5000 測試賣家功能。
 
 ---
 
@@ -155,6 +155,7 @@ Shopping-Website/
 ├── .markdownlint-cli2.jsonc        # Markdown Lint 設定
 ├── CONTEXT.md                      # 專案用語定義
 ├── DbSql.sql                       # 原始資料庫腳本（已過時，僅供參考）
+├── db/cleanup/remove_demo_data.sql # 清除示範資料（人工執行，不屬於 migration）
 ├── LICENSE                         # MIT 授權
 ├── Plan.md                         # CI/CD 與 Azure 部署計畫書（含里程碑進度）
 ├── QuickStart.md                   # 安裝與啟動指南
@@ -180,8 +181,10 @@ Shopping-Website/
     ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
     ├── Config/AppSettings.cs       # 集中讀取 SMTP／Blob／圖片網址設定與啟動檢查
     ├── Data/Db.cs                  # 集中建立 SQL 連線（cmp / migrator connection string）
+    ├── Data/DatabaseMigrator.cs    # 啟動時以 DbUp 套用 migration（sp_getapplock 防止並行）
     ├── Data/ImageStore.cs          # 商品圖片上傳到 Blob，回傳完整網址
-    ├── Global.asax(.cs)            # 啟動時檢查設定；失敗時所有請求回應 500
+    ├── Global.asax(.cs)            # 啟動時檢查設定並套用 migration；失敗時所有請求回應 500
+    ├── Migrations/                 # DbUp 腳本（內嵌資源）：0001 建表、0002～0004 示範分類／帳號／商品
     ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
     ├── css/style.css               # 共用基礎樣式
     ├── Web.config                  # Configuration Builders、連線字串權杖、編譯、binding redirect
@@ -203,6 +206,7 @@ Shopping-Website/
         │   ├── img2.png            # 已簽入圖片，但未列入 Website.csproj
         │   ├── printer.png         # 已列入 Website.csproj
         │   ├── watch.png           # 已列入 Website.csproj
+        │   ├── demo_seller/        # 示範商品圖片（arcade、laptop、printer、watch）；部署時上傳到 Blob
         │   └── human99/
         │       └── laptop.png      # 賣家上傳目錄範例 products/<登入帳號>/；已簽入但未列入 Website.csproj
         ├── logo.png                # 網站 Logo
@@ -358,8 +362,8 @@ sequenceDiagram
 
 ## 資料庫結構
 
-> `DbSql.sql` 與程式碼實際使用的結構不一致（拼字錯誤、缺表、缺欄位），可執行且與程式碼相符的完整腳本請見
-> [QuickStart.md「建立資料庫」](QuickStart.md#3-建立資料庫)。以下為程式碼實際依賴的結構。
+> `DbSql.sql` 與程式碼實際使用的結構不一致（拼字錯誤、缺表、缺欄位）。實際結構由 `Website/Migrations/0001_create_tables.sql`
+> 在網站啟動時建立（見 [QuickStart.md「建立資料庫」](QuickStart.md#3-建立資料庫)）。以下為程式碼實際依賴的結構。
 
 多處使用**位置式** `INSERT ... VALUES(...)`（未指定欄位名稱），因此欄位**順序**必須完全一致。
 
@@ -446,7 +450,8 @@ sequenceDiagram
 | M2 可建置與建置 CI | ✅ 已完成 |
 | M3 設定外部化與程式調整 | ✅ 已完成（Configuration Builders、`AppSettings`、SMTP 與 Blob 圖片上傳） |
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
-| M5～M8 Migration、自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
+| M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
+| M6～M8 自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
 

@@ -83,117 +83,68 @@ Shopping-Website/
 
 ## 3. 建立資料庫
 
-> ⚠️ **不要直接執行 `DbSql.sql`**。該檔案有拼字錯誤（`CREATE DATABSE`）、缺少資料表與欄位，
-> 且檔尾有未結束的單引號字串，與程式碼實際使用的結構不符。請改用下方腳本。
+> ⚠️ **不要執行 `DbSql.sql`**。該檔案有拼字錯誤（`CREATE DATABSE`）、缺少資料表與欄位，與程式碼實際使用的結構不符，僅保留作為歷史參考。
 
-在 SSMS 中連線到 SQL Server，開新查詢視窗後執行：
+資料表與示範資料由網站**啟動時自動建立**（DbUp，見 [ADR-0002](docs/adr/0002-migration-on-app-startup.md)）。你只需要準備一個空資料庫與 SQL 登入：
 
 ```sql
 CREATE DATABASE website;
 GO
+-- 選用：建立專用登入。本機也可以讓 SQL_USER 與 SQL_MIGRATOR_USER 使用同一個帳號。
+CREATE LOGIN shopping_local WITH PASSWORD = '<自行設定的強密碼>';
+GO
 USE website;
 GO
-
--- 會員與賣家帳號（共用同一張表；uid > 5000 視為賣家）
--- 欄位順序必須與 register.aspx.cs 的位置式 INSERT 一致
-CREATE TABLE violet_user_login (
-    uname    VARCHAR(50)   NOT NULL PRIMARY KEY,   -- 姓名，同時作為購物車/訂單/商品的關聯鍵
-    email    VARCHAR(50)   NOT NULL UNIQUE,
-    username VARCHAR(20)   NOT NULL UNIQUE,
-    password VARCHAR(20)   NOT NULL,               -- 明碼儲存（原始設計）
-    phone    DECIMAL(10,0) NOT NULL UNIQUE,
-    dob      DATE          NOT NULL,
-    country  VARCHAR(20)   NOT NULL,
-    state    VARCHAR(20)   NOT NULL,
-    city     VARCHAR(20)   NOT NULL,
-    gender   VARCHAR(10)   NOT NULL,
-    address  VARCHAR(500)  NOT NULL,
-    secq     VARCHAR(100)  NOT NULL,               -- 安全問題
-    seca     VARCHAR(20)   NOT NULL,               -- 安全問題答案
-    uid      INT           NOT NULL DEFAULT 0      -- 1~4998：一般會員；> 5000：賣家
-);
-
--- 商品（uname 為賣家姓名，對應 violet_user_login.uname）
-CREATE TABLE violet_products (
-    pname    VARCHAR(50)   NOT NULL PRIMARY KEY,
-    price    DECIMAL(20,2) NOT NULL,
-    pimage   VARCHAR(250)  NOT NULL,               -- 相對路徑，例如 img/products/seller1/a.png
-    category VARCHAR(50)   NULL,                   -- 須與 violet_categories.name 相同才能被分類頁篩選
-    uname    VARCHAR(50)   NULL,
-    keywords VARCHAR(500)  NULL,                   -- 首頁搜尋以 LIKE '%關鍵字%' 比對此欄
-    stock    INT           NOT NULL DEFAULT 0      -- 加入購物車時即預扣
-);
-
--- 購物車（欄位順序必須與 cart.aspx.cs 的 savecartdetail() 一致）
-CREATE TABLE violet_cart (
-    uname    VARCHAR(50)   NOT NULL,               -- 買家姓名
-    sno      INT           NOT NULL,               -- 購物車內序號（刪除後會重新編號）
-    pimage   VARCHAR(250)  NULL,
-    pname    VARCHAR(50)   NOT NULL,
-    price    DECIMAL(20,2) NOT NULL,
-    quantity INT           NOT NULL,
-    total    DECIMAL(20,2) NOT NULL,
-    sname    VARCHAR(50)   NULL                    -- 賣家姓名
-);
-
--- 訂單（欄位順序必須與 checkout.aspx.cs 的位置式 INSERT 一致）
-CREATE TABLE violet_order (
-    uname     VARCHAR(50)   NOT NULL,
-    pname     VARCHAR(50)   NOT NULL,
-    orderID   VARCHAR(30)   NOT NULL,              -- 例如 #2235122992026aBc9x（同一次結帳共用）
-    orderDate VARCHAR(20)   NOT NULL,              -- DateTime.ToShortDateString() 字串，依伺服器地區設定而異
-    quantity  INT           NOT NULL,
-    total     DECIMAL(20,2) NOT NULL
-);
-
--- 商品分類（categories.aspx 讀取 name 與 cimage）
-CREATE TABLE violet_categories (
-    name   VARCHAR(50)  NOT NULL PRIMARY KEY,
-    cimage VARCHAR(250) NULL
-);
-
--- 聯絡我們留言（contact.aspx.cs 依序寫入 3 欄）
-CREATE TABLE violet_contact (
-    uname   VARCHAR(50)  NULL,
-    email   VARCHAR(50)  NULL,
-    message VARCHAR(500) NULL
-);
-GO
-
--- 分類名稱須與 addProducts.aspx.cs 中寫死的選項一致
-INSERT INTO violet_categories (name, cimage) VALUES
-    ('Computer',            'img/categories/desktop.png'),
-    ('Computer Accesories', 'img/categories/laptop.png');
+CREATE USER shopping_local FOR LOGIN shopping_local;
+ALTER ROLE db_ddladmin ADD MEMBER shopping_local;   -- migration 需要建立資料表
+ALTER ROLE db_datareader ADD MEMBER shopping_local;
+ALTER ROLE db_datawriter ADD MEMBER shopping_local;
 GO
 ```
 
-設計說明：
+設定好第 4 節的環境變數後啟動網站，`Global.asax` 會在檢查設定後執行 `Website/Data/DatabaseMigrator.cs`：
+
+1. 以 `migratorConnectionString`（`SQL_MIGRATOR_USER`）連線，透過 `sp_getapplock` 取得排他鎖，避免多個執行個體同時執行；
+2. 依檔名順序執行內嵌於組件的 `Website/Migrations/*.sql`，每支腳本一個交易；
+3. 已執行的腳本記錄在 `dbo.SchemaVersions`，下次啟動只會執行新增的腳本；
+4. 任一步驟失敗時，網站進入啟動失敗狀態（每個請求回應 500），錯誤寫入 Trace／Application Insights。
+
+| 腳本 | 內容 |
+| --- | --- |
+| `0001_create_tables.sql` | 建立 `violet_user_login`、`violet_products`、`violet_cart`、`violet_order`、`violet_categories`、`violet_contact`（欄位順序與程式中的位置式 INSERT 一致） |
+| `0002_seed_categories.sql` | 分類 `Computer`、`Computer Accesories`（名稱須與 `addProducts.aspx.cs` 的固定清單一致） |
+| `0003_seed_demo_users.sql` | 示範帳號（見下表） |
+| `0004_seed_demo_products.sql` | 示範賣家的 4 項商品；圖片網址為 `IMAGE_BASE_URL/products/demo_seller/*.png`；`Demo Arcade Machine` 庫存為 0，用來展示「售完」 |
+
+所有腳本都會先確認資料表或資料列是否已存在，因此套用到依舊版 QuickStart 手動建立的資料庫也不會失敗，也不會重複新增資料。
+
+**示範帳號**（Repo 是公開的，以下密碼僅供展示，不得用於真實帳號）：
+
+| 帳號 | 密碼 | 姓名（`uname`） | 角色 |
+| --- | --- | --- | --- |
+| `demo_customer` | `Demo@1234` | Demo Customer | 一般會員（`uid` 1001） |
+| `demo_seller` | `Demo@1234` | Demo Seller | 賣家（`uid` 5001），擁有 4 項示範商品 |
+
+示範商品圖片放在 `Website/img/products/demo_seller/`。本機請依 4.3 上傳到 Azurite；Azure 環境由部署流程上傳到 Blob。
+
+資料表設計說明：
 
 - 刻意**不建立外鍵**：賣家可在個人頁刪除商品，而購物車/訂單中仍可能保留該商品名稱；加上外鍵會導致刪除失敗。
-- `category` 使用 `VARCHAR(50)`：原腳本的 `VARCHAR(15)` 放不下 `Computer Accesories`（19 字元），會出現截斷錯誤。
+- `category` 使用 `VARCHAR(50)`：原腳本的 `VARCHAR(15)` 放不下 `Computer Accesories`（19 字元）。
+- `password` 為 `VARCHAR(20)` 明碼（原始設計，M7 會改為雜湊）。
 - `violet_seller_login` 未被任何程式碼使用，因此不建立。
+- 各欄位的完整說明見 [README.md 的資料庫結構](README.md#資料庫結構)。
 
-### （選用）範例資料
+### 新增 migration
 
-```sql
-USE website;
-GO
--- 一位賣家（uid 6001）與一位一般會員（uid 1001），密碼皆為明碼
-INSERT INTO violet_user_login VALUES
- ('Demo Seller', 'seller@example.com', 'seller1', 'Seller@123', 9000000001, '1990-01-01',
-  'India', 'Maharashtra', 'Mumbai', 'Male', 'Seller address', 'What is the name of your first school?', 'abc', 6001),
- ('Demo Buyer',  'buyer@example.com',  'buyer1',  'Buyer@123',  9000000002, '1995-05-05',
-  'India', 'Maharashtra', 'Pune',   'Female', 'Buyer address', 'What is the name of your first school?', 'abc', 1001);
+1. 在 `Website/Migrations/` 新增 `NNNN_說明.sql`（編號遞增，CRLF、無 BOM）；可使用變數 `$IMAGE_BASE_URL$`。
+2. 在 `Website/Website.csproj` 加入 `<EmbeddedResource Include="Migrations\NNNN_說明.sql" />`，否則不會打包進組件。
+3. 以 CI 相同的 sqlfluff 檢查：`docker run --rm -v "$PWD:/sql" -w /sql --entrypoint sqlfluff sqlfluff/sqlfluff:4.3.0 lint --dialect tsql db Website/Migrations`。
+4. **不要修改已經執行過的腳本**（DbUp 以檔名判斷是否執行過，修改內容不會重新執行）；需要變更時新增一支腳本。
 
--- 使用 Repo 內既有的商品圖片
-INSERT INTO violet_products (pname, price, pimage, category, uname, keywords, stock) VALUES
- ('Smart Watch',    2999.00, 'img/products/watch.png',   'Computer Accesories', 'Demo Seller', 'watch smart wearable', 20),
- ('Laser Printer',  8999.00, 'img/products/printer.png', 'Computer Accesories', 'Demo Seller', 'printer office',       5),
- ('Arcade Machine', 15999.00,'img/products/arcade.png',  'Computer',            'Demo Seller', 'arcade game',          0);
-GO
-```
+### 清除示範資料
 
-> 最後一項庫存為 0，可用來確認首頁會顯示「售完」圖示並停用加入購物車按鈕。
+轉入正式營運前執行 `db/cleanup/remove_demo_data.sql`（刪除示範帳號的購物車、訂單、商品與帳號，保留分類）。此檔不在 `Migrations/`，不會自動執行。
 
 ---
 
@@ -246,6 +197,13 @@ setx IMAGE_BASE_URL "http://127.0.0.1:10000/devstoreaccount1"
 ```bash
 azurite-blob --blobHost 127.0.0.1 --blobPort 10000
 az storage container create --name products --public-access blob --connection-string "UseDevelopmentStorage=true"
+```
+
+上傳示範商品圖片（對應 `0004_seed_demo_products.sql` 的圖片網址）：
+
+```bash
+az storage blob upload-batch --destination products --destination-path demo_seller \
+  --source Website/img/products/demo_seller --connection-string "UseDevelopmentStorage=true"
 ```
 
 ### 4.4 程式中的讀取方式
@@ -351,6 +309,8 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 
 ## 7. 建立測試帳號與賣家
 
+> 想直接展示時，可使用第 3 節自動建立的示範帳號 `demo_customer`、`demo_seller`。以下說明自行建立帳號的方式。
+
 ### 一般會員
 
 1. 從頁首「Register → User」進入 `register.aspx`。
@@ -387,7 +347,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
   ```
 
   上架後庫存預設為 0，再到 `profile.aspx` 的商品清單按「Edit」設定 Stock；
-- 或直接以 SQL 新增商品（見第 3 節範例資料）。
+- 或直接以 SQL 新增商品（可參考 `Website/Migrations/0004_seed_demo_products.sql`）。
 
 > 上傳的圖片會寫入 Blob 容器 `products`，路徑為 `<登入帳號>/<GUID>.<副檔名>`；`pimage` 會存完整網址（`IMAGE_BASE_URL/products/...`）。本機需先啟動 Azurite（見 4.3）。
 
@@ -463,7 +423,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 找不到 `iTextSharp` 命名空間 | 請執行 NuGet 還原，見 5.2 |
 | `Format of the initialization string does not conform to specification` | `SQL_*` 環境變數含 `;` 等特殊字元，見 4.1 |
 | 連線時出現 SSL／憑證錯誤 | 本機 SQL Server 沒有受信任憑證時請設 `SQL_ENCRYPT=False` |
-| `Invalid object name 'violet_xxx'` | 資料表未建立或連到錯誤的資料庫，見第 3 節 |
+| `Invalid object name 'violet_xxx'` | 連到錯誤的資料庫，或 migration 未執行；確認 `SQL_DATABASE` 與 `dbo.SchemaVersions`，見第 3 節 |
+| 每個頁面都顯示「網站啟動失敗…」且記錄有「資料庫 migration 失敗」 | migrator 帳號無法連線、缺少 `db_ddladmin` 權限，或某支腳本失敗；記錄會列出腳本名稱，見第 3 節 |
 | `Column name or number of supplied values does not match table definition` | 賣家註冊或上架商品的位置式 INSERT 欄位數不符，見第 7 節 |
 | `String or binary data would be truncated` | 欄位長度不足（例如 `category`、`password` 超過 20 字元） |
 | 進入購物車頁出現 `NullReferenceException` | 未經首頁直接開啟購物車時 `Session["addproduct"]` 為 null；請先從首頁進入 |

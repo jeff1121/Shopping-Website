@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.5（決策已確認；M1～M4 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.6（決策已確認；M1～M5 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -156,7 +156,7 @@ flowchart LR
 | **M2** 可建置與建置 CI | 補缺檔、iTextSharp 改 NuGet、`build.yml`、部署套件 SBOM | 無（可與 M1 平行） | 1 天 | ✅ 已完成（PR #9、#10） |
 | **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | ✅ 已完成（3-1、3-2 於 M2；其餘於 M3 PR） |
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
-| **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ⬜ 未開始 |
+| **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ⬜ 未開始 |
 | **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ⬜ 未開始（Issue #4～#7 追蹤） |
 | **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
@@ -418,6 +418,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 版本紀錄 | DbUp 預設資料表 `dbo.SchemaVersions` |
 | 變數替換 | DbUp 變數 `$IMAGE_BASE_URL$`，供示範商品的 `pimage` 使用 |
 | 失敗處理 | 任一腳本失敗即回滾該腳本交易，寫入 Application Insights 並拋出例外，網站回應 500，部署後的冒煙測試會失敗並通知 |
+| 實作 | `Website/Data/DatabaseMigrator.cs`：鎖定用連線（`sp_getapplock`，Session 擁有者，逾時 120 秒）＋ DbUp `WithTransactionPerScript`、`LogToTrace`；錯誤包成 `InvalidOperationException`，由 `Global.asax.cs` 交給 `RecordStartupError` |
+| 冪等 | `0001` 以 `IF OBJECT_ID(...) IS NULL` 建表、種子資料以 `WHERE NOT EXISTS` 新增，可套用到手動建立的舊資料庫 |
 | 相容原則 | 腳本只新增、不破壞；刪除或改名欄位需分兩次發布 |
 
 ### 10.2 腳本清單
@@ -427,7 +429,9 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | `0001_create_tables.sql` | 依 `QuickStart.md` 中與程式碼相符的結構建立 `violet_user_login`（14 欄，最後為 `uid`）、`violet_products`（含 `stock`）、`violet_cart`（8 欄）、`violet_order`（6 欄）、`violet_categories`、`violet_contact`；**欄位順序必須與程式的位置式 INSERT 一致** |
 | `0002_seed_categories.sql` | `violet_categories`：名稱必須與 `addProducts.aspx.cs` 的固定分類清單完全一致（目前為 `Computer`、`Computer Accesories`，後者拼字保留原樣） |
 | `0003_seed_demo_users.sql` | 示範會員 `demo_customer`（`uid` 1～4998 範圍內）、示範賣家 `demo_seller`（`uid` = **5001**）；密碼為公開的示範值（Repo 是公開的，**不得**使用真實密碼） |
-| `0004_seed_demo_products.sql` | 示範商品，`uname` 為示範賣家的 `uname`，`pimage` 為 `$IMAGE_BASE_URL$/products/demo_seller/<檔名>` |
+| `0004_seed_demo_products.sql` | 示範商品，`uname` 為示範賣家的 `uname`，`pimage` 為 `$IMAGE_BASE_URL$/products/demo_seller/<檔名>`；4 項，其中 `Demo Arcade Machine` 庫存 0 |
+
+示範帳號：`demo_customer`／`demo_seller`，密碼皆為 `Demo@1234`（公開示範值）。範例圖片位於 `Website/img/products/demo_seller/`，M6 部署時上傳到 Blob。
 
 > 注意：`sellerRegister.aspx.cs` 只 INSERT 13 個值、`addProducts.aspx.cs` 只 INSERT 6 個值，在上述結構下會失敗。這兩個缺陷在 M7 以「指定欄位的 INSERT」修正。
 
@@ -669,3 +673,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | v1.3.1 | 2026-09-30 | 文件同步：§3 更新版控現況並新增 Azure 列；§5 新增狀態欄；M1 補記 Dependabot PR #2 已合併；§19 第 5 項標為完成；§20 勾選已達成項目並新增 OIDC 驗收條件；新增 [ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md) |
 | v1.4 | 2026-10-01 | M3 完成：Configuration Builders 3.0 以環境變數代入連線字串與 appSettings（新增 `SQL_ENCRYPT`，`SQL_SERVER` 改含 `tcp:` 與連接埠）、`AppSettings` 啟動檢查與 `Global.asax`、SMTP 外部化、商品圖片改由 `ImageStore` 上傳 Blob；NuGet 加入 Azure.Storage.Blobs、Azure.Identity、dbup-sqlserver 與遞移相依套件及 binding redirect |
 | v1.5 | 2026-10-01 | M4 完成：Bicep（8 個模組，無角色指派）、`infra.yml`（PR what-if 留言、`main` 部署）、`sql-users` deploymentScript、`infra/smtp-setup.sh`（9.4 第 5 步）；新增 GitHub 變數 `SMTP_USER_NAME`；Storage 停用共用金鑰、App Service 停用基本驗證、Application Insights 代理程式 |
+| v1.6 | 2026-10-01 | M5 完成：`DatabaseMigrator`（DbUp + `sp_getapplock`）於 `Application_Start` 套用 `Website/Migrations/0001`～`0004`（建表冪等、示範分類／帳號／商品）；新增 `db/cleanup/remove_demo_data.sql` 與 `img/products/demo_seller/`；QuickStart §3 改為只需建立空資料庫 |
