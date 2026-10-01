@@ -52,7 +52,7 @@
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
-| Azure 部署 | 一次性設定與 Bicep 基礎設施（`infra/`、`infra.yml`）已完成；應用程式自動部署**尚未實作**（Plan M5～M6） |
+| Azure 部署 | 一次性設定與 Bicep 基礎設施（`infra/`、`infra.yml`）已完成並部署；應用程式自動部署**尚未實作**（Plan M5～M6），目前網站網址回應 503 |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
@@ -144,6 +144,7 @@ Shopping-Website/
 ├── docs/adr/                       # 架構決策紀錄（ADR 0001～0004）
 ├── infra/
 │   ├── bootstrap.sh                # Azure 與 GitHub 一次性設定腳本（可重複執行）
+│   ├── smtp-setup.sh               # ACS SMTP 帳號設定（首次部署後執行一次，可重複執行）
 │   ├── main.bicep                  # Azure 基礎設施進入點（不含角色指派）
 │   ├── main.bicepparam             # 部署參數（不含密碼；密碼由 infra.yml 從 GitHub Secret 傳入）
 │   ├── modules/                    # monitoring、keyvault、sql、sql-users、storage、frontdoor、email、appservice
@@ -444,7 +445,7 @@ sequenceDiagram
 | M1 CI 掃描與 Repo 治理 | ✅ 已完成 |
 | M2 可建置與建置 CI | ✅ 已完成 |
 | M3 設定外部化與程式調整 | ✅ 已完成（Configuration Builders、`AppSettings`、SMTP 與 Blob 圖片上傳） |
-| M4 Azure 基礎設施（Bicep） | 🟡 一次性設定、Bicep 與 `infra.yml` 已完成；ACS SMTP 帳號設定待完成 |
+| M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5～M8 Migration、自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
@@ -485,6 +486,20 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 腳本會建立 Resource Group、部署身分 `gh-shopping-deploy`（含 Federated Credential）、使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 與角色指派，並設定 GitHub Environment。
 由於訂用帳戶的 Owner 受組織 ABAC 條件限制，角色指派一律在這個腳本完成，Bicep 不做角色指派（[ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md)）。
 完成後可手動執行「Azure OIDC 驗證」workflow 確認。
+
+### Azure 基礎設施
+
+`infra/main.bicep` 建立 App Service（B1 Windows）、Azure SQL（Basic）、Key Vault、Storage（容器 `products`）、Front Door Standard、ACS Email、Log Analytics 與 Application Insights；資源名稱後綴由 `uniqueString(resourceGroup().id)` 產生。
+
+- 變更 `infra/**` 的 PR 會執行 Bicep lint 與 what-if，結果貼到 PR 留言；合併到 `main` 或手動觸發「基礎設施」workflow 時部署。
+- 資料庫使用者 `shopping_app`、`shopping_migrator` 由 deploymentScript（`infra/scripts/sql-users.ps1`）建立，密碼只存在 Key Vault；App Service 以 Key Vault 參考讀取。
+- 第一次部署後執行一次 `infra/smtp-setup.sh` 設定 ACS SMTP 帳號（Plan 9.4 第 5 步），腳本會把 client secret 寫入 Key Vault 並重新觸發部署：
+
+```bash
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
+```
+
+本機檢查 Bicep：`az bicep build --file infra/main.bicep` 與 `az bicep lint --file infra/main.bicep`。
 
 ---
 

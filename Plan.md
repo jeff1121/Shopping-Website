@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.4（決策已確認；M1～M3 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.5（決策已確認；M1～M4 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -155,7 +155,7 @@ flowchart LR
 | **M1** CI 掃描與 Repo 治理 | CodeQL、原始碼 SBOM、Dependency Review、Dependabot、Secret Scanning、Scorecard、Lint、`.gitignore`、`.editorconfig`、分支規則 | 無 | 1 天 | ✅ 已完成（PR #1、#3、#8） |
 | **M2** 可建置與建置 CI | 補缺檔、iTextSharp 改 NuGet、`build.yml`、部署套件 SBOM | 無（可與 M1 平行） | 1 天 | ✅ 已完成（PR #9、#10） |
 | **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | ✅ 已完成（3-1、3-2 於 M2；其餘於 M3 PR） |
-| **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | 🟡 前置作業已完成（9.4 第 1～4、6 步，PR #11）；Bicep 與 `infra.yml` 已完成；9.4 第 5 步待完成 |
+| **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ⬜ 未開始 |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ⬜ 未開始 |
 | **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ⬜ 未開始（Issue #4～#7 追蹤） |
@@ -373,6 +373,9 @@ infra/
 | `push main`（變更 `infra/**`）、`workflow_dispatch` | `az deployment group create --parameters infra/main.bicepparam sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}` |
 
 - 兩者皆使用 GitHub Environment **`azure`**（OIDC subject：`repo:jeff1121@12440417/Shopping-Website@1395787848:environment:azure`，GitHub 的不可變格式，含帳號與 Repo 數字 ID）。
+- **實作補充**：`main.bicepparam` 以 `readEnvironmentVariable` 讀取 `SQL_ADMIN_LOGIN`、`SQL_ADMIN_PASSWORD`、`SMTP_USER_NAME`，密碼不出現在命令列；what-if 結果以表格貼到 PR 留言（同一則留言更新）；部署輸出寫入 job summary。名稱後綴為 `take(uniqueString(resourceGroup().id), 6)`（目前為 `zy2bgk`）。
+- **實作補充**：Storage 停用共用金鑰（`allowSharedKeyAccess: false`），一律以 Entra ID 存取；App Service 停用 FTP 與 SCM 基本驗證，部署改用 OIDC；Application Insights 採 Windows 免程式碼代理程式（`ApplicationInsightsAgent_EXTENSION_VERSION=~2`），程式不需加入 SDK。
+- **實作補充**：`SMTP_USER`、`SMTP_PASSWORD` 只在 GitHub Environment 變數 `SMTP_USER_NAME` 有值時才寫入 App Service；第 5 步完成前不設定，避免無法解析的 Key Vault 參考讓啟動檢查失敗。
 - PR 的 `what-if` 也要能登入 Azure，因此 PR job 同樣宣告 `environment: azure`；Environment 的分支規則為 `main` 與 `refs/pull/*/merge`（比對 `GITHUB_REF`），不設審核者。Fork 的 PR 拿不到 OIDC token，job 需以 `if` 略過。
 
 ### 9.4 一次性手動步驟
@@ -392,7 +395,13 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 5. 建立 ACS SMTP 用的 App Registration `acs-shopping-smtp` 與 client secret；在 ACS 資源指派自訂角色（`Microsoft.Communication/CommunicationServices/Read`、`.../Write`、`Microsoft.Communication/EmailServices/write`）；將 secret 寫入 Key Vault `smtp-password`。此步驟需在第一次 `infra.yml` 部署完成後執行。自訂角色不在 ABAC 限制清單內，可由您自行指派。
 6. 在 GitHub 建立 Environment `azure`，設定第 14.2 節的 Variables 與 Secrets。
 
-**目前狀態（2026-09-30）**：第 1～4、6 步已完成，訂用帳戶為 BD-CIS-Testing（`ab1d83ae-0874-4c12-b989-bec89df9f4a6`），部署身分 App ID 為 `1ed97b12-9df8-42b8-95bb-d6005e611461`（非敏感識別碼）；第 5 步待 M4 首次部署後進行。
+第 5 步寫成可重複執行的腳本 `infra/smtp-setup.sh`，需在第一次 `infra.yml` 部署完成後執行。腳本建立 `acs-shopping-smtp` 與只含三個寄信權限的自訂角色「ACS SMTP Sender (shopping)」（指派在 Communication Service），建立 SMTP 使用者名稱 `shopping-smtp`（資源名稱 `smtp-user-web`，Azure 規定兩者不可相同），將 client secret（1 年）經 ARM 控制平面寫入 Key Vault `smtp-password`，最後設定 GitHub 變數 `SMTP_USER_NAME` 並重新觸發 `infra.yml`。Key Vault 已有 secret 時不重新產生；輪替時設定 `ROTATE_SECRET=1`：
+
+```bash
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
+```
+
+**目前狀態（2026-10-01）**：第 1～6 步皆已完成，訂用帳戶為 BD-CIS-Testing（`ab1d83ae-0874-4c12-b989-bec89df9f4a6`），部署身分 App ID 為 `1ed97b12-9df8-42b8-95bb-d6005e611461`（非敏感識別碼）。三個 Key Vault 參考（`SQL_PASSWORD`、`SQL_MIGRATOR_PASSWORD`、`SMTP_PASSWORD`）在 App Service 皆顯示 Resolved。
 
 ---
 
@@ -506,7 +515,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | `SQL_MIGRATOR_PASSWORD` | **Key Vault 參考** | `sql-migrator-password` | deploymentScript 產生 |
 | `SMTP_HOST` | 明文 | Bicep | `smtp.azurecomm.net` |
 | `SMTP_PORT` | 明文 | Bicep | `587` |
-| `SMTP_USER` | 明文 | 手動（9.4 第 5 步） | ACS SMTP 使用者名稱 |
+| `SMTP_USER` | 明文 | GitHub 變數 `SMTP_USER_NAME`（9.4 第 5 步設定） | ACS SMTP 使用者名稱（`shopping-smtp`）；未設定時與 `SMTP_PASSWORD` 都不寫入 |
 | `SMTP_PASSWORD` | **Key Vault 參考** | `smtp-password` | Entra client secret |
 | `SMTP_FROM` | 明文 | Bicep 輸出 | `DoNotReply@<受管網域>` |
 | `STORAGE_BLOB_ENDPOINT` | 明文 | Bicep 輸出 | `https://stshoppingxxxx.blob.core.windows.net/` |
@@ -525,6 +534,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | `AZURE_SUBSCRIPTION_ID` | Variable | OIDC |
 | `AZURE_RESOURCE_GROUP` | Variable | `rg-shopping` |
 | `SQL_ADMIN_LOGIN` | Variable | SQL 管理員名稱（`sqladminshop`） |
+| `SMTP_USER_NAME` | Variable | ACS SMTP 使用者名稱，由 `infra/smtp-setup.sh` 設定 |
 | `SQL_ADMIN_PASSWORD` | **Secret** | SQL 管理員密碼（`bootstrap.sh` 產生 32 字元英數與 `-_`，不含 `;`；正式營運前由您更換） |
 
 - 分支規則：`main`、`refs/pull/*/merge`；不設審核者（M8 再開啟部署核准）。
@@ -538,7 +548,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | `sql-admin-password` | `infra.yml`（來自 GitHub Secret） | 管理員密碼備查 |
 | `sql-app-password` | deploymentScript | `shopping_app` |
 | `sql-migrator-password` | deploymentScript | `shopping_migrator` |
-| `smtp-password` | 您（9.4 第 5 步） | ACS SMTP |
+| `smtp-password` | `infra/smtp-setup.sh`（9.4 第 5 步） | ACS SMTP（`acs-shopping-smtp` 的 client secret，1 年到期） |
 
 ---
 
@@ -622,7 +632,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | 1 | ~~Azure 訂用帳戶，且具 Owner 權限~~ **已完成**（BD-CIS-Testing） | M4 之前 |
 | 2 | ~~執行 [9.4](#94-一次性手動步驟) 第 1～4、6 步~~ **已完成**（`infra/bootstrap.sh`） | M4 之前 |
 | 3 | ~~在 GitHub Environment `azure` 設定 `SQL_ADMIN_LOGIN`、`SQL_ADMIN_PASSWORD`~~ **已完成**（密碼由腳本產生，未出現在對話或版控） | M4 之前 |
-| 4 | 執行 [9.4](#94-一次性手動步驟) 第 5 步（ACS SMTP） | 第一次基礎設施部署之後 |
+| 4 | ~~執行 [9.4](#94-一次性手動步驟) 第 5 步（ACS SMTP）~~ **已完成**（`infra/smtp-setup.sh`） | 第一次基礎設施部署之後 |
 | 5 | ~~在 Repo 設定啟用 Secret Scanning、Push Protection、Code Quality 並建立 Ruleset~~ **已完成**（以 `gh` 設定，見 [6.3](#63-其他-ci-與治理)） | M1 |
 | 6 | M8 的人工步驟 | 轉入正式營運時 |
 
@@ -658,3 +668,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow；OIDC subject 改為 GitHub 不可變格式（含帳號與 Repo ID），由腳本自動取得 |
 | v1.3.1 | 2026-09-30 | 文件同步：§3 更新版控現況並新增 Azure 列；§5 新增狀態欄；M1 補記 Dependabot PR #2 已合併；§19 第 5 項標為完成；§20 勾選已達成項目並新增 OIDC 驗收條件；新增 [ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md) |
 | v1.4 | 2026-10-01 | M3 完成：Configuration Builders 3.0 以環境變數代入連線字串與 appSettings（新增 `SQL_ENCRYPT`，`SQL_SERVER` 改含 `tcp:` 與連接埠）、`AppSettings` 啟動檢查與 `Global.asax`、SMTP 外部化、商品圖片改由 `ImageStore` 上傳 Blob；NuGet 加入 Azure.Storage.Blobs、Azure.Identity、dbup-sqlserver 與遞移相依套件及 binding redirect |
+| v1.5 | 2026-10-01 | M4 完成：Bicep（8 個模組，無角色指派）、`infra.yml`（PR what-if 留言、`main` 部署）、`sql-users` deploymentScript、`infra/smtp-setup.sh`（9.4 第 5 步）；新增 GitHub 變數 `SMTP_USER_NAME`；Storage 停用共用金鑰、App Service 停用基本驗證、Application Insights 代理程式 |
