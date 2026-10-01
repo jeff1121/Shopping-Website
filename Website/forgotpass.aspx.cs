@@ -103,9 +103,9 @@ namespace Website
         {
             int attempts = Session[AttemptsKey] == null ? 0 : (int)Session[AttemptsKey];
             DataTable account = ResetUname == null || attempts >= MaxAttempts
-                ? new DataTable()
+                ? null
                 : Db.Query("SELECT username, email, seca FROM violet_user_login WHERE uname=@uname", Db.Param("@uname", ResetUname));
-            if (account.Rows.Count != 1)
+            if (account == null || account.Rows.Count != 1)
             {
                 ResetUname = null;
                 passwordPanel.Visible = false;
