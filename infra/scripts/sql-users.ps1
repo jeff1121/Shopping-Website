@@ -25,22 +25,23 @@ function New-RandomPassword {
     $chars[0] = $upper[$bytes[0] % $upper.Length]
     $chars[1] = $lower[$bytes[1] % $lower.Length]
     $chars[2] = $digit[$bytes[2] % $digit.Length]
-    return -join $chars
+    return [string](-join $chars)
 }
 
-# 讀取 Key Vault secret；不存在時產生並寫入
+# 讀取 Key Vault secret；不存在時產生並寫入。
+# 訊息必須用 Write-Host：Write-Output 會混入函式回傳值，讓密碼變成「訊息＋密碼」的陣列。
 function Get-OrCreateSecret([string] $Name) {
     $value = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $Name -AsPlainText -ErrorAction SilentlyContinue
     if ([string]::IsNullOrEmpty($value)) {
         $value = New-RandomPassword
         $secure = ConvertTo-SecureString -String $value -AsPlainText -Force
         Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $Name -SecretValue $secure -ContentType "資料庫使用者密碼（deploymentScript 產生）" | Out-Null
-        Write-Output "已產生 Key Vault secret $Name"
+        Write-Host "已產生 Key Vault secret $Name"
     }
     else {
-        Write-Output "沿用既有 Key Vault secret $Name"
+        Write-Host "沿用既有 Key Vault secret $Name"
     }
-    return $value
+    return [string]$value
 }
 
 $appPassword = Get-OrCreateSecret 'sql-app-password'
