@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using Website.Data;
-using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -13,8 +12,8 @@ namespace Website
 {
     /// <summary>
     /// 「上架商品」頁面（addProducts.aspx）的後置程式碼。
-    /// 賣家填寫商品名稱、價格、分類、關鍵字並上傳圖片，圖片存到 img/products/&lt;登入帳號&gt;/，
-    /// 商品資料寫入 violet_products。
+    /// 賣家填寫商品名稱、價格、分類、關鍵字並上傳圖片，圖片經 <see cref="ImageStore"/> 寫入 Azure Blob Storage，
+    /// 商品資料（pimage 為圖片完整網址）寫入 violet_products。
     /// </summary>
     /// <remarks>
     /// 頁面只依 Session["user"] 判斷登入狀態，未檢查 uid 是否 &gt; 5000；未登入時分類下拉選單不會被填入，
@@ -82,47 +81,30 @@ namespace Website
 
         /// <summary>
         /// 驗證並上傳商品圖片，成功後寫入商品資料：
-        /// 1. 僅接受 jpg / jpeg / png（依副檔名判斷，區分大小寫）；
-        /// 2. 圖片存到 ~/img/products/&lt;Session["user"]&gt;/原始檔名，目錄不存在時自動建立；
+        /// 1. 僅接受 <see cref="ImageStore.IsSupportedExtension"/> 允許的副檔名（jpg、jpeg、png、gif、webp，不分大小寫）；
+        /// 2. 圖片經 <see cref="ImageStore.Upload"/> 寫入 Blob「products/&lt;賣家帳號&gt;/&lt;GUID&gt;.副檔名」，取得完整網址；
         /// 3. 查出登入者姓名 uname 作為賣家欄位，以參數化查詢寫入 violet_products；
         /// 4. 完成後導向 profile.aspx。
         /// </summary>
         /// <remarks>
-        /// INSERT 未指定欄位且只提供六個值；若 violet_products 含 stock 等額外 NOT NULL 欄位，會出現欄位數不符或預設值需求。
-        /// 原始檔名會直接用於儲存路徑，可能覆蓋同名檔案；未選檔時先取副檔名會先拋出例外。
+        /// INSERT 未指定欄位且只提供六個值；若 violet_products 含 stock 等額外 NOT NULL 欄位，會出現欄位數不符或預設值需求（M7 修正）。
+        /// 目前只檢查副檔名，尚未檢查檔案內容與大小（M7 修正）。
         /// </remarks>
         public void uploadImg()
         {
-            var supportedTypes = new[] { "jpg", "jpeg", "png" };
-            // 注意：未選檔案時 GetExtension 回傳空字串，Substring(1) 會先拋出例外
-            var fileExt = System.IO.Path.GetExtension(uploadImage.FileName).Substring(1);
-
             if (uploadImage.HasFile)
             {
-                if (!supportedTypes.Contains(fileExt))
+                string fileExt = System.IO.Path.GetExtension(uploadImage.FileName);
+                if (!ImageStore.IsSupportedExtension(fileExt))
                 {
                     Label1.Visible = true;
-                    Label1.Text = "File Extension Is InValid - Only Upload PNG/JPEG/JPG File";
+                    Label1.Text = "File Extension Is InValid - Only Upload PNG/JPEG/GIF/WEBP File";
                     Label1.ForeColor = System.Drawing.Color.Red;
                 }
                 else
                 {
-                    string folderPath = Server.MapPath("~/img/products/" + Session["user"] + "/");
-
-                    //Check whether Directory (Folder) exists.
-                    if (!Directory.Exists(folderPath))
-                    {
-                        //If Directory (Folder) does not exists. Create it.
-                        Directory.CreateDirectory(folderPath);
-                    }
-
-                    //String path = folderPath + Path.GetFileName(uploadImage.FileName);
-                    //uploadImage.SaveAs(path);
-
-                    string str = uploadImage.FileName;
-                    uploadImage.PostedFile.SaveAs(folderPath + "\\" + str.ToString());
-                    // 資料庫中儲存相對路徑，供頁面 <img> 直接使用
-                    string Image = "img/products/" + Session["user"] +"/" + str.ToString();
+                    // 圖片寫入 Blob，資料庫儲存經 Front Door 提供的完整網址，頁面 <img> 可直接使用
+                    string Image = ImageStore.Upload(uploadImage.PostedFile.InputStream, Session["user"].ToString(), fileExt);
                     string name = txtName.Text;
 
                     String uname = "";

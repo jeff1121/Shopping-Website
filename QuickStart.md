@@ -1,7 +1,7 @@
 # QuickStart：安裝與啟動指南
 
 本文件說明如何從零開始，在本機把 Shopping Website（ASP.NET Web Forms + SQL Server）建置並執行起來。
-專案已補齊建置所需檔案；開始前仍需設定本機資料庫連線字串。
+專案已補齊建置所需檔案；所有連線與寄信、圖片儲存設定都由**環境變數**提供，開始前需設定本機環境變數（第 4 節）。
 
 > 專案功能、架構與已知問題的完整說明請見 [README.md](README.md)。
 
@@ -12,7 +12,7 @@
 1. [環境需求](#1-環境需求)
 2. [取得原始碼](#2-取得原始碼)
 3. [建立資料庫](#3-建立資料庫)
-4. [設定連線字串](#4-設定連線字串)
+4. [設定環境變數](#4-設定環境變數)
 5. [必要修正（建置前）](#5-必要修正建置前)
 6. [建置與執行](#6-建置與執行)
 7. [建立測試帳號與賣家](#7-建立測試帳號與賣家)
@@ -33,7 +33,9 @@
 | SQL Server | 2016 以上任一版本（Express / Developer / LocalDB 皆可） |
 | SQL 管理工具 | SQL Server Management Studio（SSMS）或 Azure Data Studio |
 | iTextSharp | 5.5.13.6（NuGet），供「訂單 PDF 匯出」使用 |
-| NuGet | 還原 `iTextSharp`、`BouncyCastle.Cryptography` 與 `Microsoft.CodeDom.Providers.DotNetCompilerPlatform` |
+| NuGet | 還原 `packages.config` 列出的套件（iTextSharp、Roslyn CodeDom、Configuration Builders、Azure Storage／Identity、DbUp 與其相依套件） |
+| Azurite（選用） | 本機模擬 Blob Storage，供上架商品上傳圖片；可用 `npm i -g azurite` 或 Docker `mcr.microsoft.com/azure-storage/azurite` |
+| SMTP 測試伺服器（選用） | 例如 smtp4dev、Papercut，供忘記密碼寄信測試 |
 
 ### macOS / Linux 使用者
 
@@ -195,39 +197,64 @@ GO
 
 ---
 
-## 4. 設定連線字串
+## 4. 設定環境變數
 
-本專案只需在 `Website/Web.config` 設定連線字串；後置程式碼會透過 `Website.Data.Db` 讀取同一份設定，不需要修改 `.aspx.cs`。本機執行至少要填入 `cmpConnectionString`。
+`Website/Web.config` 不含任何真實連線資訊。網站啟動時，Configuration Builders（`Microsoft.Configuration.ConfigurationBuilders.Environment`，Token 模式）會把 `${名稱}` 權杖替換為**同名環境變數**；`Global.asax` 會檢查必要設定，缺漏時每個請求都回應 500，並在本機請求中列出缺漏的設定名稱（不顯示值）。
 
-### 4.1 `Website/Web.config`
+### 4.1 設定清單
 
-供頁面中的 `asp:SqlDataSource` 與後置程式碼（商品清單、搜尋、排序、分類、訂單歷史、賣家商品管理等）使用：
+| 環境變數 | 必要 | 本機範例 | 說明 |
+| --- | --- | --- | --- |
+| `SQL_SERVER` | ✅ | `localhost\SQLEXPRESS` 或 `localhost,1433` | 連線字串的 `Server`；Azure 為 `tcp:<伺服器>.database.windows.net,1433` |
+| `SQL_DATABASE` | ✅ | `website` | 資料庫名稱 |
+| `SQL_ENCRYPT` | ✅ | `False` | 是否加密連線；本機未設定憑證時用 `False`，Azure 為 `True` |
+| `SQL_USER`／`SQL_PASSWORD` | ✅ | 自建的 SQL 登入 | 網站一般請求使用（只需讀寫權限） |
+| `SQL_MIGRATOR_USER`／`SQL_MIGRATOR_PASSWORD` | ✅ | 可與上面相同 | 資料庫 migration 使用（需 DDL 權限）；本機可沿用同一個帳號 |
+| `SMTP_HOST`／`SMTP_PORT` | ✅ | `localhost`／`25` | 忘記密碼寄信；連接埠 25 不加密，其他連接埠一律 STARTTLS |
+| `SMTP_FROM` | ✅ | `noreply@localhost` | 寄件者 |
+| `SMTP_USER`／`SMTP_PASSWORD` | 選用 | 留空 | 有值時才使用帳密驗證 |
+| `STORAGE_BLOB_ENDPOINT` | ✅ | `http://127.0.0.1:10000/devstoreaccount1` | Blob 端點；指向本機（Azurite）時自動使用開發儲存體帳號 |
+| `STORAGE_CONTAINER` | ✅ | `products` | 商品圖片容器 |
+| `IMAGE_BASE_URL` | ✅ | `http://127.0.0.1:10000/devstoreaccount1` | 圖片網址的根，圖片網址為「此值/容器/賣家/檔名」；Azure 為 Front Door 端點 |
 
-```xml
-<connectionStrings>
-  <add name="cmpConnectionString"
-       connectionString="Data Source=localhost\SQLEXPRESS;Initial Catalog=website;Integrated Security=True"
-       providerName="System.Data.SqlClient" />
-</connectionStrings>
+> 連線字串採 SQL 驗證（`User ID`／`Password`）。本機 SQL Server 若只開 Windows 驗證，請改為「SQL Server 及 Windows 驗證模式」並建立 SQL 登入，或使用第 1 節的 Docker SQL Server。密碼不可含 `;`、`'`、`"`、`{`、`}`。
+
+### 4.2 在 Windows 設定（使用者環境變數）
+
+以 PowerShell 執行，完成後**重新啟動 Visual Studio**（IIS Express 才會讀到新的環境變數）：
+
+```powershell
+setx SQL_SERVER "localhost\SQLEXPRESS"
+setx SQL_DATABASE "website"
+setx SQL_ENCRYPT "False"
+setx SQL_USER "shopping_dev"
+setx SQL_PASSWORD "<本機密碼>"
+setx SQL_MIGRATOR_USER "shopping_dev"
+setx SQL_MIGRATOR_PASSWORD "<本機密碼>"
+setx SMTP_HOST "localhost"
+setx SMTP_PORT "25"
+setx SMTP_FROM "noreply@localhost"
+setx STORAGE_BLOB_ENDPOINT "http://127.0.0.1:10000/devstoreaccount1"
+setx STORAGE_CONTAINER "products"
+setx IMAGE_BASE_URL "http://127.0.0.1:10000/devstoreaccount1"
 ```
 
-常見連線字串範例：
+### 4.3 本機 Blob（Azurite）
 
-| 環境 | 連線字串 |
-| --- | --- |
-| SQL Server Express（Windows 驗證） | `Data Source=localhost\SQLEXPRESS;Initial Catalog=website;Integrated Security=True` |
-| LocalDB | `Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=website;Integrated Security=True` |
-| Docker / SQL 驗證 | `Data Source=<主機>,1433;Initial Catalog=website;User ID=sa;Password=<你的強密碼>;TrustServerCertificate=True` |
+上架商品時圖片會上傳到 Blob。啟動 Azurite 並建立可匿名讀取單一檔案的容器：
 
-### 4.2 後置程式碼的連線來源
+```bash
+azurite-blob --blobHost 127.0.0.1 --blobPort 10000
+az storage container create --name products --public-access blob --connection-string "UseDevelopmentStorage=true"
+```
 
-12 個後置程式碼檔案已改由 `Website.Data.Db.CreateConnection()` 建立 `SqlConnection`，
-集中讀取 `Web.config` 的 `cmpConnectionString`。因此只需維護 Web.config 一處連線字串；
-請勿再把真實連線字串寫進 `.aspx.cs` 檔案。
+### 4.4 程式中的讀取方式
 
-`Website.Data.Db.CreateMigratorConnection()` 會讀取 `migratorConnectionString`，供後續資料庫遷移工具使用。
+- 12 個後置程式碼以 `Website.Data.Db.CreateConnection()` 讀取 `cmpConnectionString`；`asp:SqlDataSource` 以 `<%$ ConnectionStrings:cmpConnectionString %>` 讀取同一設定。
+- `Website.Data.Db.CreateMigratorConnection()` 讀取 `migratorConnectionString`，供資料庫 migration 使用。
+- 寄信與圖片設定集中由 `Website.Config.AppSettings` 讀取；圖片上傳由 `Website.Data.ImageStore` 處理。
 
-> 🔒 請勿將含有真實帳號密碼的連線字串提交到版本控制。
+> 🔒 請勿把真實帳號密碼寫進 `Web.config` 或任何檔案；Azure 上的密碼都放在 Key Vault，由 App Service 以 Key Vault 參考提供。
 
 ---
 
@@ -362,7 +389,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
   上架後庫存預設為 0，再到 `profile.aspx` 的商品清單按「Edit」設定 Stock；
 - 或直接以 SQL 新增商品（見第 3 節範例資料）。
 
-> 上傳的圖片會存到 `Website/img/products/<登入帳號>/`，IIS 應用程式集區帳號需有此資料夾的寫入權限。
+> 上傳的圖片會寫入 Blob 容器 `products`，路徑為 `<登入帳號>/<GUID>.<副檔名>`；`pimage` 會存完整網址（`IMAGE_BASE_URL/products/...`）。本機需先啟動 Azurite（見 4.3）。
 
 ---
 
@@ -389,12 +416,9 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 
 ### SMTP（忘記密碼寄信）
 
-`forgotpass.aspx.cs` 使用 Gmail SMTP（`smtp.gmail.com:587`，SSL）。請將程式中的佔位字串替換為實際值：
-
-- `new MailAddress("enter email id")` → 寄件者 Email
-- `new NetworkCredential("enter email id", "enter password")` → Gmail 帳號與**應用程式密碼**（需啟用兩步驟驗證）
-
-> 🔒 建議改從 `Web.config` 的 `appSettings` 或環境變數讀取，避免將密碼寫入原始碼。
+`forgotpass.aspx.cs` 以 `SmtpClient` 寄信，主機、連接埠、寄件者與帳密都來自環境變數 `SMTP_*`（見 4.1）。
+本機可用 smtp4dev 或 Papercut 接收測試信（`SMTP_HOST=localhost`、`SMTP_PORT=25`、帳密留空）。
+Azure 上使用 Azure Communication Services Email 的 SMTP 介面（`smtp.azurecomm.net:587`，STARTTLS），密碼放在 Key Vault。
 
 ### 發行（Release）
 
@@ -402,7 +426,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 「建置 → 發佈 Website」選擇「資料夾」或「IIS」目標。部署到 IIS 時：
 
 - 應用程式集區使用 .NET CLR v4.0、整合式管線；
-- 確保 `img/products/` 具寫入權限；
+- 依第 4 節設定應用程式集區可讀到的環境變數（或在 IIS 設定中加入）；
 - 正式環境請使用獨立的 SQL 帳號，勿使用 `sa`。
 
 ### Azure 部署（進行中）
@@ -426,10 +450,12 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | --- | --- |
 | 開啟 `https://localhost:44337/` 出現 403 或目錄清單錯誤 | 確認 `Web.config` 保留 `system.webServer/defaultDocument`（`index.aspx`）；也可直接瀏覽 `/index.aspx` |
 | 找不到 `csc.exe` 或 `packages\...` 路徑 | 尚未執行 NuGet 還原（`packages/` 不在 Repo 中），見 5.4 |
-| 編譯錯誤 `CS1525: Invalid expression term '<'` | 工作區仍殘留舊版連線佔位字串，請同步最新程式碼並見 4.2 |
+| 編譯錯誤 `CS1525: Invalid expression term '<'` | 工作區仍殘留舊版連線佔位字串，請同步最新程式碼 |
+| 每個頁面都顯示「網站啟動失敗：設定不完整…」 | 環境變數未設定或未生效；本機請求會列出缺漏的設定名稱，設定後重新啟動 Visual Studio，見第 4 節 |
 | 編譯錯誤 `CS2001: Source file 'Properties\AssemblyInfo.cs' could not be found` | 確認 `Website/Properties/AssemblyInfo.cs` 存在，見 5.1 |
 | 找不到 `iTextSharp` 命名空間 | 請執行 NuGet 還原，見 5.2 |
-| `Format of the initialization string does not conform to specification` | `Web.config` 仍是 `Add connection string here`，見 4.1 |
+| `Format of the initialization string does not conform to specification` | `SQL_*` 環境變數含 `;` 等特殊字元，見 4.1 |
+| 連線時出現 SSL／憑證錯誤 | 本機 SQL Server 沒有受信任憑證時請設 `SQL_ENCRYPT=False` |
 | `Invalid object name 'violet_xxx'` | 資料表未建立或連到錯誤的資料庫，見第 3 節 |
 | `Column name or number of supplied values does not match table definition` | 賣家註冊或上架商品的位置式 INSERT 欄位數不符，見第 7 節 |
 | `String or binary data would be truncated` | 欄位長度不足（例如 `category`、`password` 超過 20 字元） |
@@ -437,5 +463,5 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | 註冊時卡住或出現「連線已開啟」錯誤 | `generateUID()` 抽到重複 uid 時未關閉連線；重新註冊即可 |
 | 個人頁購物車徽章總是 0 | `profile.aspx.cs` 讀取 `Session["count1"]` 而非 `Session["count"]`（已知問題） |
 | 下單後購物車徽章仍顯示舊數量 | 結帳未清空 `Session["count"]`，重新登入即恢復（已知問題） |
-| 上傳圖片時 `Access to the path is denied` | IIS / IIS Express 執行帳號對 `img/products/` 無寫入權限 |
-| 首頁商品圖片破圖 | `pimage` 路徑錯誤；頁面會自動改顯示 `img/products/human.png` |
+| 上架商品時出現 Blob 連線錯誤 | Azurite 未啟動或容器 `products` 不存在，見 4.3；Azure 上請確認 `id-shopping-web` 具 Storage Blob Data Contributor |
+| 首頁商品圖片破圖 | `pimage` 網址錯誤或容器不可匿名讀取；頁面會自動改顯示 `img/products/human.png` |
