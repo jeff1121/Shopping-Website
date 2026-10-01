@@ -534,7 +534,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 ### 應用程式部署與監控
 
-- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常、示範圖片可經 Front Door 取得、安全性回應標頭存在，且不存在的頁面回傳 404 錯誤頁。
+- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常、示範圖片可經 Front Door 取得、安全性回應標頭存在（先等新版本的標頭出現，避免檢查到尚未重新啟動的舊版本），且不存在的頁面回傳 404 錯誤頁；每項檢查都會重試。回滾後的冒煙測試略過標頭與 404 檢查（`SMOKE_SECURITY_CHECKS=false`），因為回滾目標可能是較舊的版本。
 - 冒煙測試失敗時自動重新部署上一個成功的版本；也可手動執行「部署」並輸入要回滾的 run ID。
 - OWASP ZAP Baseline 報告為 artifact `zap-baseline`，略過規則寫在 `.zap/rules.tsv`。
 - Application Insights 可用性測試每 5 分鐘自 3 個位置請求首頁，2 個以上失敗時觸發警示；設定 GitHub 變數 `ALERT_EMAIL` 後才會寄信。

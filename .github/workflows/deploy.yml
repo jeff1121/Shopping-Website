@@ -141,6 +141,8 @@ jobs:
           APP_URL: ${{ steps.names.outputs.app-url }}
           IMAGE_BASE_URL: ${{ steps.names.outputs.image-base-url }}
           CURRENT_RUN_ID: ${{ github.run_id }}
+          # 回滾目標可能是加入安全性標頭前的版本，回滾後只檢查頁面與圖片
+          SMOKE_SECURITY_CHECKS: 'false'
         run: |
           set -euo pipefail
           # 找最近一個成功、且 site 套件尚未過期的部署執行（回滾執行本身沒有 site 套件，會被略過）
