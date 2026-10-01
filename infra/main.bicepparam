@@ -5,3 +5,4 @@ using './main.bicep'
 param sqlAdminLogin = readEnvironmentVariable('SQL_ADMIN_LOGIN', 'sqladminshop')
 param sqlAdminPassword = readEnvironmentVariable('SQL_ADMIN_PASSWORD', '')
 param smtpUserName = readEnvironmentVariable('SMTP_USER_NAME', '')
+param alertEmail = readEnvironmentVariable('ALERT_EMAIL', '')
