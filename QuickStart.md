@@ -70,7 +70,7 @@ Shopping-Website/
 ├── README.md                # 專案說明
 ├── Plan.md                  # CI/CD 與 Azure 部署計畫書
 ├── .github/workflows/       # CI：Lint、CodeQL、SBOM、建置、Azure OIDC 驗證
-├── infra/bootstrap.sh       # Azure 與 GitHub 一次性設定腳本
+├── infra/                   # bootstrap.sh、smtp-setup.sh、Bicep（main.bicep、modules/）
 └── Website/                 # Web Forms 網站專案
     ├── *.aspx / *.aspx.cs   # 頁面與後置程式碼
     ├── Data/Db.cs           # 後置程式碼集中建立 SQL 連線
@@ -431,7 +431,7 @@ Azure 上使用 Azure Communication Services Email 的 SMTP 介面（`smtp.azure
 
 ### Azure 部署（進行中）
 
-自動部署到 Azure App Service 仍在實作中（[Plan.md](Plan.md) M4～M6），目前只完成一次性設定。
+Azure 基礎設施已由 Bicep 部署（「基礎設施」workflow）；應用程式的自動部署仍在實作中（[Plan.md](Plan.md) M5～M6）。
 要在新的訂用帳戶重建這些設定，需要 Azure CLI、GitHub CLI（具 Repo admin 權限）與 Python 3，並在 macOS、Linux、WSL 或 Cloud Shell 執行：
 
 ```bash
@@ -440,7 +440,14 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 ```
 
 腳本可重複執行，已存在的項目會略過；SQL 管理員密碼只在 GitHub Secret 不存在時產生，且不會顯示。
-完成後到 GitHub Actions 手動執行「Azure OIDC 驗證」workflow，確認 GitHub 可以登入 Azure。細節見 [README](README.md#azure-一次性設定)。
+完成後到 GitHub Actions 手動執行「Azure OIDC 驗證」workflow，確認 GitHub 可以登入 Azure，再手動執行「基礎設施」workflow 建立資源。
+第一次部署完成後執行一次 ACS SMTP 帳號設定：
+
+```bash
+SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
+```
+
+細節見 [README](README.md#azure-基礎設施)。
 
 ---
 
