@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.11（決策已確認；M1～M7 已完成，M8 未開始；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.12（決策已確認；M1～M7 已完成，M8 部分完成（保留 Demo 環境）；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -159,7 +159,7 @@ flowchart LR
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ✅ 已完成（另修正 M5 migrator 連線字串遺失密碼；App 記錄送 Log Analytics） |
 | **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ✅ 已完成（PR A～D，見 §12） |
-| **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
+| **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | 🔄 部分完成（收緊掃描阻擋、Key Vault／SQL 稽核記錄；其餘保留 Demo 環境暫緩，見 [docs/go-live-checklist.md](docs/go-live-checklist.md)） |
 
 ---
 
@@ -507,18 +507,19 @@ PR D 實作說明：新增 `error.aspx`（不使用資料庫與 Session，依 `?
 
 ## 13. M8：轉入正式營運
 
-依序執行的檢查清單（計畫實作時會另存為 `docs/go-live-checklist.md`）：
+依序執行的檢查清單，詳細指令見 [docs/go-live-checklist.md](docs/go-live-checklist.md)。
+本專案目前保留為可重複 Demo 的環境，因此第 2～7 項暫緩，等真正轉入正式營運時再執行：
 
-1. [ ] 確認 M7 驗收完成。
-2. [ ] 執行 `db/cleanup/remove_demo_data.sql` 並刪除 `demo_seller/*` 範例圖片。
-3. [ ] 更換敏感設定：在 Key Vault 為 `sql-admin-password`、`sql-app-password`、`sql-migrator-password`、`smtp-password` 建立新版本；以管理員執行 `ALTER USER`／`ALTER LOGIN` 更新資料庫密碼；更新 GitHub Secret `SQL_ADMIN_PASSWORD`；重新產生 ACS SMTP client secret。
-4. [ ] 重新啟動 App Service（Key Vault 參考在重新啟動時一定會重新讀取；平時約 24 小時快取）。
+1. [x] 確認 M7 驗收完成。
+2. [ ] （暫緩）執行 `db/cleanup/remove_demo_data.sql` 並刪除 `demo_seller/*` 範例圖片。
+3. [ ] （暫緩）更換敏感設定：在 Key Vault 為 `sql-admin-password`、`sql-app-password`、`sql-migrator-password`、`smtp-password` 建立新版本；以管理員執行 `ALTER USER`／`ALTER LOGIN` 更新資料庫密碼；更新 GitHub Secret `SQL_ADMIN_PASSWORD`；重新產生 ACS SMTP client secret。
+4. [ ] （暫緩）重新啟動 App Service（Key Vault 參考在重新啟動時一定會重新讀取；平時約 24 小時快取）。
 5. [ ] （選用）ACS 改用自有網域並完成 DNS 驗證，更新 `SMTP_FROM`；受管網域寄信量很低，正式營運建議使用自有網域。
 6. [ ] （選用）App Service 升級至 S1 或 P0v3；SQL 升級至 S0 以上。
-7. [ ] GitHub Environment `azure` 開啟 Required reviewers。
-8. [ ] Code scanning 合併保護改為任何 High 以上都擋。
-9. [ ] Key Vault、SQL 開啟診斷記錄；SQL 開啟稽核。
-10. [ ] 更新 README 的「專案現況」。
+7. [ ] （暫緩）GitHub Environment `azure` 開啟 Required reviewers。
+8. [x] Code scanning 合併保護改為任何 High 以上都擋（`main` Ruleset：安全警示 `high_or_higher`、一般警示 `errors`）。
+9. [x] Key Vault、SQL 開啟診斷記錄；SQL 開啟稽核（送 Log Analytics `log-shopping`）。
+10. [x] 更新 README 的「專案現況」。
 
 ---
 
@@ -560,7 +561,7 @@ PR D 實作說明：新增 `error.aspx`（不使用資料庫與 Session，依 `?
 | `ALERT_EMAIL` | Variable（選用） | 可用性警示收件信箱；未設定時不建立 Action Group，只在入口網站顯示警示 |
 | `SQL_ADMIN_PASSWORD` | **Secret** | SQL 管理員密碼（`bootstrap.sh` 產生 32 字元英數與 `-_`，不含 `;`；正式營運前由您更換） |
 
-- 分支規則：`main`、`refs/pull/*/merge`；不設審核者（M8 再開啟部署核准）。
+- 分支規則：`main`、`refs/pull/*/merge`；不設審核者（保留 Demo 環境，轉入正式營運時再依 [docs/go-live-checklist.md](docs/go-live-checklist.md) 開啟部署核准）。
 
 > 原則：任何密碼**只**存在 Key Vault 與 GitHub Environment Secret，**絕不**進入版控、Issue、PR 或對話紀錄。
 
@@ -671,11 +672,11 @@ PR D 實作說明：新增 `error.aspx`（不使用資料庫與 Session，依 `?
 - [x] `infra.yml` 可從空的 Resource Group 建立全部資源，且重複執行不會失敗、不會改變既有密碼。
 - [x] App Service 應用程式設定中，所有敏感設定都是 Key Vault 參考。
 - [x] 第一次部署後，App 啟動自動建立資料表與示範資料；`dbo.SchemaVersions` 有 4 筆紀錄。
-- [ ] 以示範賣家上架商品，圖片寫入 Blob，並可經 Front Door 網址顯示。
-- [ ] 忘記密碼可經 ACS 寄出信件。
+- [x] 以示範賣家上架商品，圖片寫入 Blob，並可經 Front Door 網址顯示。
+- [ ] 忘記密碼可經 ACS 寄出信件（示範帳號為 `@example.com`，ACS 拒收；需以可收信的 Email 註冊帳號驗證，見 [docs/go-live-checklist.md](docs/go-live-checklist.md#已知限制)）。
 - [x] 合併 `main` 後自動部署並通過冒煙測試；失敗時可回滾到上一版。
-- [ ] M7 完成後 CodeQL 無 High／Critical 安全警示。
-- [ ] `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 已同步更新 CI/CD、環境變數、圖片與寄信說明，全部為繁體中文（`copilot-instructions.md` 除外）。
+- [x] M7 完成後 CodeQL 無 High／Critical 安全警示。
+- [x] `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 已同步更新 CI/CD、環境變數、圖片與寄信說明，全部為繁體中文（`copilot-instructions.md` 除外）。
 
 ---
 
@@ -698,3 +699,4 @@ PR D 實作說明：新增 `error.aspx`（不使用資料庫與 Session，依 `?
 | v1.9 | 2026-10-01 | M7 PR B 完成：PBKDF2 密碼雜湊（登入時自動升級舊明碼）、migration `0005`、忘記密碼改寄一次性重設連結（新增 `resetPassword.aspx`）、移除 `forgotpass` 的 `static` 欄位 |
 | v1.10 | 2026-10-01 | M7 PR C 完成：賣家頁權限、商品擁有者檢查、購物車參數比對、上傳大小與格式識別碼檢查、伺服器端驗證（`Page.IsValid`）、寄信失敗與註冊重複的錯誤處理、`Application_Error` 記錄 |
 | v1.11 | 2026-10-01 | M7 PR D 完成，M7 結束：錯誤頁 `error.aspx`、`customErrors`、安全性回應標頭與 HSTS、Cookie 旗標、冒煙測試標頭檢查、ZAP 規則調整 |
+| v1.12 | 2026-10-01 | M8 部分完成：Code scanning 合併保護收緊為 High 以上、Key Vault 與 SQL 診斷記錄及 SQL 稽核（Bicep）、新增 `docs/go-live-checklist.md`；保留 Demo 環境，清除示範資料、更換敏感設定、部署核准等暫緩；§20 驗證賣家上架圖片經 Blob／Front Door 顯示 |

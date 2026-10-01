@@ -54,7 +54,7 @@
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
 | Azure 部署 | Bicep 基礎設施（`infra/`、`infra.yml`）與自動部署（`deploy.yml`）：合併到 `main` 後建置、部署到 App Service，並執行冒煙測試、ZAP Baseline；失敗時自動回滾 |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
-| 安全性 | 教學作品，M7 安全修正進行中（已完成參數化查詢、密碼雜湊與重設連結），詳見[安全性說明](#安全性說明) |
+| 安全性 | 教學作品，已完成 M7 安全修正；Key Vault 與 SQL 稽核記錄送 Log Analytics。目前仍是 Demo 環境（含公開示範帳號），轉入正式營運步驟見 [docs/go-live-checklist.md](docs/go-live-checklist.md)；詳見[安全性說明](#安全性說明) |
 
 ---
 
@@ -476,7 +476,7 @@ sequenceDiagram
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
 | M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
 | M7 應用程式安全修正 | ✅ 已完成（參數化查詢、密碼雜湊與重設連結、權限檢查與上傳驗證、錯誤頁與安全性回應標頭） |
-| M8 轉入正式營運 | ⬜ 未開始 |
+| M8 轉入正式營運 | 🔄 部分完成（Code scanning 擋 High 以上、Key Vault／SQL 稽核記錄；保留 Demo 環境，其餘步驟見 [docs/go-live-checklist.md](docs/go-live-checklist.md)） |
 
 ### GitHub Actions workflow
 
