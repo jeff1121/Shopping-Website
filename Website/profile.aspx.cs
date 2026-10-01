@@ -191,12 +191,14 @@ namespace Website
                 panelOrder.RenderControl(hw);
                 using (StringReader sr = new StringReader(sw.ToString()))
                 {
-                    Document pdfDoc = new Document(PageSize.A4, 10f, 10f, 100f, 0f);
-                    HTMLWorker htmlparser = new HTMLWorker(pdfDoc);
-                    PdfWriter.GetInstance(pdfDoc, Response.OutputStream);
-                    pdfDoc.Open();
-                    htmlparser.Parse(sr);
-                    pdfDoc.Close();
+                    using (Document pdfDoc = new Document(PageSize.A4, 10f, 10f, 100f, 0f))
+                    using (HTMLWorker htmlparser = new HTMLWorker(pdfDoc))
+                    {
+                        PdfWriter.GetInstance(pdfDoc, Response.OutputStream);
+                        pdfDoc.Open();
+                        htmlparser.Parse(sr);
+                        pdfDoc.Close();
+                    }
                 }
             }
 
