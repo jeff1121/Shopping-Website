@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -12,20 +11,13 @@ namespace Website
 {
     /// <summary>
     /// 「購物車」頁面（cart.aspx）的後置程式碼。
-    /// 購物車同時存在兩處：Session["count"]（DataTable，欄位 sno, pimage, pname, price, quantity, total, uname）
-    /// 與資料表 violet_cart；本頁負責新增、修改數量、移除品項，並同步調整 violet_products 的庫存。
+    /// 購物車同時存在兩處：Session["count"]（DataTable，欄位見 <see cref="CartSession"/>）
+    /// 與資料表 violet_cart（以 uname + pname 識別）；本頁負責新增、修改數量、移除品項，並同步調整 violet_products 的庫存。
     /// </summary>
     public partial class cart : System.Web.UI.Page
     {
-        /// <summary>資料庫連線（透過 Db 從 Web.config 的 cmpConnectionString 讀取）。</summary>
-        readonly SqlConnection con = Db.CreateConnection();
-        /// <summary>
-        /// 標記要加入的商品是否已存在於購物車（由 <see cref="checkdesignid"/> 設定）。
-        /// 注意：為 static，會在所有使用者請求間共用。
-        /// </summary>
-        static Boolean availabledesignid = false;
         /// <summary>目前登入者的姓名（violet_user_login.uname），為 violet_cart 的買家欄位。</summary>
-        String uname = "";
+        string uname = "";
 
         /// <summary>
         /// 頁面載入事件：
@@ -45,32 +37,14 @@ namespace Website
                 cartIcon.Visible = true;
                 countItems.Visible = true;
 
-                // 以登入時輸入的帳號或 Email 查出姓名
-                SqlCommand cmd = new SqlCommand("SELECT uname FROM violet_user_login WHERE username=@name OR email=@name", con);
-                cmd.Parameters.AddWithValue("@name", Session["user"]);
-                con.Open();
-                SqlDataReader read = cmd.ExecuteReader();
-                while (read.Read())
-                {
-                    uname = read["uname"].ToString();
-                }
-                con.Close();
-
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                uname = Db.GetUname(Session["user"]);
 
                 if (!IsPostBack)
                 {
                     filldata();
                 }
+
+                countItems.Text = CartSession.Count(Session).ToString();
             }
             else
             {
@@ -102,65 +76,32 @@ namespace Website
         /// <param name="e">包含被刪除列索引的事件資料。</param>
         protected void GridView1_RowDeleting(object sender, GridViewDeleteEventArgs e)
         {
-            string productName = "";
-            DataTable dt = new DataTable();
-            dt = (DataTable)Session["count"];
-
-            for (int i = 0; i <= dt.Rows.Count - 1; i++)
+            DataTable dt = CartSession.Get(Session);
+            DataRow row = dt == null ? null : FindRowBySno(dt, GridView1.Rows[e.RowIndex].Cells[0].Text);
+            if (row != null)
             {
-                int sr;
-                int sr1;
-                string qdata;
-                string dtdata;
-                productName = dt.Rows[i]["pname"].ToString();
-                sr = Convert.ToInt32(dt.Rows[i]["sno"].ToString());
-                TableCell cell = GridView1.Rows[e.RowIndex].Cells[0];
-                qdata = cell.Text;
-                dtdata = sr.ToString();
-                sr1 = Convert.ToInt32(qdata);
+                string productName = row["pname"].ToString();
+                int quantity = Convert.ToInt32(row["quantity"]);
 
-                if (sr == sr1)
+                // 移除品項時，將購物車內原數量加回商品庫存。
+                Db.Execute("UPDATE violet_products SET stock = stock + @quantity WHERE pname=@pname",
+                    Db.Param("@quantity", quantity), Db.Param("@pname", productName));
+                Db.Execute("DELETE FROM violet_cart WHERE uname=@uname AND pname=@pname",
+                    Db.Param("@uname", uname), Db.Param("@pname", productName));
+
+                dt.Rows.Remove(row);
+
+                // 重新編號剩餘品項的 sno，並同步到 violet_cart
+                for (int i = 0; i < dt.Rows.Count; i++)
                 {
-                    // 移除品項時，將購物車內原數量加回商品庫存。
-                    int j = Convert.ToInt32(dt.Rows[i]["quantity"].ToString());
-                    String updateQuantity = "UPDATE violet_products SET stock=stock+" + j +" WHERE pname='" + productName + "'";
-                    SqlCommand cmd1 = new SqlCommand(updateQuantity, con);
-                    // 執行資料庫更新。
-                    con.Open();
-                    cmd1.ExecuteNonQuery();
-                    con.Close();
-
-                    dt.Rows[i].Delete();
-                    dt.AcceptChanges();
-
-                    String update = "DELETE FROM violet_cart WHERE uname='" + uname + "' AND pname='" + productName + "' AND sno=" + sr;
-                    SqlCommand cmd = new SqlCommand(update, con);
-                    // 執行資料庫更新。
-                    con.Open();
-                    cmd.ExecuteNonQuery();
-                    con.Close();
-
-                    break;
+                    dt.Rows[i]["sno"] = i + 1;
+                    Db.Execute("UPDATE violet_cart SET sno=@sno WHERE uname=@uname AND pname=@pname",
+                        Db.Param("@sno", i + 1), Db.Param("@uname", uname), Db.Param("@pname", dt.Rows[i]["pname"].ToString()));
                 }
+
+                Session[CartSession.Key] = dt;
             }
 
-            // 重新編號剩餘品項的 sno，並同步到 violet_cart
-            for (int i = 1; i <= dt.Rows.Count; i++)
-            {
-                productName = dt.Rows[i-1]["pname"].ToString();
-                dt.Rows[i - 1]["sno"] = i;
-                dt.AcceptChanges();
-
-                String update = "UPDATE violet_cart SET sno=" + Convert.ToInt32(dt.Rows[i - 1]["sno"].ToString()) + " WHERE uname='" + uname + "' AND pname='" + productName + "'";
-                SqlCommand cmd = new SqlCommand(update, con);
-                // 執行資料庫更新。
-                con.Open();
-                cmd.ExecuteNonQuery();
-                con.Close();
-
-            }
-
-            Session["count"] = dt;
             Response.Redirect("~/cart.aspx");
         }
 
@@ -186,209 +127,107 @@ namespace Website
         /// <param name="e">選取項目變更事件資料。</param>
         protected void DropDownList1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int q;
-            q = Convert.ToInt32(DropDownList1.Text);
-            decimal cost;
-            cost = Convert.ToDecimal(Label5.Text);
-            decimal totalcost;
-            totalcost = cost * q;
-            Label6.Text = totalcost.ToString();
+            Label6.Text = (Convert.ToDecimal(Label5.Text) * Convert.ToInt32(DropDownList1.SelectedValue)).ToString();
         }
 
         /// <summary>
         /// 編輯面板「Update」按鈕：
-        /// 1. 以 Session["oldQuantity"] 與新數量的差額調整 violet_products 庫存（stock + 舊數量 - 新數量）；
-        /// 2. 更新 Session 購物車對應列與 violet_cart 的數量與小計；
+        /// 1. 以購物車中原數量與新數量的差額調整 violet_products 庫存（stock + 舊數量 - 新數量，結果不可小於 0）；
+        /// 2. 調整成功後更新 Session 購物車對應列與 violet_cart 的數量與小計（小計由伺服器重新計算）；
         /// 3. 重新導向本頁。
         /// </summary>
         /// <param name="sender">觸發更新事件的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void btnUpdate_Click(object sender, EventArgs e)
         {
-            DataTable dt;
-
-            dt = (DataTable)Session["count"];
-
-            for (int i = 0; i <= dt.Rows.Count - 1; i++)
+            DataTable dt = CartSession.Get(Session);
+            DataRow row = dt == null ? null : FindRowBySno(dt, Label3.Text);
+            int newQuantity;
+            if (row != null && int.TryParse(DropDownList1.SelectedValue, out newQuantity) && newQuantity > 0)
             {
-                int sr;
-                int sr1;
-                sr = Convert.ToInt32(dt.Rows[i]["sno"].ToString());
+                string productName = row["pname"].ToString();
+                int oldQuantity = Convert.ToInt32(row["quantity"]);
 
-                sr1 = Convert.ToInt32(Label3.Text);
-
-                if (sr == sr1)
+                // 依「舊數量 - 新數量」調整預扣庫存，正值代表補回庫存、負值代表追加扣庫存。
+                int updated = Db.Execute("UPDATE violet_products SET stock = stock + @old - @new WHERE pname=@pname AND stock + @old - @new >= 0",
+                    Db.Param("@old", oldQuantity), Db.Param("@new", newQuantity), Db.Param("@pname", productName));
+                if (updated == 1)
                 {
-                    // 依「舊數量 - 新數量」調整預扣庫存，正值代表補回庫存、負值代表追加扣庫存。
-                    int j = Convert.ToInt32(DropDownList1.Text);
-                    String updateQuantity = "UPDATE violet_products SET stock=(stock+" + Convert.ToInt32(Session["oldQuantity"].ToString()) + "-" + j + ") WHERE pname='" + Label4.Text + "'";
-                    SqlCommand cmd1 = new SqlCommand(updateQuantity, con);
-                    // 執行資料庫更新。
-                    con.Open();
-                    cmd1.ExecuteNonQuery();
-                    con.Close();
-
-                    dt.Rows[i]["sno"] = Label3.Text;
-                    dt.Rows[i]["pname"] = Label4.Text;
-                    dt.Rows[i]["quantity"] = DropDownList1.Text;
-                    dt.Rows[i]["price"] = Label5.Text;
-                    dt.Rows[i]["total"] = Label6.Text;
-                    dt.AcceptChanges();
-
-                    String update = "UPDATE violet_cart SET quantity=" + Convert.ToInt32(dt.Rows[i]["quantity"].ToString()) + ", total=" + Convert.ToDecimal(dt.Rows[i]["total"].ToString()) + " WHERE uname='" + uname + "' AND pname='" + Label4.Text + "'";
-                    SqlCommand cmd = new SqlCommand(update, con);
-                    // 執行資料庫更新。
-                    con.Open();
-                    cmd.ExecuteNonQuery();
-                    con.Close();
-
-                    break;
+                    decimal total = Convert.ToDecimal(row["price"]) * newQuantity;
+                    row["quantity"] = newQuantity;
+                    row["total"] = total;
+                    Db.Execute("UPDATE violet_cart SET quantity=@quantity, total=@total WHERE uname=@uname AND pname=@pname",
+                        Db.Param("@quantity", newQuantity), Db.Param("@total", total), Db.Param("@uname", uname), Db.Param("@pname", productName));
+                    Session[CartSession.Key] = dt;
                 }
             }
-            Response.Redirect("~/cart.aspx");
 
+            Response.Redirect("~/cart.aspx");
         }
 
         /// <summary>
         /// 填入購物車 GridView。
-        /// 若 Session["addproduct"] 為 "true"（由首頁加入購物車導向而來）且帶有 ?id=&amp;quantity=：
-        /// - 購物車為空：建立新 DataTable，加入第一項並寫入 violet_cart；
-        /// - 商品已存在：呼叫 <see cref="updatequantity"/> 累加數量（注意：此分支不會同步 violet_cart）；
-        /// - 商品不存在：追加新列並寫入 violet_cart。
-        /// 否則直接顯示 Session["count"] 的內容，無資料時顯示「購物車是空的」。表尾顯示 Grand Total。
+        /// 若 Session["addproduct"] 為 "true"（由首頁加入購物車導向而來）且帶有有效的 ?id=&amp;quantity=：
+        /// - 商品已在購物車：累加數量並同步 violet_cart；
+        /// - 新商品：查出商品資料，以目前列數 + 1 作為 sno 追加，並寫入 violet_cart。
         /// 處理後會將 Session["addproduct"] 重設為 "false"，避免重新整理時重複加入。
+        /// 最後顯示購物車內容與 Grand Total；無資料時顯示「購物車是空的」。
         /// </summary>
         public void filldata()
         {
-            // 注意：直接進入本頁且未曾經過首頁時 Session["addproduct"] 可能為 null，會拋出 NullReferenceException
-            if(Session["addproduct"].ToString() == "true")
+            DataTable dt = CartSession.Get(Session) ?? CartSession.CreateTable();
+            string productName = Request.QueryString["id"];
+            int quantity;
+
+            if ((Session["addproduct"] as string) == "true" && productName != null
+                && int.TryParse(Request.QueryString["quantity"], out quantity) && quantity > 0)
             {
-                DataTable dt = new DataTable();
-                DataRow dr;
-                dt.Columns.Add("sno");
-                dt.Columns.Add("pimage");
-                dt.Columns.Add("pname");
-                dt.Columns.Add("price");
-                dt.Columns.Add("quantity");
-                dt.Columns.Add("total");
-                dt.Columns.Add("uname");
                 Session["addproduct"] = "false";
-
-                if (Request.QueryString["id"] != null)
+                DataRow existing = FindRowByName(dt, productName);
+                if (existing != null)
                 {
-                    btnCheckout.Visible = true;
-                    // 情況一：購物車為空，建立第一筆
-                    if (Session["count"] == null)
+                    updatequantity(existing, quantity);
+                }
+                else
+                {
+                    DataTable product = Db.Query("SELECT pimage, pname, price, uname FROM violet_products WHERE pname=@pname", Db.Param("@pname", productName));
+                    if (product.Rows.Count == 1)
                     {
-                        dr = dt.NewRow();
-                        String myquery = "SELECT * FROM violet_products where pname='" + Request.QueryString["id"] + "'";
-                        SqlCommand cmd = new SqlCommand();
-                        cmd.CommandText = myquery;
-                        cmd.Connection = con;
-                        SqlDataAdapter da = new SqlDataAdapter();
-                        da.SelectCommand = cmd;
-                        DataSet ds = new DataSet();
-                        da.Fill(ds);
-                        dr["sno"] = 1;
-                        dr["pimage"] = ds.Tables[0].Rows[0]["pimage"].ToString();
-                        dr["pname"] = ds.Tables[0].Rows[0]["pname"].ToString();
-                        dr["price"] = ds.Tables[0].Rows[0]["price"].ToString();
-                        dr["quantity"] = Request.QueryString["quantity"];
-
-                        decimal price = Convert.ToDecimal(ds.Tables[0].Rows[0]["price"].ToString());
-                        int quantity = Convert.ToInt32(Request.QueryString["quantity"].ToString());
+                        DataRow source = product.Rows[0];
+                        decimal price = Convert.ToDecimal(source["price"]);
                         decimal total = price * quantity;
+                        int sno = dt.Rows.Count + 1;
+
+                        DataRow dr = dt.NewRow();
+                        dr["sno"] = sno;
+                        dr["pimage"] = source["pimage"].ToString();
+                        dr["pname"] = source["pname"].ToString();
+                        dr["price"] = source["price"].ToString();
+                        dr["quantity"] = quantity;
                         dr["total"] = total;
-
-                        dr["uname"] = ds.Tables[0].Rows[0]["uname"].ToString();
-
-                        savecartdetail(uname, 1, ds.Tables[0].Rows[0]["pimage"].ToString(), ds.Tables[0].Rows[0]["pname"].ToString(), Convert.ToDecimal(ds.Tables[0].Rows[0]["price"].ToString()), Convert.ToInt32(Request.QueryString["quantity"].ToString()), total, ds.Tables[0].Rows[0]["uname"].ToString());
-
+                        dr["uname"] = source["uname"].ToString();
                         dt.Rows.Add(dr);
-                        GridView1.DataSource = dt;
-                        GridView1.DataBind();
-                        Session["count"] = dt;
 
-                        if (GridView1.Rows.Count > 0)
-                        {
-                            GridView1.FooterRow.Cells[4].Text = "Grand Total";
-                            GridView1.FooterRow.Cells[5].Text = grandTotal().ToString();
-                        }
-                    }
-                    else
-                    {
-                        checkdesignid();
-                        // 情況二：商品已在購物車中，只累加數量
-                        if (availabledesignid == true)
-                        {
-                            updatequantity();
-                            DataTable dt1;
-                            dt1 = (DataTable)Session["count"];
-                            GridView1.DataSource = dt1;
-                            GridView1.DataBind();
-                            availabledesignid = false;
-                        }
-                        else
-                        {
-                            // 情況三：新商品，以目前列數 + 1 作為 sno 追加
-                            dt = (DataTable)Session["count"];
-                            int sr;
-                            sr = dt.Rows.Count;
-
-                            dr = dt.NewRow();
-                            String myquery = "SELECT * FROM violet_products where pname='" + Request.QueryString["id"] + "'";
-                            SqlCommand cmd = new SqlCommand();
-                            cmd.CommandText = myquery;
-                            cmd.Connection = con;
-                            SqlDataAdapter da = new SqlDataAdapter();
-                            da.SelectCommand = cmd;
-                            DataSet ds = new DataSet();
-                            da.Fill(ds);
-                            dr["sno"] = sr + 1;
-                            dr["pname"] = ds.Tables[0].Rows[0]["pname"].ToString();
-                            dr["pimage"] = ds.Tables[0].Rows[0]["pimage"].ToString();
-                            dr["price"] = ds.Tables[0].Rows[0]["price"].ToString();
-                            dr["quantity"] = Request.QueryString["quantity"];
-
-                            decimal price = Convert.ToDecimal(ds.Tables[0].Rows[0]["price"].ToString());
-                            int quantity = Convert.ToInt32(Request.QueryString["quantity"].ToString());
-                            decimal total = price * quantity;
-                            dr["total"] = total;
-
-                            dr["uname"] = ds.Tables[0].Rows[0]["uname"].ToString();
-
-                            savecartdetail(uname, sr+1, ds.Tables[0].Rows[0]["pimage"].ToString(), ds.Tables[0].Rows[0]["pname"].ToString(), Convert.ToDecimal(ds.Tables[0].Rows[0]["price"].ToString()), Convert.ToInt32(Request.QueryString["quantity"].ToString()), total, ds.Tables[0].Rows[0]["uname"].ToString());
-
-                            dt.Rows.Add(dr);
-                            GridView1.DataSource = dt;
-                            GridView1.DataBind();
-                            Session["count"] = dt;
-                        }
-
-                        if (GridView1.Rows.Count > 0)
-                        {
-                            GridView1.FooterRow.Cells[4].Text = "Grand Total";
-                            GridView1.FooterRow.Cells[5].Text = grandTotal().ToString();
-                        }
+                        savecartdetail(uname, sno, source["pimage"].ToString(), source["pname"].ToString(), price, quantity, total, source["uname"].ToString());
                     }
                 }
+
+                Session[CartSession.Key] = dt;
+            }
+
+            GridView1.DataSource = dt;
+            GridView1.DataBind();
+
+            if (GridView1.Rows.Count > 0)
+            {
+                GridView1.FooterRow.Cells[4].Text = "Grand Total";
+                GridView1.FooterRow.Cells[5].Text = grandTotal().ToString();
+                lblEmpty.Visible = false;
+                btnCheckout.Visible = true;
             }
             else
             {
-                DataTable dt;
-                dt = (DataTable)Session["count"];
-                GridView1.DataSource = dt;
-                GridView1.DataBind();
-
-                if (GridView1.Rows.Count > 0)
-                {
-                    GridView1.FooterRow.Cells[4].Text = "Grand Total";
-                    GridView1.FooterRow.Cells[5].Text = grandTotal().ToString();
-                    lblEmpty.Visible = false;
-                    btnCheckout.Visible = true;
-                }
-                else
-                    lblEmpty.Visible = true;
+                lblEmpty.Visible = true;
             }
         }
 
@@ -398,156 +237,111 @@ namespace Website
         /// <returns>購物車總金額。</returns>
         public decimal grandTotal()
         {
-            DataTable dt = new DataTable();
-            dt = (DataTable)Session["count"];
-            decimal grandTotal = 0;
-            int i = 0;
-            int n = dt.Rows.Count;
-            while (i < n)
-            {
-                grandTotal = grandTotal + Convert.ToDecimal(dt.Rows[i]["total"].ToString());
-                i = i + 1;
-            }
-            return grandTotal;
+            return CartSession.GrandTotal(CartSession.Get(Session));
         }
 
         /// <summary>
-        /// 將指定 sno 的購物車品項載入數量編輯面板（僅在 PostBack 時執行）：
-        /// 依目前庫存填入數量選項 1..庫存（庫存為 0 則停用），並將原數量記入 Session["oldQuantity"] 供更新時調整庫存。
+        /// 將指定 sno 的購物車品項載入數量編輯面板：
+        /// 數量選項為 1..（購物車內原數量 + 目前剩餘庫存），確保原數量一定在選項中；
+        /// Label3～Label6 分別顯示序號、商品名稱、單價與小計。
         /// </summary>
         /// <param name="modifyQuantity">要編輯的品項序號（sno），取自 GridView 被選列的第一欄。</param>
         public void modify(string modifyQuantity)
         {
-            DataTable dt;
-
-            if (!IsPostBack)
+            DataTable dt = CartSession.Get(Session);
+            DataRow row = dt == null ? null : FindRowBySno(dt, modifyQuantity);
+            if (row == null)
             {
-
+                return;
             }
-            else
+
+            object stockValue = Db.Scalar("SELECT stock FROM violet_products WHERE pname=@pname", Db.Param("@pname", row["pname"].ToString()));
+            int stock = stockValue == null ? 0 : Convert.ToInt32(stockValue);
+            int current = Convert.ToInt32(row["quantity"]);
+
+            DropDownList1.Items.Clear();
+            for (int j = 1; j <= current + stock; j++)
             {
-                if (modifyQuantity != null)
-                {
-                    dt = (DataTable)Session["count"];
-
-                    for (int i = 0; i <= dt.Rows.Count - 1; i++)
-                    {
-                        int sr;
-                        int sr1;
-                        sr = Convert.ToInt32(dt.Rows[i]["sno"].ToString());
-                        Label3.Text = modifyQuantity;
-                        Label4.Text = sr.ToString();
-                        sr1 = Convert.ToInt32(Label3.Text);
-
-                        if (sr == sr1)
-                        {
-                            // 依商品目前剩餘庫存產生可選數量；不含購物車內原數量，因此可增加的上限會受已預扣庫存影響。
-                            SqlCommand cmd = new SqlCommand("SELECT stock FROM violet_products WHERE pname=@pname", con);
-                            cmd.Parameters.AddWithValue("@pname", dt.Rows[i]["pname"].ToString());
-                            con.Open();
-                            SqlDataReader read = cmd.ExecuteReader();
-                            int q = 0;
-                            while (read.Read())
-                            {
-                                q = Convert.ToInt32(read["stock"].ToString());
-                            }
-                            con.Close();
-                            int j;
-                            if (q > 0)
-                            {
-                                for (j = 1; j <= q; j++)
-                                {
-                                    String n = j.ToString();
-                                    DropDownList1.Items.Add(n);
-                                }
-                            }
-                            else
-                            {
-                                DropDownList1.Items.Add("1");
-                                DropDownList1.Enabled = false;
-                            }
-
-                            Label3.Text = dt.Rows[i]["sno"].ToString();
-                            Label4.Text = dt.Rows[i]["pname"].ToString();
-                            DropDownList1.Text = dt.Rows[i]["quantity"].ToString();
-                            Session["oldQuantity"] = DropDownList1.Text;
-                            Label5.Text = dt.Rows[i]["price"].ToString();
-                            Label6.Text = dt.Rows[i]["total"].ToString();
-                            break;
-                        }
-                    }
-                }
+                DropDownList1.Items.Add(j.ToString());
             }
+
+            DropDownList1.Enabled = current + stock > 1;
+            DropDownList1.SelectedValue = current.ToString();
+            Label3.Text = row["sno"].ToString();
+            Label4.Text = row["pname"].ToString();
+            Label5.Text = row["price"].ToString();
+            Label6.Text = row["total"].ToString();
         }
 
         /// <summary>
-        /// 檢查網址 ?id= 指定的商品名稱是否已存在於 Session 購物車，存在則將 availabledesignid 設為 true。
+        /// 在購物車表中依序號（sno）尋找品項。
         /// </summary>
-        private void checkdesignid()
+        /// <param name="dt">購物車表。</param>
+        /// <param name="sno">序號文字。</param>
+        /// <returns>找到的列；找不到時為 null。</returns>
+        private static DataRow FindRowBySno(DataTable dt, string sno)
         {
-            DataTable dt;
-            string designid;
-            string querydesignid = Request.QueryString["id"].ToString();
-            dt = (DataTable)Session["count"];
             foreach (DataRow row in dt.Rows)
             {
-                designid = row["pname"].ToString();
-                if (designid == querydesignid)
+                if (row["sno"].ToString() == sno)
                 {
-                    availabledesignid = true;
+                    return row;
                 }
             }
+
+            return null;
         }
 
         /// <summary>
-        /// 將網址 ?quantity= 的數量累加到 Session 購物車中同名商品的數量，並重算小計。
-        /// 注意：只更新 Session，不會同步更新 violet_cart。
+        /// 在購物車表中依商品名稱（pname）尋找品項，用來判斷要加入的商品是否已在購物車中。
         /// </summary>
-        private void updatequantity()
+        /// <param name="dt">購物車表。</param>
+        /// <param name="productName">商品名稱。</param>
+        /// <returns>找到的列；找不到時為 null。</returns>
+        private static DataRow FindRowByName(DataTable dt, string productName)
         {
-            DataTable dt;
-            string designid;
-            String querydesignid = Request.QueryString["id"];
-            dt = (DataTable)Session["count"];
             foreach (DataRow row in dt.Rows)
             {
-                designid = row["pname"].ToString();
-                if (designid == querydesignid)
+                if (row["pname"].ToString() == productName)
                 {
-                    int newquantity = Convert.ToInt16(row["quantity"].ToString()) + Convert.ToInt16(Request.QueryString["quantity"].ToString());
-                    row["quantity"] = newquantity;
-                    Decimal price = Convert.ToDecimal(row["price"].ToString());
-                    Decimal totalprice = price * newquantity;
-                    row["total"] = totalprice;
-                    break;
+                    return row;
                 }
             }
-            Session["count"] = dt;
+
+            return null;
         }
 
         /// <summary>
-        /// 將一筆購物車品項以位置式 INSERT 寫入 violet_cart
-        /// （欄位順序 uname, sno, pimage, pname, price, quantity, total, sname）。
-        /// 注意：SQL 以字串串接，存在 SQL Injection 風險。
+        /// 將新加入的數量累加到購物車中同名商品，重算小計，並同步更新 violet_cart。
+        /// </summary>
+        /// <param name="row">購物車中已存在的品項列。</param>
+        /// <param name="addQuantity">本次加入的數量。</param>
+        private void updatequantity(DataRow row, int addQuantity)
+        {
+            int newQuantity = Convert.ToInt32(row["quantity"]) + addQuantity;
+            decimal total = Convert.ToDecimal(row["price"]) * newQuantity;
+            row["quantity"] = newQuantity;
+            row["total"] = total;
+            Db.Execute("UPDATE violet_cart SET quantity=@quantity, total=@total WHERE uname=@uname AND pname=@pname",
+                Db.Param("@quantity", newQuantity), Db.Param("@total", total), Db.Param("@uname", uname), Db.Param("@pname", row["pname"].ToString()));
+        }
+
+        /// <summary>
+        /// 將一筆購物車品項以參數化、指定欄位的 INSERT 寫入 violet_cart。
         /// </summary>
         /// <param name="name">買家姓名（violet_user_login.uname）。</param>
         /// <param name="sno">購物車內序號。</param>
-        /// <param name="productimage">商品圖片相對路徑。</param>
+        /// <param name="productimage">商品圖片網址。</param>
         /// <param name="Productname">商品名稱。</param>
         /// <param name="price">單價。</param>
         /// <param name="quantity">數量。</param>
         /// <param name="totalprice">小計（單價 × 數量）。</param>
         /// <param name="sname">賣家姓名（violet_products.uname）。</param>
-        private void savecartdetail(String name, int sno, String productimage, String Productname, Decimal price, int quantity, Decimal totalprice, String sname)
+        private static void savecartdetail(string name, int sno, string productimage, string Productname, decimal price, int quantity, decimal totalprice, string sname)
         {
-            String query = "INSERT INTO violet_cart values('" + name + "', " + sno + ", '" + productimage + "', '" + Productname + "', " + price + ", " + quantity + ", " + totalprice + ", '" + sname +"')";
-            
-            con.Open();
-            SqlCommand cmd = new SqlCommand();
-            cmd.CommandText = query;
-            cmd.Connection = con;
-            cmd.ExecuteNonQuery();
-            con.Close();
+            Db.Execute("INSERT INTO violet_cart (uname, sno, pimage, pname, price, quantity, total, sname) VALUES (@uname, @sno, @pimage, @pname, @price, @quantity, @total, @sname)",
+                Db.Param("@uname", name), Db.Param("@sno", sno), Db.Param("@pimage", productimage), Db.Param("@pname", Productname),
+                Db.Param("@price", price), Db.Param("@quantity", quantity), Db.Param("@total", totalprice), Db.Param("@sname", sname));
         }
     }
 }

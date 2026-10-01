@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -36,16 +35,7 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
             }
         }
 
@@ -62,34 +52,21 @@ namespace Website
         }
 
         /// <summary>
-        /// 登入按鈕：以 username 或 email 查詢密碼並明碼比對；成功後設定 Session["user"] 並導向首頁，
-        /// 失敗則顯示錯誤訊息。
+        /// 登入按鈕：以 username 或 email 查詢帳號並明碼比對密碼；成功時與 login.aspx 相同，
+        /// 設定 Session["uname"]、Session["user"] 並還原購物車後導向首頁；失敗則顯示錯誤訊息。
         /// </summary>
         /// <param name="sender">Submit 按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
-        /// <remarks>
-        /// 查詢資料表 violet_user_login.password；成功後只保存使用者輸入值到 Session["user"]，未保存 uname、uid，也不呼叫 login.aspx.cs 的購物車還原流程。
-        /// </remarks>
         protected void Submit_Click(object sender, EventArgs e)
         {
-            //Connection（透過 Db 從 Web.config 的 cmpConnectionString 讀取）
-            SqlConnection con = Db.CreateConnection();
+            DataTable account = Db.Query("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", txtName.Text));
 
-            SqlCommand cmd = new SqlCommand("SELECT password FROM violet_user_login WHERE username=@name OR email=@name", con);
-            cmd.Parameters.AddWithValue("@name", txtName.Text);
-
-            con.Open();
-            SqlDataReader read = cmd.ExecuteReader();
-            string pass = "";
-            while (read.Read())
+            if (account.Rows.Count == 1 && account.Rows[0]["password"].ToString() == txtPassword.Text)
             {
-                pass = read["password"].ToString();
-            }
-            con.Close();
-
-            if (pass == txtPassword.Text)
-            {
+                string name = account.Rows[0]["uname"].ToString();
+                Session["uname"] = name;
                 Session["user"] = txtName.Text;
+                CartSession.LoadFromDatabase(Session, name);
                 Response.Redirect("~/index.aspx");
             }
             else

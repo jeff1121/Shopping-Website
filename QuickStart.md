@@ -111,7 +111,7 @@ GO
 
 | 腳本 | 內容 |
 | --- | --- |
-| `0001_create_tables.sql` | 建立 `violet_user_login`、`violet_products`、`violet_cart`、`violet_order`、`violet_categories`、`violet_contact`（欄位順序與程式中的位置式 INSERT 一致） |
+| `0001_create_tables.sql` | 建立 `violet_user_login`、`violet_products`、`violet_cart`、`violet_order`、`violet_categories`、`violet_contact`（程式中的 INSERT 皆指定欄位名稱） |
 | `0002_seed_categories.sql` | 分類 `Computer`、`Computer Accesories`（名稱須與 `addProducts.aspx.cs` 的固定清單一致） |
 | `0003_seed_demo_users.sql` | 示範帳號（見下表） |
 | `0004_seed_demo_products.sql` | 示範賣家的 4 項商品；圖片網址為 `IMAGE_BASE_URL/products/demo_seller/*.png`；`Demo Arcade Machine` 庫存為 0，用來展示「售完」 |
@@ -324,30 +324,15 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 
 ### 賣家
 
-`sellerRegister.aspx` 的 INSERT 只提供 13 個值（缺少 `uid`），在上述資料表結構下**會失敗**。
-請改用以下方式建立賣家：
-
-1. 以 `register.aspx` 註冊一般帳號；
-2. 在資料庫將該帳號的 `uid` 改為大於 5000：
-
-   ```sql
-   UPDATE violet_user_login SET uid = 5001 WHERE username = '<你的帳號>';
-   ```
-
-3. 重新登入後，`profile.aspx` 會出現「Add a Product」按鈕與「Products Sold on Website」清單。
+1. 從頁首「Register → Seller」進入 `sellerRegister.aspx`，表單規則同一般會員；
+2. 送出後系統自動指派 5001～9999 的 `uid`，並導向登入頁；
+3. 登入後，`profile.aspx` 會出現「Add a Product」按鈕與「Products Sold on Website」清單。
 
 ### 上架商品
 
-`addProducts.aspx.cs` 以 6 個值寫入 `violet_products`（缺少 `stock`），在上述資料表結構下**會失敗**。擇一處理：
-
-- 修改 `addProducts.aspx.cs`，將 INSERT 改為指定欄位：
-
-  ```csharp
-  "INSERT INTO violet_products (pname, price, pimage, category, uname, keywords) VALUES(@pname, @price, @Image, @category, @uname, @keywords)"
-  ```
-
-  上架後庫存預設為 0，再到 `profile.aspx` 的商品清單按「Edit」設定 Stock；
-- 或直接以 SQL 新增商品（可參考 `Website/Migrations/0004_seed_demo_products.sql`）。
+1. 以賣家帳號登入，在 `profile.aspx` 按「Add a Product」進入 `addProducts.aspx`；
+2. 填寫名稱、價格、分類、關鍵字並選擇圖片後送出；
+3. 新商品庫存為 0（首頁顯示售完），到 `profile.aspx` 的商品清單按「Edit」設定 Stock 後即可購買。
 
 > 上傳的圖片會寫入 Blob 容器 `products`，路徑為 `<登入帳號>/<GUID>.<副檔名>`；`pimage` 會存完整網址（`IMAGE_BASE_URL/products/...`）。本機需先啟動 Azurite（見 4.3）。
 
@@ -365,7 +350,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 | 6 | 選數量後按加入購物車 | 導向購物車頁，商品庫存同步減少 |
 | 7 | 購物車按 Modify 修改數量 → Update | 小計與庫存同步調整 |
 | 8 | 購物車按 Remove Item(s) | 品項移除、庫存加回、序號重新編號 |
-| 9 | Checkout → Place Order | 顯示訂單完成面板；`violet_order` 新增資料、`violet_cart` 清空 |
+| 9 | Checkout → Place Order | 顯示訂單完成面板，購物車徽章歸零；`violet_order` 新增資料、`violet_cart` 清空 |
 | 10 | 個人頁 | 顯示訂單歷史，可下載 `OrderInvoice.pdf` |
 | 11 | Contact 送出留言 | `violet_contact` 新增一筆 |
 | 12 | 忘記密碼 | 答對安全問題後寄出密碼信（需先完成第 9 節 SMTP 設定） |
@@ -425,12 +410,9 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 連線時出現 SSL／憑證錯誤 | 本機 SQL Server 沒有受信任憑證時請設 `SQL_ENCRYPT=False` |
 | `Invalid object name 'violet_xxx'` | 連到錯誤的資料庫，或 migration 未執行；確認 `SQL_DATABASE` 與 `dbo.SchemaVersions`，見第 3 節 |
 | 每個頁面都顯示「網站啟動失敗…」且記錄有「資料庫 migration 失敗」 | migrator 帳號無法連線、缺少 `db_ddladmin` 權限，或某支腳本失敗；記錄會列出腳本名稱，見第 3 節 |
-| `Column name or number of supplied values does not match table definition` | 賣家註冊或上架商品的位置式 INSERT 欄位數不符，見第 7 節 |
 | `String or binary data would be truncated` | 欄位長度不足（例如 `category`、`password` 超過 20 字元） |
-| 進入購物車頁出現 `NullReferenceException` | 未經首頁直接開啟購物車時 `Session["addproduct"]` 為 null；請先從首頁進入 |
-| 註冊時卡住或出現「連線已開啟」錯誤 | `generateUID()` 抽到重複 uid 時未關閉連線；重新註冊即可 |
-| 個人頁購物車徽章總是 0 | `profile.aspx.cs` 讀取 `Session["count1"]` 而非 `Session["count"]`（已知問題） |
-| 下單後購物車徽章仍顯示舊數量 | 結帳未清空 `Session["count"]`，重新登入即恢復（已知問題） |
+| 按加入購物車後仍停在首頁 | 庫存已被其他人買走或不足；重新整理首頁確認剩餘數量 |
+| 註冊時出現 `Violation of UNIQUE KEY constraint` | 使用者名稱、Email 或電話已被註冊，請換一組 |
 | 上架商品時出現 Blob 連線錯誤 | Azurite 未啟動或容器 `products` 不存在，見 4.3；Azure 上請確認 `id-shopping-web` 具 Storage Blob Data Contributor |
 | 首頁商品圖片破圖 | `pimage` 網址錯誤或容器不可匿名讀取；頁面會自動改顯示 `img/products/human.png` |
 | Azure 上每個頁面都顯示「網站啟動失敗」（HTTP 500） | 遠端請求不顯示細節；到 Log Analytics `log-shopping` 查詢 `AppServiceAppLogs \| where Level == "Error"`（錯誤內容在 `StackTrace` 欄位），記錄約有數分鐘延遲 |

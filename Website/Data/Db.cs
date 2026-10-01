@@ -1,10 +1,13 @@
-﻿using System.Configuration;
+﻿using System;
+using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
 
 namespace Website.Data
 {
     /// <summary>
-    /// 提供集中建立資料庫連線的輔助方法。
+    /// 提供集中建立資料庫連線與執行參數化查詢的輔助方法。
+    /// 每次呼叫都以 using 建立並釋放連線，SQL 一律為常數字串，使用者輸入只能經 <see cref="Param"/> 傳入。
     /// </summary>
     public static class Db
     {
@@ -24,6 +27,87 @@ namespace Website.Data
         public static SqlConnection CreateMigratorConnection()
         {
             return new SqlConnection(GetConnectionString("migratorConnectionString"));
+        }
+
+        /// <summary>
+        /// 建立查詢參數；值為 null 時改用 <see cref="DBNull.Value"/>。
+        /// </summary>
+        /// <param name="name">參數名稱（含 @）。</param>
+        /// <param name="value">參數值。</param>
+        /// <returns>可傳給 <see cref="Query"/>、<see cref="Execute"/>、<see cref="Scalar"/> 的參數。</returns>
+        public static SqlParameter Param(string name, object value)
+        {
+            return new SqlParameter(name, value ?? DBNull.Value);
+        }
+
+        /// <summary>
+        /// 執行查詢並以 <see cref="DataTable"/> 傳回全部結果列。
+        /// </summary>
+        /// <param name="sql">SQL 語句（常數字串，變數以參數表示）。</param>
+        /// <param name="parameters">查詢參數。</param>
+        /// <returns>查詢結果；沒有資料時為空表。</returns>
+        public static DataTable Query(string sql, params SqlParameter[] parameters)
+        {
+            using (SqlConnection con = CreateConnection())
+            using (SqlCommand cmd = new SqlCommand(sql, con))
+            using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+            {
+                cmd.Parameters.AddRange(parameters);
+                DataTable table = new DataTable();
+                adapter.Fill(table);
+                return table;
+            }
+        }
+
+        /// <summary>
+        /// 執行 INSERT、UPDATE、DELETE 等不傳回結果列的語句。
+        /// </summary>
+        /// <param name="sql">SQL 語句（常數字串，變數以參數表示）。</param>
+        /// <param name="parameters">查詢參數。</param>
+        /// <returns>受影響的列數。</returns>
+        public static int Execute(string sql, params SqlParameter[] parameters)
+        {
+            using (SqlConnection con = CreateConnection())
+            using (SqlCommand cmd = new SqlCommand(sql, con))
+            {
+                cmd.Parameters.AddRange(parameters);
+                con.Open();
+                return cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// 執行查詢並傳回第一列第一欄的值。
+        /// </summary>
+        /// <param name="sql">SQL 語句（常數字串，變數以參數表示）。</param>
+        /// <param name="parameters">查詢參數。</param>
+        /// <returns>第一列第一欄的值；沒有資料時為 null。</returns>
+        public static object Scalar(string sql, params SqlParameter[] parameters)
+        {
+            using (SqlConnection con = CreateConnection())
+            using (SqlCommand cmd = new SqlCommand(sql, con))
+            {
+                cmd.Parameters.AddRange(parameters);
+                con.Open();
+                object value = cmd.ExecuteScalar();
+                return value == DBNull.Value ? null : value;
+            }
+        }
+
+        /// <summary>
+        /// 以登入時輸入的帳號（使用者名稱或 Email）查出會員姓名 uname（各資料表的關聯鍵）。
+        /// </summary>
+        /// <param name="login">Session["user"] 的值。</param>
+        /// <returns>會員姓名；查無帳號或未登入時為空字串。</returns>
+        public static string GetUname(object login)
+        {
+            if (login == null)
+            {
+                return "";
+            }
+
+            object uname = Scalar("SELECT uname FROM violet_user_login WHERE username=@login OR email=@login", Param("@login", login.ToString()));
+            return uname == null ? "" : uname.ToString();
         }
 
         /// <summary>

@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.7（決策已確認；M1～M6 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.8（決策已確認；M1～M6 已完成，M7 進行中；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -158,7 +158,7 @@ flowchart LR
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ✅ 已完成（另修正 M5 migrator 連線字串遺失密碼；App 記錄送 Log Analytics） |
-| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ⬜ 未開始（Issue #4～#7 追蹤） |
+| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | 🔄 進行中（PR A 已完成；PR B～D 待完成，見 §12） |
 | **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
 
 ---
@@ -433,7 +433,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 示範帳號：`demo_customer`／`demo_seller`，密碼皆為 `Demo@1234`（公開示範值）。範例圖片位於 `Website/img/products/demo_seller/`，M6 部署時上傳到 Blob。
 
-> 注意：`sellerRegister.aspx.cs` 只 INSERT 13 個值、`addProducts.aspx.cs` 只 INSERT 6 個值，在上述結構下會失敗。這兩個缺陷在 M7 以「指定欄位的 INSERT」修正。
+> `sellerRegister.aspx.cs` 只 INSERT 13 個值、`addProducts.aspx.cs` 只 INSERT 6 個值的缺陷，已在 M7 PR A 以「指定欄位的 INSERT」修正。
 
 ### 10.3 示範資料清除
 
@@ -473,7 +473,16 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 ## 12. M7：應用程式安全修正
 
-轉入正式營運的前置條件。每一項以一個 PR 完成，並關閉 M1 建立的對應 Issue。
+轉入正式營運的前置條件。實作時將 8 個項目依修改的檔案合併為 4 個 PR（避免同一批頁面反覆衝突），並關閉 M1 建立的對應 Issue：
+
+| PR | 項目 | 關閉 Issue | 狀態 |
+| --- | --- | --- | --- |
+| A：資料存取 | 7-1、7-2、7-6（`cart`）、7-8 的 `Response.Write` | #4、#5，#7 的大部分 | ✅ |
+| B：密碼與重設連結 | 7-3、7-4、7-6（`forgotpass`） | — | ⬜ |
+| C：權限與上傳 | 7-5、7-7 | — | ⬜ |
+| D：錯誤頁與回應標頭 | 7-8 其餘部分，加上 X-Frame-Options、CSP、HSTS 等回應標頭 | #6、#7 | ⬜ |
+
+PR A 實作說明：所有 SQL 改經 `Website.Data.Db`（`Query`／`Execute`／`Scalar`，參數化並自動釋放連線），購物車 Session 集中到 `CartSession`，帳號建立與 uid 指派集中到 `UserAccounts`（賣家註冊改為指派 5001～9999）；首頁加入購物車改為原子性預扣庫存（`stock >= 數量` 才扣），購物車修改數量的舊數量改取自購物車列（不再使用 `Session["oldQuantity"]`）；結帳後清空購物車 Session；新上架商品庫存為 0。
 
 | # | 項目 | 範圍 |
 | --- | --- | --- |
@@ -653,12 +662,12 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 - [x] `push main` 產出原始碼與部署套件 SBOM（SPDX、CycloneDX），並有可用 `gh attestation verify` 驗證的簽章。
 - [x] GitHub Actions 可經 OIDC 登入 Azure（Azure OIDC 驗證 workflow 在 PR 與 `main` 皆通過），Repo 與 workflow 中沒有任何 Azure 密碼或 client secret。
 - [x] Repo 中搜尋不到任何連線字串、帳號密碼、`<enter your database connection>`。
-- [ ] `infra.yml` 可從空的 Resource Group 建立全部資源，且重複執行不會失敗、不會改變既有密碼。
-- [ ] App Service 應用程式設定中，所有敏感設定都是 Key Vault 參考。
-- [ ] 第一次部署後，App 啟動自動建立資料表與示範資料；`dbo.SchemaVersions` 有 4 筆紀錄。
+- [x] `infra.yml` 可從空的 Resource Group 建立全部資源，且重複執行不會失敗、不會改變既有密碼。
+- [x] App Service 應用程式設定中，所有敏感設定都是 Key Vault 參考。
+- [x] 第一次部署後，App 啟動自動建立資料表與示範資料；`dbo.SchemaVersions` 有 4 筆紀錄。
 - [ ] 以示範賣家上架商品，圖片寫入 Blob，並可經 Front Door 網址顯示。
 - [ ] 忘記密碼可經 ACS 寄出信件。
-- [ ] 合併 `main` 後自動部署並通過冒煙測試；失敗時可回滾到上一版。
+- [x] 合併 `main` 後自動部署並通過冒煙測試；失敗時可回滾到上一版。
 - [ ] M7 完成後 CodeQL 無 High／Critical 安全警示。
 - [ ] `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 已同步更新 CI/CD、環境變數、圖片與寄信說明，全部為繁體中文（`copilot-instructions.md` 除外）。
 
@@ -679,3 +688,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | v1.5 | 2026-10-01 | M4 完成：Bicep（8 個模組，無角色指派）、`infra.yml`（PR what-if 留言、`main` 部署）、`sql-users` deploymentScript、`infra/smtp-setup.sh`（9.4 第 5 步）；新增 GitHub 變數 `SMTP_USER_NAME`；Storage 停用共用金鑰、App Service 停用基本驗證、Application Insights 代理程式 |
 | v1.6 | 2026-10-01 | M5 完成：`DatabaseMigrator`（DbUp + `sp_getapplock`）於 `Application_Start` 套用 `Website/Migrations/0001`～`0004`（建表冪等、示範分類／帳號／商品）；新增 `db/cleanup/remove_demo_data.sql` 與 `img/products/demo_seller/`；QuickStart §3 改為只需建立空資料庫 |
 | v1.7 | 2026-10-01 | M6 完成：`deploy.yml`（呼叫 `build.yml`、範例圖片 `--overwrite true` 上傳 Blob、`az webapp deploy`、冒煙測試 `.github/scripts/smoke-test.sh`、失敗自動回滾、ZAP Baseline）、可用性測試與警示（`ALERT_EMAIL` 選用）、App 記錄經 `AzureMonitorTraceListener` 與診斷設定送 Log Analytics；修正 `DatabaseMigrator` 於 `Open()` 後讀取 `ConnectionString` 遺失密碼的問題（實際部署驗證發現） |
+| v1.8 | 2026-10-01 | M7 分為 4 個 PR（§12）；PR A 完成：SQL 全面參數化（`Db.Query`／`Execute`／`Scalar`）、INSERT 指定欄位、`CartSession`／`UserAccounts` 共用類別、賣家註冊指派 uid、原子性預扣庫存、移除 `cart` 的 `static` 欄位與 `profile` 的 `Response.Write`、修正多項購物車與結帳缺陷；§20 勾選 M4～M6 已驗證項目 |

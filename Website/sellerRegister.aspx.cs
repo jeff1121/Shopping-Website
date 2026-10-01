@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using Website.Data;
 using System.Linq;
 using System.Web;
@@ -36,16 +35,7 @@ namespace Website
                 profileIcon.Visible = true;
                 cartIcon.Visible = true;
                 countItems.Visible = true;
-                DataTable dt = new DataTable();
-                dt = (DataTable)Session["count"];
-                if (dt != null)
-                {
-                    countItems.Text = dt.Rows.Count.ToString();
-                }
-                else
-                {
-                    countItems.Text = "0";
-                }
+                countItems.Text = CartSession.Count(Session).ToString();
             }
 
             if (!Page.IsPostBack)
@@ -67,44 +57,31 @@ namespace Website
         }
 
         /// <summary>
-        /// 註冊送出按鈕：以參數化查詢寫入 13 個欄位到 violet_user_login 後導向登入頁。
-        /// 注意：此處未帶入 uid，若資料表含 uid 欄位（與 register.aspx 相同的 14 欄結構）會因欄位數不符而失敗；
-        /// 且程式不會指派 &gt; 5000 的賣家 uid，需手動於資料庫設定。
+        /// 註冊送出按鈕：以 <see cref="UserAccounts.GenerateUid"/> 抽出 5001 以上未使用的賣家 uid，
+        /// 再以 <see cref="UserAccounts.Create"/> 建立帳號，最後導向登入頁。
         /// </summary>
         /// <param name="sender">Submit 按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
-        /// <remarks>
-        /// INSERT 依 violet_user_login 欄位順序寫入 uname、email、username、password、phone、dob、country、state、city、gender、address、secq、seca；
-        /// txtAddress 是 HTML textarea，必須讀取 Value 而不是 Text。
-        /// </remarks>
         protected void Submit_Click(object sender, EventArgs e)
         {
-            // txtAddress 是 HTML textarea（runat=server），需讀取 Value
-            String strAddress = txtAddress.Value;
-
-            //Connection（透過 Db 從 Web.config 的 cmpConnectionString 讀取）
-            SqlConnection con = Db.CreateConnection();
-
-            //Insertion
-            SqlCommand cmd = new SqlCommand("INSERT INTO violet_user_login VALUES (@name, @email, @username, @password, @phone, @dob, @country, @state, @city, @gender, @address, @secq, @seca)", con);
-            cmd.Parameters.AddWithValue("@name", txtName.Text);
-            cmd.Parameters.AddWithValue("@username", txtUsername.Text);
-            cmd.Parameters.AddWithValue("@password", txtPassword.Text);
-            cmd.Parameters.AddWithValue("@email", txtEmail.Text);
-            cmd.Parameters.AddWithValue("@phone", txtPhone.Text);
-            cmd.Parameters.AddWithValue("@dob", txtDOB.Text);
-            cmd.Parameters.AddWithValue("@country", selectCountry.SelectedItem.ToString());
-            cmd.Parameters.AddWithValue("@state", selectState.SelectedItem.ToString());
-            cmd.Parameters.AddWithValue("@city", selectCity.SelectedItem.ToString());
-            cmd.Parameters.AddWithValue("@gender", selectGender.SelectedItem.Text.ToString());
-            cmd.Parameters.AddWithValue("@address", strAddress);
-            cmd.Parameters.AddWithValue("@secq", txtSecurityQ.SelectedItem.ToString());
-            cmd.Parameters.AddWithValue("@seca", txtSecurityA.Text);
-
-            //Executing Query
-            con.Open();
-            cmd.ExecuteNonQuery();
-            con.Close();
+            int uid = UserAccounts.GenerateUid(UserAccounts.SellerUidMin, UserAccounts.SellerUidMax);
+            UserAccounts.Create(new NewUser
+            {
+                Uname = txtName.Text,
+                Email = txtEmail.Text,
+                Username = txtUsername.Text,
+                Password = txtPassword.Text,
+                Phone = txtPhone.Text,
+                Dob = txtDOB.Text,
+                Country = selectCountry.SelectedItem.Text,
+                State = selectState.SelectedItem.Text,
+                City = selectCity.SelectedItem.Text,
+                Gender = selectGender.SelectedItem.Text,
+                // txtAddress 是 HTML textarea（runat=server），需讀取 Value
+                Address = txtAddress.Value,
+                SecurityQuestion = txtSecurityQ.SelectedItem.Text,
+                SecurityAnswer = txtSecurityA.Text
+            }, uid);
 
             Response.Redirect("~/login.aspx");
         }
