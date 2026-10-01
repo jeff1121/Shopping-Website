@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.10（決策已確認；M1～M6 已完成，M7 進行中；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.11（決策已確認；M1～M7 已完成，M8 未開始；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -158,7 +158,7 @@ flowchart LR
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ✅ 已完成（另修正 M5 migrator 連線字串遺失密碼；App 記錄送 Log Analytics） |
-| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | 🔄 進行中（PR A～C 已完成；PR D 待完成，見 §12） |
+| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | ✅ 已完成（PR A～D，見 §12） |
 | **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
 
 ---
@@ -480,13 +480,15 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | A：資料存取 | 7-1、7-2、7-6（`cart`）、7-8 的 `Response.Write` | #4、#5，#7 的大部分 | ✅ |
 | B：密碼與重設連結 | 7-3、7-4、7-6（`forgotpass`） | — | ✅ |
 | C：權限與上傳 | 7-5、7-7 | — | ✅ |
-| D：錯誤頁與回應標頭 | 7-8 其餘部分，加上 X-Frame-Options、CSP、HSTS 等回應標頭 | #6、#7 | ⬜ |
+| D：錯誤頁與回應標頭 | 7-8 其餘部分，加上 X-Frame-Options、CSP、HSTS 等回應標頭 | #6、#7 | ✅ |
 
 PR A 實作說明：所有 SQL 改經 `Website.Data.Db`（`Query`／`Execute`／`Scalar`，參數化並自動釋放連線），購物車 Session 集中到 `CartSession`，帳號建立與 uid 指派集中到 `UserAccounts`（賣家註冊改為指派 5001～9999）；首頁加入購物車改為原子性預扣庫存（`stock >= 數量` 才扣），購物車修改數量的舊數量改取自購物車列（不再使用 `Session["oldQuantity"]`）；結帳後清空購物車 Session；新上架商品庫存為 0。
 
 PR B 實作說明：`PasswordHasher`（PBKDF2-SHA256，100,000 次，16 位元組 salt，格式 `PBKDF2-SHA256$次數$salt$雜湊`）；migration `0005` 將 `password` 擴充為 `VARCHAR(200)` 並新增 `violet_password_reset`（只存權杖 SHA-256、30 分鐘到期、使用一次即失效）；`UserAccounts.Authenticate` 供兩個登入頁共用，舊明碼登入成功時改存雜湊（示範帳號因此不需另寫 migration）；`forgotpass` 移除 `static` 欄位，帳號姓名改存 ViewState，同一 Session 答錯 5 次即鎖定；新增 `resetPassword.aspx`。安全問題答案仍為明碼，不在本計畫範圍。
 
 PR C 實作說明：`addProducts` 只限賣家（`UserAccounts.IsSellerLogin`）；`profile.aspx` 的 `SqlDataSource2` 查詢、更新、刪除都以 `Session["uname"]` 限定擁有者，`RowUpdating` 驗證價格、庫存與關鍵字；`Session["addproduct"]` 改存「數量:商品名稱」，購物車只接受與預扣相同的網址參數；上傳檢查 2 MB 上限與檔案開頭格式識別碼（`ImageStore.HasValidSignature`）。另外所有送出事件先檢查 `Page.IsValid`（M6 ZAP 的爬蟲曾略過瀏覽器驗證送出註冊表單而造成 500）；註冊重複或過長改顯示訊息；忘記密碼寄信失敗改顯示訊息並記錄（示範帳號 `@example.com` 會被 ACS 以 5.1.5 拒收，ACS 驗證本身正常）；`Global.asax` 新增 `Application_Error` 記錄未處理例外。
+
+PR D 實作說明：新增 `error.aspx`（不使用資料庫與 Session，依 `?code=404` 回傳 404，其餘 500）；`Web.config` 設 `customErrors mode="RemoteOnly"`、`redirectMode="ResponseRewrite"`（本機仍顯示詳細錯誤），回應標頭加上 `X-Frame-Options: DENY`、CSP、`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`，移除 `X-Powered-By`、`X-AspNet-Version`、`Server`；Cookie 設 `HttpOnly`、`Secure`（`requireSSL`，CodeQL 要求直接設在 `Web.config`；本機以 `https://localhost:44337/` 開發）、`SameSite=Lax`。`Web.Release.config` 另加 HSTS（`max-age=31536000`），`compilation debug` 原本即已移除。Web Forms 的 `__doPostBack` 與驗證控制項需要內嵌腳本與 `eval`，CSP 因此保留 `'unsafe-inline'`、`'unsafe-eval'`，但以 `frame-ancestors`、`form-action`、`object-src`、`base-uri` 限縮；商品圖片來自各環境不同的 Front Door 網域，`img-src` 允許 `https:`。冒煙測試加入標頭與 404 錯誤頁檢查，缺漏時部署失敗並回滾。ZAP 規則把純資訊性的 10049、10112 與會阻擋 Front Door 圖片的 COEP（90004）設為 IGNORE。
 
 | # | 項目 | 範圍 |
 | --- | --- | --- |
@@ -695,3 +697,4 @@ PR C 實作說明：`addProducts` 只限賣家（`UserAccounts.IsSellerLogin`）
 | v1.8 | 2026-10-01 | M7 分為 4 個 PR（§12）；PR A 完成：SQL 全面參數化（`Db.Query`／`Execute`／`Scalar`）、INSERT 指定欄位、`CartSession`／`UserAccounts` 共用類別、賣家註冊指派 uid、原子性預扣庫存、移除 `cart` 的 `static` 欄位與 `profile` 的 `Response.Write`、修正多項購物車與結帳缺陷；§20 勾選 M4～M6 已驗證項目 |
 | v1.9 | 2026-10-01 | M7 PR B 完成：PBKDF2 密碼雜湊（登入時自動升級舊明碼）、migration `0005`、忘記密碼改寄一次性重設連結（新增 `resetPassword.aspx`）、移除 `forgotpass` 的 `static` 欄位 |
 | v1.10 | 2026-10-01 | M7 PR C 完成：賣家頁權限、商品擁有者檢查、購物車參數比對、上傳大小與格式識別碼檢查、伺服器端驗證（`Page.IsValid`）、寄信失敗與註冊重複的錯誤處理、`Application_Error` 記錄 |
+| v1.11 | 2026-10-01 | M7 PR D 完成，M7 結束：錯誤頁 `error.aspx`、`customErrors`、安全性回應標頭與 HSTS、Cookie 旗標、冒煙測試標頭檢查、ZAP 規則調整 |

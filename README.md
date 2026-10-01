@@ -171,6 +171,7 @@ Shopping-Website/
     ├── register.aspx(.cs)          # 一般會員註冊、指派 uid
     ├── forgotpass.aspx(.cs)        # 忘記密碼（安全問題 + 寄出重設連結）
     ├── resetPassword.aspx(.cs)     # 以一次性權杖設定新密碼
+    ├── error.aspx(.cs)             # 錯誤頁（customErrors 導向；只顯示一般訊息，回傳 404／500）
     ├── profile.aspx(.cs)           # 個人資料、訂單歷史與 PDF、賣家商品管理
     ├── addProducts.aspx(.cs)       # 賣家上架商品、上傳圖片
     ├── sellerRegister.aspx(.cs)    # 賣家註冊
@@ -282,6 +283,7 @@ flowchart LR
 | `register.aspx` | 一般會員註冊 | `violet_user_login` | `Submit_Click` |
 | `forgotpass.aspx` | 安全問題驗證後寄出重設連結 | `violet_user_login`、`violet_password_reset` | `submit_Click`、`submitAns_Click`、`SendResetMail` |
 | `resetPassword.aspx` | 以一次性權杖設定新密碼 | `violet_password_reset`、`violet_user_login` | `Page_Load`、`btnReset_Click` |
+| `error.aspx` | 錯誤頁：遠端使用者發生未處理例外或找不到頁面時顯示一般訊息（不用資料庫與 Session） | — | `Page_Load` |
 | `profile.aspx` | 個人資料、訂單歷史與 PDF、賣家商品管理（未登入導向登入頁） | `violet_user_login`、`violet_order`、`violet_products` | `Page_Load`、`Update_Click`、`Submit_Click`、`DownloadPDF`、`exportpdf`、`GridView1_RowDataBound`、`btnAddProduct_Click` |
 | `addProducts.aspx` | 賣家上架商品與上傳圖片 | `violet_products`、`violet_user_login` | `Submit_Click`、`uploadImg` |
 | `sellerRegister.aspx` | 賣家註冊（表單同會員註冊，指派 5001 以上的 uid） | `violet_user_login` | `Submit_Click` |
@@ -473,7 +475,7 @@ sequenceDiagram
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
 | M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
-| M7 應用程式安全修正 | 🔄 進行中（參數化查詢、密碼雜湊與重設連結、權限檢查與上傳驗證已完成；錯誤頁與回應標頭待完成） |
+| M7 應用程式安全修正 | ✅ 已完成（參數化查詢、密碼雜湊與重設連結、權限檢查與上傳驗證、錯誤頁與安全性回應標頭） |
 | M8 轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
@@ -532,7 +534,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 ### 應用程式部署與監控
 
-- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常，且示範圖片可經 Front Door 取得。
+- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常、示範圖片可經 Front Door 取得、安全性回應標頭存在，且不存在的頁面回傳 404 錯誤頁。
 - 冒煙測試失敗時自動重新部署上一個成功的版本；也可手動執行「部署」並輸入要回滾的 run ID。
 - OWASP ZAP Baseline 報告為 artifact `zap-baseline`，略過規則寫在 `.zap/rules.tsv`。
 - Application Insights 可用性測試每 5 分鐘自 3 個位置請求首頁，2 個以上失敗時觸發警示；設定 GitHub 變數 `ALERT_EMAIL` 後才會寄信。
@@ -577,11 +579,12 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 密碼儲存 | 已修正：密碼以 PBKDF2 雜湊儲存，忘記密碼改寄一次性重設連結（M7 PR B）；安全問題答案仍為明碼 |
 | 權限控管 | 已修正：`addProducts` 只限賣家；賣家只能修改、刪除自己的商品；購物車只接受首頁實際預扣的品項與數量（M7 PR C）。角色仍以 `uid` 範圍判斷，沒有獨立的權限機制 |
 | 檔案上傳 | 已修正：檢查副檔名、2 MB 上限與檔案開頭格式識別碼，檔名為 GUID（M7 PR C） |
-| 資訊洩漏 | 已移除 `profile.aspx` 輸出 SQL 的除錯程式；錯誤頁與回應標頭仍待 M7 PR D |
+| 資訊洩漏 | 已修正：移除 `profile.aspx` 輸出 SQL 的除錯程式；遠端使用者只看到 `error.aspx` 一般訊息（`customErrors mode="RemoteOnly"`），例外細節只寫入記錄；不再送出 `X-Powered-By`、`X-AspNet-Version`、`Server` 標頭（M7 PR D） |
+| 回應標頭 | 已修正：`X-Frame-Options: DENY`、CSP（含 `frame-ancestors 'none'`）、`X-Content-Type-Options`、`Referrer-Policy`、`Permissions-Policy`；正式環境另加 HSTS，Cookie 為 `HttpOnly`、`SameSite=Lax`、`Secure`（M7 PR D）。Web Forms 需要內嵌腳本與 `eval`，CSP 因此保留 `'unsafe-inline'`、`'unsafe-eval'` |
 | 共用狀態 | 已修正：`forgotpass`、`cart` 不再使用 `static` 欄位 |
 | 輸入驗證 | 已修正：送出事件先檢查 `Page.IsValid`，略過瀏覽器端驗證也會被擋下；註冊資料重複或過長時顯示訊息而非錯誤頁（M7 PR C） |
 
-建議修正方向：加上自訂錯誤頁與安全性回應標頭（Plan M7 PR D）。
+尚未處理（不在本計畫範圍）：安全問題答案仍為明碼；未設定 `ViewStateUserKey` 等 CSRF 權杖（目前以 `SameSite=Lax` Cookie 降低風險）；角色只以 `uid` 範圍判斷。
 
 ---
 

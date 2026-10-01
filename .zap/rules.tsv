@@ -1,3 +1,6 @@
 # ZAP Baseline 規則設定（Plan.md §11.2 6-2）：每行為「規則 ID、IGNORE｜WARN｜FAIL、說明」，以 Tab 分隔。
 # 未列出的規則採預設（WARN）。試運行期間 deploy.yml 不因告警失敗；M8 起再把需阻擋的規則改為 FAIL。
 10109	IGNORE	(Modern Web Application：僅說明網站使用 JavaScript，非弱點)
+10049	IGNORE	(Non-Storable Content：僅說明回應不可快取，動態頁面本應如此)
+10112	IGNORE	(Session Management Response Identified：僅說明偵測到 Session Cookie，非弱點)
+90004	IGNORE	(Cross-Origin-Embedder-Policy：啟用會阻擋 Front Door 跨網域商品圖片，本站不需跨來源隔離)
