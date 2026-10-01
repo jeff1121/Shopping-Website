@@ -45,10 +45,10 @@
 
 | 項目 | 狀態 |
 | --- | --- |
-| 可否直接編譯 | ✅ 專案檔缺漏與連線佔位語法已補齊；仍需在本機設定 `Web.config` 的連線字串才能實際執行 |
+| 可否直接編譯 | ✅ 專案檔缺漏與連線佔位語法已補齊；執行前需設定環境變數（連線、寄信、圖片儲存） |
 | 缺漏檔案 | `Website/Properties/AssemblyInfo.cs` 與 `Website/css/style.css` 已補入專案 |
 | 版控現況 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 不進版控（NuGet 還原）；部分已簽入圖片未列入 `Website.csproj` |
-| 外部相依 | iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2、Roslyn CodeDom 4.1.0 皆透過 NuGet 管理 |
+| 外部相依 | 全部透過 NuGet（`packages.config`）管理：iTextSharp 5.5.13.6、Roslyn CodeDom 4.1.0、Configuration Builders 3.0、Azure.Storage.Blobs 12、Azure.Identity 1、dbup-sqlserver 5 與其遞移相依套件 |
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
@@ -71,8 +71,8 @@
    ```
 
 3. 以 [QuickStart.md 第 3 節](QuickStart.md#3-建立資料庫)的腳本建立 `website` 資料庫（**不要**執行 `DbSql.sql`）。
-4. 在 `Website/Web.config` 設定 `cmpConnectionString`；後置程式碼會透過 `Website.Data.Db` 讀取此設定。
-5. 執行 NuGet 還原，取得 iTextSharp 5.5.13.6、BouncyCastle.Cryptography 2.6.2 與 Roslyn 編譯器。
+4. 依 [QuickStart.md 第 4 節](QuickStart.md#4-設定環境變數)設定環境變數（`SQL_*`、`SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`）；`Web.config` 不含任何真實連線資訊。
+5. 執行 NuGet 還原，取得 `packages.config` 列出的套件（iTextSharp、Roslyn 編譯器、Configuration Builders、Azure Storage／Identity、DbUp 等）。
 6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/`；`Web.config` 已將 `index.aspx` 設為預設文件，根網址即為首頁。
 7. 註冊帳號後，以 SQL 將 `uid` 改為大於 5000 即可測試賣家功能。
 
@@ -99,7 +99,7 @@
 - 結帳：系統產生訂單編號與日期，按下「Place Order」後建立訂單（**無金流**）。
 - 個人資料：檢視帳號資料；可修改電話、地址、國家、州、城市。
 - 訂單歷史：檢視所有已下訂單，並以 PDF（`OrderInvoice.pdf`）下載。
-- 忘記密碼：回答註冊時設定的安全問題後，透過 Gmail SMTP 將密碼寄到註冊信箱。
+- 忘記密碼：回答註冊時設定的安全問題後，透過 SMTP（Azure 上為 Azure Communication Services Email）將密碼寄到註冊信箱。
 
 ### 賣家（`uid` > 5000）
 
@@ -121,7 +121,9 @@
 | 資料存取 | ADO.NET | `SqlConnection` / `SqlCommand` / `SqlDataAdapter` 與 `asp:SqlDataSource` 並存 |
 | 資料庫 | Microsoft SQL Server | 所有資料表以 `violet_` 為前綴 |
 | PDF | iTextSharp 5.5.13.6（`HTMLWorker`） | 將訂單歷史面板轉成 A4 PDF；透過 NuGet 還原 |
-| 郵件 | `System.Net.Mail.SmtpClient` | Gmail SMTP（`smtp.gmail.com:587`，SSL） |
+| 設定 | Configuration Builders 3.0（Environment，Token 模式） | `Web.config` 的 `${名稱}` 權杖於啟動時以環境變數代入 |
+| 郵件 | `System.Net.Mail.SmtpClient` | 主機、連接埠、寄件者與帳密來自 `SMTP_*` 環境變數；Azure 上為 ACS Email（`smtp.azurecomm.net:587`） |
+| 圖片儲存 | Azure.Storage.Blobs 12、Azure.Identity 1 | 商品圖片寫入 Blob 容器 `products`；Azure 上以使用者指派受控識別驗證，本機用 Azurite |
 | 前端 | HTML、CSS（inline 與頁內 `<style>`） | 大量絕對定位排版；未使用 JavaScript 框架 |
 | 驗證 | Web Forms 驗證控制項 | `RequiredFieldValidator`、`RegularExpressionValidator`、`CompareValidator`；已關閉 Unobtrusive 模式 |
 | 開發工具 | Visual Studio 2019+、IIS Express | 預設網址 `https://localhost:44337/`，起始頁 `index.aspx` |
@@ -171,10 +173,13 @@ Shopping-Website/
     ├── blog.aspx(.cs)              # 部落格（靜態）
     ├── contact.aspx(.cs)           # 聯絡我們（寫入 violet_contact）
     ├── *.aspx.designer.cs          # 設計工具自動產生的控制項欄位宣告（已附繁中註解）
+    ├── Config/AppSettings.cs       # 集中讀取 SMTP／Blob／圖片網址設定與啟動檢查
     ├── Data/Db.cs                  # 集中建立 SQL 連線（cmp / migrator connection string）
+    ├── Data/ImageStore.cs          # 商品圖片上傳到 Blob，回傳完整網址
+    ├── Global.asax(.cs)            # 啟動時檢查設定；失敗時所有請求回應 500
     ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
     ├── css/style.css               # 共用基礎樣式
-    ├── Web.config                  # 連線字串、編譯與驗證設定
+    ├── Web.config                  # Configuration Builders、連線字串權杖、編譯、binding redirect
     ├── Web.Debug.config            # Debug 組態轉換（僅範例）
     ├── Web.Release.config          # Release 組態轉換（移除 debug 屬性）
     ├── Website.csproj              # 專案檔（舊式格式，需手動登錄新檔案；IIS Express SSL 埠 44337）
@@ -323,15 +328,15 @@ sequenceDiagram
 
 ### 賣家上架與商品管理
 
-1. `addProducts.aspx` 驗證副檔名（jpg / jpeg / png，區分大小寫），將圖片存到 `img/products/<Session["user"]>/`。
-2. 資料庫中 `pimage` 儲存相對路徑，`uname` 儲存賣家姓名。
+1. `addProducts.aspx` 驗證副檔名（jpg、jpeg、png、gif、webp，不分大小寫），由 `Website.Data.ImageStore` 上傳到 Blob 容器 `products` 的 `<登入帳號>/<GUID>.<副檔名>`。
+2. 資料庫中 `pimage` 儲存圖片完整網址（`IMAGE_BASE_URL/products/...`，Azure 上經 Front Door 提供），`uname` 儲存賣家姓名；舊資料的相對路徑仍可顯示。
 3. 分類選項寫死為 `Computer`、`Computer Accesories`，須與 `violet_categories.name` 一致。
 4. `profile.aspx` 的 `SqlDataSource2` 提供賣家商品清單的編輯（價格、庫存、關鍵字）與刪除。
 
 ### 忘記密碼
 
 1. 輸入使用者名稱或 Email → 顯示註冊時選的安全問題。
-2. 答對後以 Gmail SMTP 將**原密碼**寄到註冊 Email，並導向登入頁。寄件帳密為程式中的佔位字串，需自行設定。
+2. 答對後以 SMTP 將**原密碼**寄到註冊 Email，並導向登入頁。SMTP 設定來自 `SMTP_*` 環境變數（M7 會改為一次性重設連結）。
 
 ### 角色判斷（uid）
 
@@ -410,14 +415,17 @@ sequenceDiagram
 
 | 檔案 | 設定 | 說明 |
 | --- | --- | --- |
-| `Web.config` | `connectionStrings/cmpConnectionString` | 供 `asp:SqlDataSource` 與後置程式碼使用，需自行填入 |
-| `Web.config` | `connectionStrings/migratorConnectionString` | 供後續資料庫 migration（Plan M5）使用，目前為 placeholder；由 `Db.CreateMigratorConnection()` 讀取 |
+| `Web.config` | `configBuilders`（`Env`，Token 模式） | 啟動時把 `${名稱}` 替換為同名環境變數；未設定時權杖原樣保留，由 `Global.asax` 啟動檢查攔下 |
+| `Web.config` | `connectionStrings/cmpConnectionString` | 由 `SQL_SERVER`、`SQL_DATABASE`、`SQL_USER`、`SQL_PASSWORD`、`SQL_ENCRYPT` 組成；供 `asp:SqlDataSource` 與 `Db.CreateConnection()` 使用 |
+| `Web.config` | `connectionStrings/migratorConnectionString` | 由 `SQL_MIGRATOR_USER`、`SQL_MIGRATOR_PASSWORD` 等組成；供資料庫 migration 使用（`Db.CreateMigratorConnection()`） |
+| `Web.config` | `appSettings` 的 `SMTP_*`、`STORAGE_BLOB_ENDPOINT`、`STORAGE_CONTAINER`、`IMAGE_BASE_URL` | 由 `Website.Config.AppSettings` 讀取；完整清單見 [QuickStart 4.1](QuickStart.md#41-設定清單) |
+| `Web.config` | `compilation/assemblies` 的 `netstandard` | Azure SDK 為 netstandard2.0 組件，ASP.NET 動態編譯頁面需要此 facade |
+| `Web.config` | `runtime/assemblyBinding` | Azure SDK 遞移相依套件的 binding redirect |
 | `Web.config` | `compilation debug="true" targetFramework="4.7.2"` | 開發模式編譯 |
 | `Web.config` | `system.codedom` | 使用 Roslyn 編譯器（C# `/langversion:default`） |
 | `Web.config` | `ValidationSettings:UnobtrusiveValidationMode=None` | 驗證控制項不需 jQuery |
 | `Web.Release.config` | `RemoveAttributes(debug)` | 發行時移除 debug |
 | `Website.csproj` | `IISExpressSSLPort=44337`、`IISUrl=https://localhost:44337/` | IIS Express 啟動設定；`Website.csproj.user`（個人起始頁設定）不進版控；根網址由 `Web.config` 的 `defaultDocument` 導向 `index.aspx` |
-| `forgotpass.aspx.cs` | `"enter email id"`、`"enter password"` | Gmail SMTP 寄件帳密佔位字串 |
 
 ---
 
@@ -431,7 +439,7 @@ sequenceDiagram
 | --- | --- |
 | M1 CI 掃描與 Repo 治理 | ✅ 已完成 |
 | M2 可建置與建置 CI | ✅ 已完成 |
-| M3 設定外部化與程式調整 | 🟡 部分完成（`Website.Data.Db` 已導入） |
+| M3 設定外部化與程式調整 | ✅ 已完成（Configuration Builders、`AppSettings`、SMTP 與 Blob 圖片上傳） |
 | M4 Azure 基礎設施（Bicep） | 🟡 一次性設定已完成；Bicep 與 `infra.yml` 未開始 |
 | M5～M8 Migration、自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
 
@@ -480,7 +488,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 ### 建置與環境
 
 - Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
-- `Web.config` 的 `cmpConnectionString` 與 `migratorConnectionString` 仍是 placeholder；本機執行至少需設定 `cmpConnectionString`。
+- 本機執行需先設定環境變數（見 [QuickStart 第 4 節](QuickStart.md#4-設定環境變數)）；連線字串採 SQL 驗證，不支援 Windows 整合驗證。
 - 部分已簽入商品圖片未列入 `Website.csproj`，發行套件可能不包含這些圖片。
 
 ### 功能缺陷
@@ -519,13 +527,12 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | SQL Injection | `cart`、`checkout`、`index`、`login`（`fillsavedCart`）、`profile` 等多處以字串串接 SQL，且部分值來自查詢字串（`?id=`） |
 | 明碼密碼 | 密碼以明碼儲存、比對，忘記密碼功能還會以 Email 寄出原密碼 |
 | 權限控管 | 頁面未檢查角色；任何人都能直接開啟 `addProducts.aspx`、修改 `?id=`/`?quantity=` |
-| 檔案上傳 | 僅以副檔名檢查，使用原始檔名存檔，可能覆蓋既有檔案 |
-| 機密資訊 | 連線字串仍需填入本機 `Web.config`；SMTP 帳密仍是程式中的佔位字串，尚未外部化 |
+| 檔案上傳 | 僅以副檔名檢查，未檢查檔案內容與大小（檔名已改為 GUID，不會覆蓋） |
 | 資訊洩漏 | `profile.aspx` 會把 SQL 語句輸出到頁面 |
 | 共用狀態 | `static` 欄位跨使用者共用（`forgotpass`、`cart`） |
 
 建議修正方向：全面改用參數化查詢、以雜湊（如 PBKDF2 / bcrypt）儲存密碼並改為重設密碼連結、
-加入頁面權限檢查、上傳時重新命名檔案並驗證內容、將機密移到設定檔或環境變數。
+加入頁面權限檢查、上傳時驗證檔案內容與大小（Plan M7）。
 
 ---
 
@@ -536,7 +543,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 - **修改資料表**：因位置式 INSERT，調整欄位順序或數量時需同步修改對應的程式碼，並一併更新 `QuickStart.md` 與本文件的資料庫章節。
 - **程式碼註解**：所有類別、方法、欄位皆以繁體中文 XML 文件註解（`/// <summary>`）說明；每個 `.aspx` 第二行以 `<%-- --%>` 說明頁面用途；設定檔（`Web.config`、`Website.csproj` 等）以 XML 註解說明。
 - **designer 檔註解**：`.aspx.designer.cs` 的每個控制項欄位都有「型別「ID」：用途」格式的繁中註解。Visual Studio 重新產生此檔時會還原為英文預設註解，提交前請補回或還原。
-- **機密資訊**：不要提交真實連線字串或 SMTP 密碼。
+- **機密資訊**：不要提交真實連線字串或 SMTP 密碼；新增設定一律在 `Web.config` 用 `${名稱}` 權杖，並經 `Website.Config.AppSettings` 讀取。
 
 ---
 

@@ -2,8 +2,8 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.3.1（決策已確認；M1、M2 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
-> 最後更新：2026-09-30
+> 文件狀態：**v1.4（決策已確認；M1～M3 已完成；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
 ---
@@ -87,12 +87,12 @@
 | --- | --- | --- |
 | 框架 | .NET Framework 4.7.2、舊式 Web Application Project（`Website.csproj`） | CI 必須用 `windows-latest` 與 MSBuild；App Service 必須是 **Windows** |
 | 可建置性 | **可在 Windows + MSBuild 編譯與發行**；本機執行仍需填入連線字串 | M2 已完成，PR #9 驗證 `site.zip` 產出 |
-| 連線字串 | 12 個後置程式碼已改由 `Website.Data.Db.CreateConnection()` 讀取 `cmpConnectionString`；`CreateMigratorConnection()` 讀取 `migratorConnectionString`；`Web.config` 兩者仍為 placeholder | 本機執行需填入 `cmpConnectionString`；M3 仍需導入環境變數替換與敏感設定外部化 |
-| 寄信 | `forgotpass.aspx.cs` 寫死 `smtp.gmail.com:587` 與佔位帳密，並以明碼寄出原密碼 | M3 外部化設定；M7 改成重設密碼連結 |
-| 圖片上傳 | `addProducts.aspx.cs` 以 `Server.MapPath("~/img/products/<Session["user"]>/")` 寫入網站目錄，`pimage` 存相對路徑 | M3 改寫到 Blob |
+| 連線字串 | 12 個後置程式碼以 `Website.Data.Db` 讀取；`Web.config` 以 Configuration Builders 的 `${SQL_*}` 權杖由環境變數代入，版控中沒有任何連線資訊 | M3 已完成；本機與 Azure 都只需設定環境變數 |
+| 寄信 | `forgotpass.aspx.cs` 改讀 `SMTP_*` 設定（M3 已完成），但仍以明碼寄出原密碼 | M7 改成重設密碼連結 |
+| 圖片上傳 | `addProducts.aspx.cs` 經 `Website.Data.ImageStore` 寫入 Blob，`pimage` 存完整網址（M3 已完成） | Azure 上需 M4 建立 Storage 與 Front Door |
 | 預設圖 | `index.aspx` 的 `onerror` 退回 `img/products/human.png` | 此檔必須保留在部署套件中 |
 | PDF | `profile.aspx.cs` 以 iTextSharp `HTMLWorker` 將訂單表格轉 PDF，寫入 `Response.OutputStream`；iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 由 NuGet 還原 | M2 已完成 |
-| `Global.asax` | **不存在** | M5 需新增以執行啟動 migration |
+| `Global.asax` | M3 已新增，啟動時檢查設定 | M5 加入啟動 migration |
 | 缺少檔案 | `Properties/AssemblyInfo.cs`、`css/style.css` 已補入並列入專案 | M2 已完成 |
 | 版控 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 已移出版控，改由 NuGet 還原 | M1 已完成 |
 | Azure | 訂用帳戶 BD-CIS-Testing；`rg-shopping`、OIDC 部署身分、兩個使用者指派受控識別與 GitHub Environment `azure` 已由 `infra/bootstrap.sh` 建立；Owner 受組織 ABAC 條件限制，不能指派高權限角色 | Bicep 不做角色指派（[ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md)）；M4 尚未開始 |
@@ -154,7 +154,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | **M1** CI 掃描與 Repo 治理 | CodeQL、原始碼 SBOM、Dependency Review、Dependabot、Secret Scanning、Scorecard、Lint、`.gitignore`、`.editorconfig`、分支規則 | 無 | 1 天 | ✅ 已完成（PR #1、#3、#8） |
 | **M2** 可建置與建置 CI | 補缺檔、iTextSharp 改 NuGet、`build.yml`、部署套件 SBOM | 無（可與 M1 平行） | 1 天 | ✅ 已完成（PR #9、#10） |
-| **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | 🟡 部分完成（3-1、3-2 已於 M2 完成） |
+| **M3** 設定外部化與程式調整 | Configuration Builders、共用 `Db`／`AppSettings` 類別、12 處連線、SMTP、圖片上傳改 Blob | M2 | 1.5 天 | ✅ 已完成（3-1、3-2 於 M2；其餘於 M3 PR） |
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | 🟡 前置作業已完成（9.4 第 1～4、6 步，PR #11）；Bicep 未開始 |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ⬜ 未開始 |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ⬜ 未開始 |
@@ -307,6 +307,8 @@ flowchart LR
 
 #### 注意事項
 
+- **實作調整**：連線字串改為 `Server=${SQL_SERVER};...;Encrypt=${SQL_ENCRYPT};`。Azure 的 `SQL_SERVER` 為 `tcp:<伺服器>.database.windows.net,1433`、`SQL_ENCRYPT=True`；本機可使用具名執行個體（如 `localhost\SQLEXPRESS`）並設 `SQL_ENCRYPT=False`。
+- **實作調整**：Azure SDK 為 netstandard2.0 組件，`Web.config` 的 `compilation/assemblies` 加入 `netstandard` facade；遞移相依套件的 binding redirect 以 SDK 專案解析 net472 相依閉包後產生（`.github/copilot-instructions.md` 有更新方式）。
 - `mode="Token"` 是 3.x 語法（2.x 的 `Expand` 模式已移除）。環境變數未設定時，`${名稱}` 會**原樣保留**、不會報錯，因此需要 8.2 的啟動檢查。
 - 權杖是直接字串替換：密碼**不可含 `;`**。Bicep 產生的密碼字元集會排除 `;`、`'`、`"`、`{`、`}`。
 - **不要**在 App Service「連線字串」頁籤建立名為 `cmpConnectionString` 的項目，否則 App Service 會在執行階段覆寫 `Web.config` 的同名連線字串，使 `SQL_*` 失效。
@@ -319,12 +321,12 @@ flowchart LR
 | --- | --- | --- |
 | 3-1 | 新增 `Website/Data/Db.cs` | **已於 M2 完成**：命名空間 `Website.Data`，靜態類別 `Db` 提供 `CreateConnection()` 與 `CreateMigratorConnection()`；分別讀取 `cmpConnectionString` 與 `migratorConnectionString`，設定缺漏時拋出 `ConfigurationErrorsException`；已加入 `Website.csproj` 的 `<Compile Include>`，且 `Web.config` 已新增 migrator 連線 placeholder |
 | 3-2 | 替換 12 處連線 | **已於 M2 完成**：12 個後置程式碼的 `con` 欄位改為 `readonly SqlConnection con = Db.CreateConnection();`；未改變既有 SQL 與流程 |
-| 3-3 | 新增 `Website/Config/AppSettings.cs` | 集中讀取 `SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`；提供 `Validate()`，列出仍含 `${` 的設定**名稱**（不輸出值），在 `Application_Start` 呼叫，缺漏時寫入 Application Insights 並拋出明確錯誤 |
-| 3-4 | 寄信外部化 | `forgotpass.aspx.cs` 改讀 `AppSettings` 的 SMTP 設定與寄件者 `SMTP_FROM`（ACS 要求寄件者必須是已連結網域的位址，如 `DoNotReply@xxxxxxxx.azurecomm.net`）；`EnableSsl = true`（STARTTLS 587） |
-| 3-5 | 圖片上傳改 Blob | 新增 NuGet `Azure.Storage.Blobs`、`Azure.Identity`（皆支援 .NET Framework 4.7.2）；新增 `Website/Data/ImageStore.cs`：以 `DefaultAzureCredential`（App Service 上為使用者指派受控識別 `id-shopping-web`，由應用程式設定 `AZURE_CLIENT_ID` 指定）建立 `BlobContainerClient`，上傳路徑 `products/<賣家帳號>/<Guid>.<副檔名>`，設定 `Content-Type`，回傳 `IMAGE_BASE_URL + "/products/<賣家帳號>/<檔名>"`；`addProducts.aspx.cs` 改呼叫此類別，`pimage` 寫入完整網址 |
+| 3-3 | 新增 `Website/Config/AppSettings.cs` | **已完成**。`SMTP_USER`、`SMTP_PASSWORD` 可留空（本機不需驗證的 SMTP 測試伺服器），其餘為必要設定；除了 `${` 也會把未解析的 `@Microsoft.KeyVault(` 視為缺漏。`Global.asax` 在啟動失敗時記錄 Trace，並讓每個請求回應 500（避免 `Application_Start` 例外後網站以不完整設定繼續運作）。原規劃：集中讀取 `SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`；提供 `Validate()`，列出仍含 `${` 的設定**名稱**（不輸出值），在 `Application_Start` 呼叫，缺漏時寫入 Application Insights 並拋出明確錯誤 |
+| 3-4 | 寄信外部化 | **已完成**；連接埠 25 視為本機測試伺服器不加密。`forgotpass.aspx.cs` 改讀 `AppSettings` 的 SMTP 設定與寄件者 `SMTP_FROM`（ACS 要求寄件者必須是已連結網域的位址，如 `DoNotReply@xxxxxxxx.azurecomm.net`）；`EnableSsl = true`（STARTTLS 587） |
+| 3-5 | 圖片上傳改 Blob | **已完成**；端點為 loopback（Azurite）時改用 `UseDevelopmentStorage=true`，副檔名不分大小寫並允許 jpg、jpeg、png、gif、webp。新增 NuGet `Azure.Storage.Blobs`、`Azure.Identity`（皆支援 .NET Framework 4.7.2）；新增 `Website/Data/ImageStore.cs`：以 `DefaultAzureCredential`（App Service 上為使用者指派受控識別 `id-shopping-web`，由應用程式設定 `AZURE_CLIENT_ID` 指定）建立 `BlobContainerClient`，上傳路徑 `products/<賣家帳號>/<Guid>.<副檔名>`，設定 `Content-Type`，回傳 `IMAGE_BASE_URL + "/products/<賣家帳號>/<檔名>"`；`addProducts.aspx.cs` 改呼叫此類別，`pimage` 寫入完整網址 |
 | 3-6 | 顯示端相容 | `index`、`cart`、`checkout`、`profile` 以 `pimage` 直接當 `ImageUrl`，完整網址可直接使用，**不需修改**；`index.aspx` 的預設圖 `img/products/human.png` 保留在網站內 |
-| 3-7 | 本機開發 | 開發者在 Windows 設定使用者環境變數（`setx`），或使用 `Microsoft.Configuration.ConfigurationBuilders.UserSecrets`（`secrets.xml` 不進版控）；Blob 使用 Azurite（`STORAGE_BLOB_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1`）或以 `az login` 身分存取雲端 Storage |
-| 3-8 | 文件同步 | `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 的連線設定、圖片與寄信章節 |
+| 3-7 | 本機開發 | **已完成**（QuickStart 第 4 節）。開發者在 Windows 設定使用者環境變數（`setx`），或使用 `Microsoft.Configuration.ConfigurationBuilders.UserSecrets`（`secrets.xml` 不進版控）；Blob 使用 Azurite（`STORAGE_BLOB_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1`）或以 `az login` 身分存取雲端 Storage |
+| 3-8 | 文件同步 | **已完成**。 `README.md`、`QuickStart.md`、`.github/copilot-instructions.md` 的連線設定、圖片與寄信章節 |
 
 **完成條件**：Repo 內搜尋不到任何連線字串、帳號密碼或 `<enter your database connection>`；只要設定第 14 節的環境變數即可在本機或 Azure 執行。
 
@@ -495,7 +497,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 
 | 名稱 | 類型 | 值來源 | 說明 |
 | --- | --- | --- | --- |
-| `SQL_SERVER` | 明文 | Bicep 輸出 | `sql-shopping-xxxx.database.windows.net` |
+| `SQL_SERVER` | 明文 | Bicep 輸出 | `tcp:sql-shopping-xxxx.database.windows.net,1433` |
+| `SQL_ENCRYPT` | 明文 | Bicep | `True` |
 | `SQL_DATABASE` | 明文 | Bicep | `sqldb-shopping` |
 | `SQL_USER` | 明文 | Bicep | `shopping_app` |
 | `SQL_PASSWORD` | **Key Vault 參考** | `sql-app-password` | deploymentScript 產生 |
@@ -631,7 +634,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 - [x] Code scanning 可看到 CodeQL、Grype（原始碼與部署套件）、Scorecard 的結果。
 - [x] `push main` 產出原始碼與部署套件 SBOM（SPDX、CycloneDX），並有可用 `gh attestation verify` 驗證的簽章。
 - [x] GitHub Actions 可經 OIDC 登入 Azure（Azure OIDC 驗證 workflow 在 PR 與 `main` 皆通過），Repo 與 workflow 中沒有任何 Azure 密碼或 client secret。
-- [ ] Repo 中搜尋不到任何連線字串、帳號密碼、`<enter your database connection>`。
+- [x] Repo 中搜尋不到任何連線字串、帳號密碼、`<enter your database connection>`。
 - [ ] `infra.yml` 可從空的 Resource Group 建立全部資源，且重複執行不會失敗、不會改變既有密碼。
 - [ ] App Service 應用程式設定中，所有敏感設定都是 Key Vault 參考。
 - [ ] 第一次部署後，App 啟動自動建立資料表與示範資料；`dbo.SchemaVersions` 有 4 筆紀錄。
@@ -654,3 +657,4 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 | v1.2 | 2026-09-30 | M2 完成：補齊建置缺檔、iTextSharp 改 NuGet、提前導入 `Website.Data.Db` 與連線 placeholder、加入 `build.yml` 產出 `site.zip` 與部署套件 SBOM；Ruleset 新增 `建置` 必要檢查與 review thread resolution 注意事項 |
 | v1.3 | 2026-09-30 | Azure 一次性設定完成（BD-CIS-Testing、`rg-shopping`、`gh-shopping-deploy` OIDC、GitHub Environment `azure`）。因訂用帳戶 Owner 受 ABAC 條件限制無法指派 RBAC Administrator，改為 bootstrap 預建使用者指派受控識別 `id-shopping-web`、`id-shopping-deployscript` 並在 RG 範圍指派資料角色；Bicep 不做角色指派，App Service 改用使用者指派受控識別（新增 `AZURE_CLIENT_ID` 設定）；`bootstrap.ps1` 改為 `bootstrap.sh`；新增 Azure OIDC 驗證 workflow；OIDC subject 改為 GitHub 不可變格式（含帳號與 Repo ID），由腳本自動取得 |
 | v1.3.1 | 2026-09-30 | 文件同步：§3 更新版控現況並新增 Azure 列；§5 新增狀態欄；M1 補記 Dependabot PR #2 已合併；§19 第 5 項標為完成；§20 勾選已達成項目並新增 OIDC 驗收條件；新增 [ADR-0004](docs/adr/0004-pre-provisioned-managed-identities.md) |
+| v1.4 | 2026-10-01 | M3 完成：Configuration Builders 3.0 以環境變數代入連線字串與 appSettings（新增 `SQL_ENCRYPT`，`SQL_SERVER` 改含 `tcp:` 與連接埠）、`AppSettings` 啟動檢查與 `Global.asax`、SMTP 外部化、商品圖片改由 `ImageStore` 上傳 Blob；NuGet 加入 Azure.Storage.Blobs、Azure.Identity、dbup-sqlserver 與遞移相依套件及 binding redirect |

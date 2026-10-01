@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using Website.Config;
 using Website.Data;
 using System.Linq;
 using System.Net.Mail;
@@ -13,7 +14,7 @@ namespace Website
 {
     /// <summary>
     /// 「忘記密碼」頁面（forgotpass.aspx）的後置程式碼。
-    /// 流程：輸入使用者名稱/Email → 顯示安全問題 → 答對後透過 Gmail SMTP 將原密碼寄到註冊信箱。
+    /// 流程：輸入使用者名稱/Email → 顯示安全問題 → 答對後透過 SMTP（設定見 <see cref="AppSettings"/>）將原密碼寄到註冊信箱。
     /// </summary>
     public partial class forgotpass : System.Web.UI.Page
     {
@@ -109,29 +110,32 @@ namespace Website
         }
 
         /// <summary>
-        /// 步驟二：比對安全問題答案。答對時以 Gmail SMTP（smtp.gmail.com:587、SSL）寄出含原密碼的信件並導向登入頁；
-        /// 答錯則顯示錯誤並清空答案欄。寄件帳號與密碼需自行替換下方佔位字串。
+        /// 步驟二：比對安全問題答案。答對時以 SMTP（SMTP_HOST、SMTP_PORT，STARTTLS）寄出含原密碼的信件並導向登入頁；
+        /// 答錯則顯示錯誤並清空答案欄。寄件者為 SMTP_FROM；SMTP_USER 有值時才使用帳密驗證。
         /// </summary>
+        /// <remarks>寄出原密碼是既有行為，M7 會改為一次性重設連結。</remarks>
         /// <param name="sender">觸發安全答案送出的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void submitAns_Click(object sender, EventArgs e)
         {
             if (txtSecA.Text == secans)
             {
-                // 佔位字串 "enter email id" / "enter password" 需替換為實際寄件帳號（Gmail 請使用應用程式密碼）
-                MailMessage Msg = new MailMessage();
-                Msg.From = new MailAddress("enter email id");
-                Msg.To.Add(emailid);
-                Msg.Subject = "Password Recovery";
-                Msg.Body = "Hi " + uname + " you're password is " + pass;
+                using (MailMessage Msg = new MailMessage())
+                using (SmtpClient smtp = new SmtpClient(AppSettings.SmtpHost, AppSettings.SmtpPort))
+                {
+                    Msg.From = new MailAddress(AppSettings.SmtpFrom);
+                    Msg.To.Add(emailid);
+                    Msg.Subject = "Password Recovery";
+                    Msg.Body = "Hi " + uname + " you're password is " + pass;
 
-                SmtpClient smtp = new SmtpClient();
-                smtp.Host = "smtp.gmail.com";
-                smtp.Port = 587;
-                smtp.Credentials = new System.Net.NetworkCredential("enter email id", "enter password");
-                smtp.EnableSsl = true;
-                smtp.Send(Msg);
-                Msg = null;
+                    if (!string.IsNullOrEmpty(AppSettings.SmtpUser))
+                    {
+                        smtp.Credentials = new System.Net.NetworkCredential(AppSettings.SmtpUser, AppSettings.SmtpPassword);
+                    }
+                    // 連接埠 25 視為本機測試伺服器（不加密），其餘一律 STARTTLS
+                    smtp.EnableSsl = AppSettings.SmtpPort != 25;
+                    smtp.Send(Msg);
+                }
                 lblError.Visible = false;
                 lblSuccess.Visible = true;
                 Response.Redirect("~/login.aspx");
