@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Diagnostics;
 using System.Web;
 using Website.Config;
@@ -11,7 +12,7 @@ namespace Website
     /// </summary>
     public class Global : HttpApplication
     {
-        /// <summary>啟動失敗的原因；為 null 代表啟動成功。</summary>
+        /// <summary>啟動失敗的原因；為 null 代表啟動成功。只透過 <see cref="RecordStartupError"/> 寫入。</summary>
         private static Exception startupError;
 
         /// <summary>
@@ -26,11 +27,20 @@ namespace Website
             {
                 AppSettings.Validate();
             }
-            catch (Exception ex)
+            catch (ConfigurationErrorsException ex)
             {
-                startupError = ex;
-                Trace.TraceError("網站啟動失敗：" + ex);
+                RecordStartupError(ex);
             }
+        }
+
+        /// <summary>
+        /// 記錄啟動失敗：保存例外供之後的請求判斷，並寫入 Trace。
+        /// </summary>
+        /// <param name="ex">啟動時發生的例外。</param>
+        private static void RecordStartupError(Exception ex)
+        {
+            startupError = ex;
+            Trace.TraceError("網站啟動失敗：" + ex);
         }
 
         /// <summary>

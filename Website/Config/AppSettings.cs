@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Globalization;
+using System.Linq;
 
 namespace Website.Config
 {
@@ -64,31 +65,19 @@ namespace Website.Config
         public static IList<string> FindMissing()
         {
             List<string> missing = new List<string>();
-            foreach (string name in RequiredSettings)
-            {
-                if (IsUnresolved(ConfigurationManager.AppSettings[name]))
-                {
-                    missing.Add("appSettings/" + name);
-                }
-            }
+            missing.AddRange(RequiredSettings
+                .Where(name => IsUnresolved(ConfigurationManager.AppSettings[name]))
+                .Select(name => "appSettings/" + name));
 
-            foreach (string name in new[] { "SMTP_USER", "SMTP_PASSWORD" })
-            {
-                string value = ConfigurationManager.AppSettings[name];
-                if (value != null && value.StartsWith(UnresolvedKeyVaultPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    missing.Add("appSettings/" + name);
-                }
-            }
+            // 選填設定可留空，但若是無法解析的 Key Vault 參考仍視為缺漏
+            missing.AddRange(new[] { "SMTP_USER", "SMTP_PASSWORD" }
+                .Where(name => IsUnresolvedKeyVaultReference(ConfigurationManager.AppSettings[name]))
+                .Select(name => "appSettings/" + name));
 
-            foreach (string name in RequiredConnectionStrings)
-            {
-                ConnectionStringSettings settings = ConfigurationManager.ConnectionStrings[name];
-                if (settings == null || IsUnresolved(settings.ConnectionString))
-                {
-                    missing.Add("connectionStrings/" + name);
-                }
-            }
+            missing.AddRange(RequiredConnectionStrings
+                .Where(name => ConfigurationManager.ConnectionStrings[name] == null
+                    || IsUnresolved(ConfigurationManager.ConnectionStrings[name].ConnectionString))
+                .Select(name => "connectionStrings/" + name));
 
             return missing;
         }
@@ -107,6 +96,16 @@ namespace Website.Config
                     "下列設定未提供或無法解析，請設定同名環境變數或 App Service 應用程式設定："
                     + string.Join(", ", missing));
             }
+        }
+
+        /// <summary>
+        /// 判斷設定值是否為 App Service 無法解析而原樣保留的 Key Vault 參考（用於選填設定）。
+        /// </summary>
+        /// <param name="value">設定值。</param>
+        /// <returns>是未解析的 Key Vault 參考時為 true；空白或一般值為 false。</returns>
+        private static bool IsUnresolvedKeyVaultReference(string value)
+        {
+            return value != null && value.StartsWith(UnresolvedKeyVaultPrefix, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

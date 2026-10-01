@@ -120,14 +120,14 @@ namespace Website
         {
             if (txtSecA.Text == secans)
             {
-                MailMessage Msg = new MailMessage();
-                Msg.From = new MailAddress(AppSettings.SmtpFrom);
-                Msg.To.Add(emailid);
-                Msg.Subject = "Password Recovery";
-                Msg.Body = "Hi " + uname + " you're password is " + pass;
-
+                using (MailMessage Msg = new MailMessage())
                 using (SmtpClient smtp = new SmtpClient(AppSettings.SmtpHost, AppSettings.SmtpPort))
                 {
+                    Msg.From = new MailAddress(AppSettings.SmtpFrom);
+                    Msg.To.Add(emailid);
+                    Msg.Subject = "Password Recovery";
+                    Msg.Body = "Hi " + uname + " you're password is " + pass;
+
                     if (!string.IsNullOrEmpty(AppSettings.SmtpUser))
                     {
                         smtp.Credentials = new System.Net.NetworkCredential(AppSettings.SmtpUser, AppSettings.SmtpPassword);
@@ -136,8 +136,6 @@ namespace Website
                     smtp.EnableSsl = AppSettings.SmtpPort != 25;
                     smtp.Send(Msg);
                 }
-                Msg.Dispose();
-                Msg = null;
                 lblError.Visible = false;
                 lblSuccess.Visible = true;
                 Response.Redirect("~/login.aspx");

@@ -27,6 +27,9 @@ namespace Website.Data
                 { ".webp", "image/webp" }
             };
 
+        /// <summary>Blob 路徑片段允許的字元：英數字、底線與連字號；其餘字元改為底線。</summary>
+        private const string SafeSegmentChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+
         /// <summary>延遲建立、整個應用程式共用的容器用戶端（BlobContainerClient 為執行緒安全）。</summary>
         private static readonly Lazy<BlobContainerClient> Container = new Lazy<BlobContainerClient>(CreateContainerClient);
 
@@ -108,8 +111,7 @@ namespace Website.Data
             StringBuilder builder = new StringBuilder();
             foreach (char c in value ?? string.Empty)
             {
-                bool safe = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
-                builder.Append(safe ? c : '_');
+                builder.Append(SafeSegmentChars.IndexOf(c) >= 0 ? c : '_');
             }
 
             return builder.Length == 0 ? "unknown" : builder.ToString();
