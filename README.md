@@ -52,7 +52,7 @@
 | 資料庫腳本 | `DbSql.sql` 已過時且有語法錯誤，請改用 [QuickStart.md](QuickStart.md#3-建立資料庫) 中的腳本 |
 | 自動化測試 | 無 |
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
-| Azure 部署 | 一次性設定已完成（Resource Group、OIDC 部署身分、受控識別、GitHub Environment `azure`）；Bicep 基礎設施與自動部署**尚未實作**（Plan M4～M6） |
+| Azure 部署 | 一次性設定與 Bicep 基礎設施（`infra/`、`infra.yml`）已完成；應用程式自動部署**尚未實作**（Plan M5～M6） |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
 | 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
 
@@ -143,7 +143,11 @@ Shopping-Website/
 │   └── copilot-instructions.md     # 給 AI 程式助理的專案說明（英文）
 ├── docs/adr/                       # 架構決策紀錄（ADR 0001～0004）
 ├── infra/
-│   └── bootstrap.sh                # Azure 與 GitHub 一次性設定腳本（可重複執行）
+│   ├── bootstrap.sh                # Azure 與 GitHub 一次性設定腳本（可重複執行）
+│   ├── main.bicep                  # Azure 基礎設施進入點（不含角色指派）
+│   ├── main.bicepparam             # 部署參數（不含密碼；密碼由 infra.yml 從 GitHub Secret 傳入）
+│   ├── modules/                    # monitoring、keyvault、sql、sql-users、storage、frontdoor、email、appservice
+│   └── scripts/sql-users.ps1       # deploymentScript：建立資料庫使用者並把密碼存入 Key Vault
 ├── .editorconfig                   # 編碼與行尾規則（VS 檔案 UTF-8 BOM + CRLF，其餘 UTF-8 + LF）
 ├── .gitattributes                  # Git 行尾處理（CRLF 檔案原樣保存）
 ├── .gitignore                      # 排除 bin/、obj/、packages/、*.user、本機敏感設定
@@ -440,7 +444,7 @@ sequenceDiagram
 | M1 CI 掃描與 Repo 治理 | ✅ 已完成 |
 | M2 可建置與建置 CI | ✅ 已完成 |
 | M3 設定外部化與程式調整 | ✅ 已完成（Configuration Builders、`AppSettings`、SMTP 與 Blob 圖片上傳） |
-| M4 Azure 基礎設施（Bicep） | 🟡 一次性設定已完成；Bicep 與 `infra.yml` 未開始 |
+| M4 Azure 基礎設施（Bicep） | 🟡 一次性設定、Bicep 與 `infra.yml` 已完成；ACS SMTP 帳號設定待完成 |
 | M5～M8 Migration、自動部署、安全修正、轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
@@ -453,6 +457,7 @@ sequenceDiagram
 | `lint.yml` | Lint | PR、push `main` | markdownlint、editorconfig-checker、sqlfluff、actionlint |
 | `scorecard.yml` | OpenSSF Scorecard | 每週、push `main` | 供應鏈安全評分 |
 | `build.yml` | 建置 | PR、push `main`、手動、`workflow_call` | Windows MSBuild 發行 → `site.zip`；部署套件 SBOM 與簽章 |
+| `infra.yml` | 基礎設施 | PR、push `main`（變更 `infra/**`）、手動 | PR：Bicep lint 與 what-if（結果貼到 PR 留言）；`main`：部署到 `rg-shopping` |
 | `azure-oidc-check.yml` | Azure OIDC 驗證 | PR（變更 bootstrap）、手動 | 確認 GitHub 能以 OIDC 登入 Azure，並檢查一次性設定的資源 |
 
 所有 Action 都固定到 commit SHA，頂層 `permissions: {}`，每個 job 只給最小權限。Dependabot 每週更新 NuGet 與 Actions。

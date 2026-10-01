@@ -1,0 +1,126 @@
+# Azure 基礎設施（Plan.md §9.3）：PR 執行 Bicep 檢查與 what-if 並貼到 PR 留言；
+# 合併到 main（變更 infra/**）或手動觸發時部署到 rg-shopping。
+name: 基礎設施
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - infra/**
+      - .github/workflows/infra.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/**
+      - .github/workflows/infra.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  # 部署不可中途取消；PR 的 what-if 只保留最新一次
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  what-if:
+    name: Bicep what-if
+    # Fork 的 PR 無法取得 OIDC token，也不能使用 Environment 設定，直接略過。
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: azure
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 登入 Azure（OIDC）
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Bicep 建置與 lint
+        run: |
+          set -euo pipefail
+          az bicep install
+          az bicep build --file infra/main.bicep --stdout > /dev/null
+          az bicep lint --file infra/main.bicep
+
+      - name: what-if
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          SQL_ADMIN_LOGIN: ${{ vars.SQL_ADMIN_LOGIN }}
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          SMTP_USER_NAME: ${{ vars.SMTP_USER_NAME }}
+        run: |
+          set -euo pipefail
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --parameters infra/main.bicepparam \
+            --result-format ResourceIdOnly \
+            --no-pretty-print -o json > whatif.json
+          {
+            echo '## Bicep what-if'
+            echo
+            echo '| 變更 | 資源 |'
+            echo '| --- | --- |'
+            jq -r '.changes[] | "| \(.changeType) | `\(.resourceId | split("/providers/")[-1])` |"' whatif.json
+          } > whatif.md
+          cat whatif.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 貼到 PR 留言
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file whatif.md --edit-last --create-if-none
+
+  deploy:
+    name: 部署基礎設施
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: azure
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 登入 Azure（OIDC）
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 部署 Bicep
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          SQL_ADMIN_LOGIN: ${{ vars.SQL_ADMIN_LOGIN }}
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          SMTP_USER_NAME: ${{ vars.SMTP_USER_NAME }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          az bicep install
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "infra-$RUN_ID" \
+            --parameters infra/main.bicepparam \
+            --query properties.outputs -o json > outputs.json
+          {
+            echo '## 部署輸出'
+            echo
+            echo '| 名稱 | 值 |'
+            echo '| --- | --- |'
+            jq -r 'to_entries[] | "| \(.key) | `\(.value.value)` |"' outputs.json
+          } >> "$GITHUB_STEP_SUMMARY"
