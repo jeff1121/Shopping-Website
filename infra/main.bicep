@@ -53,6 +53,7 @@ module keyVault 'modules/keyvault.bicep' = {
     tags: tags
     name: 'kv-shopping-${suffix}'
     sqlAdminPassword: sqlAdminPassword
+    logAnalyticsWorkspaceId: monitoring.outputs.workspaceId
   }
 }
 
@@ -65,6 +66,7 @@ module sql 'modules/sql.bicep' = {
     databaseName: databaseName
     adminLogin: sqlAdminLogin
     adminPassword: sqlAdminPassword
+    logAnalyticsWorkspaceId: monitoring.outputs.workspaceId
   }
 }
 
