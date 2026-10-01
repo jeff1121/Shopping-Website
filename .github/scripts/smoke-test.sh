@@ -52,8 +52,48 @@ check_image() {
   return 1
 }
 
+# 檢查安全性回應標頭（Plan.md §12 M7 PR D）：必要標頭存在、洩漏版本的標頭已移除。
+check_headers() {
+  local path="$1" name missing=0
+  curl -sS -o /dev/null -D "$header_file" --max-time 60 "${app_url}${path}"
+  for name in X-Frame-Options X-Content-Type-Options Content-Security-Policy Strict-Transport-Security Permissions-Policy; do
+    if ! grep -qi "^${name}:" "$header_file"; then
+      echo "::error::冒煙測試失敗：${path} 缺少 ${name} 標頭"
+      missing=1
+    fi
+  done
+  for name in X-Powered-By X-AspNet-Version; do
+    if grep -qi "^${name}:" "$header_file"; then
+      echo "::error::冒煙測試失敗：${path} 仍送出 ${name} 標頭"
+      missing=1
+    fi
+  done
+  # Server 標頭可能由平台前端加回，只提出警告、不觸發回滾
+  if grep -qi '^Server:' "$header_file"; then
+    echo "::warning::${path} 仍送出 Server 標頭"
+  fi
+  [[ "$missing" == 0 ]] && echo "通過：${path} 安全性回應標頭"
+  return "$missing"
+}
+
+# 檢查不存在的頁面回傳 404 友善錯誤頁，且不顯示 ASP.NET 詳細錯誤（customErrors）。
+check_not_found() {
+  local path="$1" status
+  status=$(curl -sS -o "$body_file" -w '%{http_code}' --max-time 60 "${app_url}${path}" || echo 000)
+  if [[ "$status" == 404 ]] && grep -q 'Page Not Found' "$body_file" && ! grep -q 'Server Error' "$body_file"; then
+    echo "通過：${path} 回傳 404 錯誤頁"
+    return 0
+  fi
+  echo "::error::冒煙測試失敗：${path} 應回傳 404 錯誤頁（實際 HTTP ${status}）"
+  head -c 2000 "$body_file" || true
+  echo
+  return 1
+}
+
 check_page /index.aspx 'Demo Smart Watch'
 check_page /login.aspx 'Login Page'
 check_page /categories.aspx 'Computer Accesories'
 check_image "$image_base_url/products/demo_seller/watch.png"
+check_headers /index.aspx
+check_not_found /smoke-test-not-found.aspx
 echo '冒煙測試全部通過。'

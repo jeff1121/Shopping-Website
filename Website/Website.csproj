@@ -244,6 +244,7 @@
     <Content Include="categories.aspx" />
     <Content Include="checkout.aspx" />
     <Content Include="contact.aspx" />
+    <Content Include="error.aspx" />
     <Content Include="css\style.css" />
     <Content Include="forgotpass.aspx" />
     <Content Include="resetPassword.aspx" />
@@ -342,6 +343,13 @@
     </Compile>
     <Compile Include="contact.aspx.designer.cs">
       <DependentUpon>contact.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="error.aspx.cs">
+      <DependentUpon>error.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="error.aspx.designer.cs">
+      <DependentUpon>error.aspx</DependentUpon>
     </Compile>
     <Compile Include="Config\AppSettings.cs" />
     <Compile Include="Data\DatabaseMigrator.cs" />

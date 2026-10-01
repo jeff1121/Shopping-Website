@@ -76,7 +76,7 @@ namespace Website
         }
 
         /// <summary>
-        /// 未處理例外事件：把例外類型、請求路徑與堆疊寫入 Trace（App Service 應用程式記錄），方便在 Log Analytics 查詢；
+        /// 未處理例外事件：把例外類型、請求路徑與堆疊寫入 Trace（App Service 應用程式記錄），方便在 Log Analytics 查詢（404 不記錄）；
         /// 不記錄查詢字串與表單內容，避免權杖或個資寫入記錄。回應內容仍由 customErrors 設定決定。
         /// </summary>
         /// <param name="sender">事件來源。</param>
@@ -85,6 +85,13 @@ namespace Website
         {
             Exception ex = Server.GetLastError();
             if (ex == null)
+            {
+                return;
+            }
+
+            // 找不到頁面（404）屬正常情況（例如弱點掃描爬網），不寫入錯誤記錄
+            HttpException httpEx = ex as HttpException;
+            if (httpEx != null && httpEx.GetHttpCode() == 404)
             {
                 return;
             }
