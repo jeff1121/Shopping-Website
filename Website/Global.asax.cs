@@ -90,7 +90,9 @@ namespace Website
             }
 
             Exception root = ex.GetBaseException();
-            Trace.TraceError("未處理的例外：" + Context.Request.Path + " " + root.GetType().FullName + "\n" + root.StackTrace);
+            // 路徑來自使用者輸入，移除換行字元以防偽造記錄行
+            string path = Context.Request.Path.Replace("\r", string.Empty).Replace("\n", string.Empty);
+            Trace.TraceError("未處理的例外：" + path + " " + root.GetType().FullName + "\n" + root.StackTrace);
         }
     }
 }
