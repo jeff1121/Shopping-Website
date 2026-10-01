@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 部署後冒煙測試（Plan.md §11.2 6-1）。
 # 用法：smoke-test.sh <網站網址> <圖片根網址>
+#   環境變數：SMOKE_MAX_ATTEMPTS、SMOKE_DELAY_SECONDS（重試）、SMOKE_SECURITY_CHECKS（false 時略過標頭與 404 檢查）
 #   例：smoke-test.sh https://app-shopping-xxxxxx.azurewebsites.net https://afd-xxxx.azurefd.net
 # 網站剛部署時會執行資料庫 migration，因此每個檢查都會重試（次數與間隔可用環境變數調整）。
 set -euo pipefail
@@ -11,6 +12,8 @@ app_url="${app_url%/}"
 image_base_url="${image_base_url%/}"
 max_attempts="${SMOKE_MAX_ATTEMPTS:-30}"
 delay_seconds="${SMOKE_DELAY_SECONDS:-10}"
+# 設為 false 時略過安全性標頭與 404 錯誤頁檢查（回滾到舊版本時使用）
+security_checks="${SMOKE_SECURITY_CHECKS:-true}"
 
 body_file=$(mktemp)
 header_file=$(mktemp)
@@ -53,47 +56,60 @@ check_image() {
 }
 
 # 檢查安全性回應標頭（Plan.md §12 M7 PR D）：必要標頭存在、洩漏版本的標頭已移除。
+# 部署完成後舊版本可能仍會短暫回應，因此與其他檢查一樣重試。
 check_headers() {
-  local path="$1" name missing=0
-  curl -sS -o /dev/null -D "$header_file" --max-time 60 "${app_url}${path}"
-  for name in X-Frame-Options X-Content-Type-Options Content-Security-Policy Strict-Transport-Security Permissions-Policy; do
-    if ! grep -qi "^${name}:" "$header_file"; then
-      echo "::error::冒煙測試失敗：${path} 缺少 ${name} 標頭"
-      missing=1
+  local path="$1" attempt name problems
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    problems=()
+    curl -sS -o /dev/null -D "$header_file" --max-time 60 "${app_url}${path}" || true
+    for name in X-Frame-Options X-Content-Type-Options Content-Security-Policy Strict-Transport-Security Permissions-Policy; do
+      grep -qi "^${name}:" "$header_file" || problems+=("缺少 ${name}")
+    done
+    for name in X-Powered-By X-AspNet-Version; do
+      ! grep -qi "^${name}:" "$header_file" || problems+=("仍送出 ${name}")
+    done
+    if [[ "${#problems[@]}" == 0 ]]; then
+      # Server 標頭可能由平台前端加回，只提出警告、不觸發回滾
+      if grep -qi '^Server:' "$header_file"; then
+        echo "::warning::${path} 仍送出 Server 標頭"
+      fi
+      echo "通過：${path} 安全性回應標頭"
+      return 0
     fi
+    echo "等待：${path} 安全性回應標頭（第 ${attempt}/${max_attempts} 次：${problems[*]}）"
+    sleep "$delay_seconds"
   done
-  for name in X-Powered-By X-AspNet-Version; do
-    if grep -qi "^${name}:" "$header_file"; then
-      echo "::error::冒煙測試失敗：${path} 仍送出 ${name} 標頭"
-      missing=1
-    fi
-  done
-  # Server 標頭可能由平台前端加回，只提出警告、不觸發回滾
-  if grep -qi '^Server:' "$header_file"; then
-    echo "::warning::${path} 仍送出 Server 標頭"
-  fi
-  [[ "$missing" == 0 ]] && echo "通過：${path} 安全性回應標頭"
-  return "$missing"
+  echo "::error::冒煙測試失敗：${path} 安全性回應標頭不正確（${problems[*]}）"
+  return 1
 }
 
 # 檢查不存在的頁面回傳 404 友善錯誤頁，且不顯示 ASP.NET 詳細錯誤（customErrors）。
 check_not_found() {
-  local path="$1" status
-  status=$(curl -sS -o "$body_file" -w '%{http_code}' --max-time 60 "${app_url}${path}" || echo 000)
-  if [[ "$status" == 404 ]] && grep -q 'Page Not Found' "$body_file" && ! grep -q 'Server Error' "$body_file"; then
-    echo "通過：${path} 回傳 404 錯誤頁"
-    return 0
-  fi
+  local path="$1" attempt status
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    status=$(curl -sS -o "$body_file" -w '%{http_code}' --max-time 60 "${app_url}${path}" || echo 000)
+    if [[ "$status" == 404 ]] && grep -q 'Page Not Found' "$body_file" && ! grep -q 'Server Error' "$body_file"; then
+      echo "通過：${path} 回傳 404 錯誤頁"
+      return 0
+    fi
+    echo "等待：${path}（第 ${attempt}/${max_attempts} 次，HTTP ${status}）"
+    sleep "$delay_seconds"
+  done
   echo "::error::冒煙測試失敗：${path} 應回傳 404 錯誤頁（實際 HTTP ${status}）"
   head -c 2000 "$body_file" || true
   echo
   return 1
 }
 
+# 先確認新版本已生效（新標頭出現），再檢查頁面內容，避免頁面檢查打到尚未重新啟動的舊版本
+if [[ "$security_checks" == true ]]; then
+  check_headers /index.aspx
+fi
 check_page /index.aspx 'Demo Smart Watch'
 check_page /login.aspx 'Login Page'
 check_page /categories.aspx 'Computer Accesories'
 check_image "$image_base_url/products/demo_seller/watch.png"
-check_headers /index.aspx
-check_not_found /smoke-test-not-found.aspx
+if [[ "$security_checks" == true ]]; then
+  check_not_found /smoke-test-not-found.aspx
+fi
 echo '冒煙測試全部通過。'
