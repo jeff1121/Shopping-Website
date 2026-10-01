@@ -54,7 +54,7 @@ namespace Website
 
         /// <summary>
         /// 註冊送出按鈕：以 <see cref="UserAccounts.GenerateUid"/> 抽出 1～4998 間未使用的一般會員 uid，
-        /// 再以 <see cref="UserAccounts.Create"/> 建立帳號，最後導向登入頁。密碼以明碼儲存。
+        /// 再以 <see cref="UserAccounts.Create"/> 建立帳號，最後導向登入頁。密碼以 PBKDF2 雜湊儲存。
         /// </summary>
         /// <param name="sender">觸發送出事件的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>

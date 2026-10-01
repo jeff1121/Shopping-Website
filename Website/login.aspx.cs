@@ -36,19 +36,17 @@ namespace Website
         }
 
         /// <summary>
-        /// 登入按鈕：以 username 或 email 查詢 violet_user_login 取得姓名與密碼（明碼比對）。
-        /// 查無帳號或密碼不符時顯示錯誤訊息；成功時設定 Session["uname"]（姓名，為各表關聯鍵）、
-        /// Session["user"]（登入時輸入的帳號文字），並以 <see cref="CartSession.LoadFromDatabase"/> 還原購物車後導向首頁。
+        /// 登入按鈕：以 <see cref="UserAccounts.Authenticate"/> 驗證帳號密碼（PBKDF2 雜湊；舊明碼成功登入時自動升級）。
+        /// 成功時設定 Session["uname"]、Session["user"]，以 <see cref="CartSession.LoadFromDatabase"/> 還原購物車後導向首頁；
+        /// 失敗時顯示錯誤訊息。
         /// </summary>
         /// <param name="sender">觸發送出事件的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
-            DataTable account = Db.Query("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", txtName.Text));
-
-            if (account.Rows.Count == 1 && account.Rows[0]["password"].ToString() == txtPassword.Text)
+            string name = UserAccounts.Authenticate(txtName.Text, txtPassword.Text);
+            if (name != null)
             {
-                string name = account.Rows[0]["uname"].ToString();
                 Session["uname"] = name;
                 Session["user"] = txtName.Text;
                 CartSession.LoadFromDatabase(Session, name);

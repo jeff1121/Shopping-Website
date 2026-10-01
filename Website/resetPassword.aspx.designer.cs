@@ -12,9 +12,9 @@ namespace Website
 
 
     /// <summary>
-    /// 忘記密碼頁（forgotpass.aspx）的設計工具產生部分：宣告頁面上所有 runat="server" 控制項欄位。
+    /// 重設密碼頁（resetPassword.aspx）的設計工具產生部分：宣告頁面上所有 runat="server" 控制項欄位。
     /// </summary>
-    public partial class forgotpass
+    public partial class resetPassword
     {
 
         /// <summary>
@@ -162,102 +162,129 @@ namespace Website
         protected global::System.Web.UI.WebControls.Label lblLoginMsg;
 
         /// <summary>
-        /// 面板「usernamePanel」：步驟一面板：輸入使用者名稱或 Email。
+        /// 面板「resetPanel」：輸入新密碼的表單，權杖有效時顯示。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Panel usernamePanel;
+        protected global::System.Web.UI.WebControls.Panel resetPanel;
 
         /// <summary>
-        /// 文字方塊「txtUsername」：使用者名稱輸入框。
+        /// 文字方塊「txtPassword」：新密碼輸入框（密碼模式）。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtUsername;
+        protected global::System.Web.UI.WebControls.TextBox txtPassword;
 
         /// <summary>
-        /// 必填驗證器「validateUsernameEmpty」：使用者名稱（txtUsername）必填驗證，錯誤訊息：「Username cannot be left blank」。
+        /// 必填驗證「validatePasswordEmpty」：新密碼不可空白。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.RequiredFieldValidator validateUsernameEmpty;
+        protected global::System.Web.UI.WebControls.RequiredFieldValidator validatePasswordEmpty;
 
         /// <summary>
-        /// 標籤「lblErrorMsg」：查無帳號時顯示的錯誤訊息。
+        /// 格式驗證「validatePasswordExp」：新密碼需含大小寫、數字與特殊字元且至少 8 碼。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblErrorMsg;
+        protected global::System.Web.UI.WebControls.RegularExpressionValidator validatePasswordExp;
 
         /// <summary>
-        /// 按鈕「submit」：步驟一送出按鈕：查詢帳號並載入安全問題。
+        /// 文字方塊「txtConfirmPassword」：再次輸入新密碼。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button submit;
+        protected global::System.Web.UI.WebControls.TextBox txtConfirmPassword;
 
         /// <summary>
-        /// 面板「passwordPanel」：步驟二面板：回答安全問題，預設隱藏。
+        /// 必填驗證「validateConfirmEmpty」：確認密碼不可空白。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Panel passwordPanel;
+        protected global::System.Web.UI.WebControls.RequiredFieldValidator validateConfirmEmpty;
 
         /// <summary>
-        /// 標籤「lblSec」：顯示該帳號的安全問題（secq）。
+        /// 比較驗證「validateConfirm」：兩次輸入的新密碼必須相同。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblSec;
+        protected global::System.Web.UI.WebControls.CompareValidator validateConfirm;
 
         /// <summary>
-        /// 文字方塊「txtSecA」：安全問題答案輸入框。
+        /// 按鈕「btnReset」：送出新密碼。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtSecA;
+        protected global::System.Web.UI.WebControls.Button btnReset;
 
         /// <summary>
-        /// 標籤「lblError」：安全問題答錯時顯示的錯誤訊息。
+        /// 面板「invalidPanel」：權杖無效、已使用或已過期時顯示，預設隱藏。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblError;
+        protected global::System.Web.UI.WebControls.Panel invalidPanel;
 
         /// <summary>
-        /// 按鈕「submitAns」：步驟二送出按鈕：比對答案，正確則以 Email 寄出密碼。
+        /// 標籤「lblInvalid」：權杖無效的提示訊息。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button submitAns;
+        protected global::System.Web.UI.WebControls.Label lblInvalid;
 
         /// <summary>
-        /// 標籤「lblSuccess」：重設連結已寄出的成功訊息，預設隱藏。
+        /// 超連結「lnkForgot」：回到 forgotpass.aspx 重新申請重設連結。
         /// </summary>
         /// <remarks>
         /// 自動產生的欄位。
         /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblSuccess;
+        protected global::System.Web.UI.WebControls.HyperLink lnkForgot;
+
+        /// <summary>
+        /// 面板「donePanel」：密碼重設完成時顯示，預設隱藏。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生的欄位。
+        /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel donePanel;
+
+        /// <summary>
+        /// 標籤「lblDone」：重設完成訊息。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生的欄位。
+        /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblDone;
+
+        /// <summary>
+        /// 超連結「lnkLogin」：前往 login.aspx 登入。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生的欄位。
+        /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HyperLink lnkLogin;
     }
 }

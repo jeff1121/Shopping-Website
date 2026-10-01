@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 
 namespace Website.Data
 {
@@ -13,7 +14,7 @@ namespace Website.Data
         public string Email { get; set; }
         /// <summary>使用者名稱。</summary>
         public string Username { get; set; }
-        /// <summary>密碼。</summary>
+        /// <summary>密碼（明碼；<see cref="UserAccounts.Create"/> 會雜湊後再寫入）。</summary>
         public string Password { get; set; }
         /// <summary>電話（資料表為 DECIMAL(10,0)）。</summary>
         public string Phone { get; set; }
@@ -81,7 +82,7 @@ namespace Website.Data
         }
 
         /// <summary>
-        /// 以參數化、指定欄位的 INSERT 建立帳號。
+        /// 以參數化、指定欄位的 INSERT 建立帳號；密碼以 <see cref="PasswordHasher"/> 雜湊後儲存。
         /// </summary>
         /// <param name="user">註冊表單的欄位值。</param>
         /// <param name="uid">已由 <see cref="GenerateUid"/> 取得的 uid。</param>
@@ -90,10 +91,41 @@ namespace Website.Data
             Db.Execute("INSERT INTO violet_user_login (uname, email, username, password, phone, dob, country, state, city, gender, address, secq, seca, uid) "
                 + "VALUES (@uname, @email, @username, @password, @phone, @dob, @country, @state, @city, @gender, @address, @secq, @seca, @uid)",
                 Db.Param("@uname", user.Uname), Db.Param("@email", user.Email), Db.Param("@username", user.Username),
-                Db.Param("@password", user.Password), Db.Param("@phone", user.Phone), Db.Param("@dob", user.Dob),
+                Db.Param("@password", PasswordHasher.Hash(user.Password)), Db.Param("@phone", user.Phone), Db.Param("@dob", user.Dob),
                 Db.Param("@country", user.Country), Db.Param("@state", user.State), Db.Param("@city", user.City),
                 Db.Param("@gender", user.Gender), Db.Param("@address", user.Address), Db.Param("@secq", user.SecurityQuestion),
                 Db.Param("@seca", user.SecurityAnswer), Db.Param("@uid", uid));
+        }
+
+        /// <summary>
+        /// 驗證登入：以 username 或 email 查詢帳號（必須剛好一筆），以 <see cref="PasswordHasher.Verify"/> 比對密碼。
+        /// 舊版明碼密碼比對成功時，立即改存為雜湊。
+        /// </summary>
+        /// <param name="login">使用者輸入的使用者名稱或 Email。</param>
+        /// <param name="password">使用者輸入的密碼。</param>
+        /// <returns>成功時回傳帳號姓名（uname）；失敗時回傳 null。</returns>
+        public static string Authenticate(string login, string password)
+        {
+            DataTable account = Db.Query("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", login));
+            if (account.Rows.Count != 1)
+            {
+                return null;
+            }
+
+            string uname = account.Rows[0]["uname"].ToString();
+            bool needsUpgrade;
+            if (!PasswordHasher.Verify(password, account.Rows[0]["password"].ToString(), out needsUpgrade))
+            {
+                return null;
+            }
+
+            if (needsUpgrade)
+            {
+                Db.Execute("UPDATE violet_user_login SET password=@password WHERE uname=@uname",
+                    Db.Param("@password", PasswordHasher.Hash(password)), Db.Param("@uname", uname));
+            }
+
+            return uname;
         }
     }
 }

@@ -246,6 +246,7 @@
     <Content Include="contact.aspx" />
     <Content Include="css\style.css" />
     <Content Include="forgotpass.aspx" />
+    <Content Include="resetPassword.aspx" />
     <Content Include="Global.asax" />
     <Content Include="img\add.jpg" />
     <Content Include="img\addtocart.png" />
@@ -347,9 +348,18 @@
     <Compile Include="Data\CartSession.cs" />
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\ImageStore.cs" />
+    <Compile Include="Data\PasswordHasher.cs" />
+    <Compile Include="Data\PasswordResets.cs" />
     <Compile Include="Data\UserAccounts.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
+    </Compile>
+    <Compile Include="resetPassword.aspx.cs">
+      <DependentUpon>resetPassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="resetPassword.aspx.designer.cs">
+      <DependentUpon>resetPassword.aspx</DependentUpon>
     </Compile>
     <Compile Include="forgotpass.aspx.cs">
       <DependentUpon>forgotpass.aspx</DependentUpon>
@@ -415,6 +425,7 @@
     <EmbeddedResource Include="Migrations\0002_seed_categories.sql" />
     <EmbeddedResource Include="Migrations\0003_seed_demo_users.sql" />
     <EmbeddedResource Include="Migrations\0004_seed_demo_products.sql" />
+    <EmbeddedResource Include="Migrations\0005_password_hash_and_reset_tokens.sql" />
   </ItemGroup>
   <ItemGroup>
     <!-- 非編譯檔：NuGet packages.config 與 Web.config 的 Debug/Release 轉換檔。 -->

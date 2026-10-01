@@ -2,7 +2,7 @@
 
 > 專案：Shopping Website（ASP.NET Web Forms，.NET Framework 4.7.2，SQL Server）
 > Repo：<https://github.com/jeff1121/Shopping-Website>（Public，預設分支 `main`；GitHub 擁有者名稱為小寫 `jeff1121`）
-> 文件狀態：**v1.8（決策已確認；M1～M6 已完成，M7 進行中；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
+> 文件狀態：**v1.9（決策已確認；M1～M6 已完成，M7 進行中；Azure 一次性設定已完成；進度見 [5. 里程碑總覽](#5-里程碑總覽)）**
 > 最後更新：2026-10-01
 > 用語定義見 [CONTEXT.md](CONTEXT.md)；關鍵架構決策見 [docs/adr/](docs/adr/)。
 
@@ -88,7 +88,7 @@
 | 框架 | .NET Framework 4.7.2、舊式 Web Application Project（`Website.csproj`） | CI 必須用 `windows-latest` 與 MSBuild；App Service 必須是 **Windows** |
 | 可建置性 | **可在 Windows + MSBuild 編譯與發行**；本機執行仍需填入連線字串 | M2 已完成，PR #9 驗證 `site.zip` 產出 |
 | 連線字串 | 12 個後置程式碼以 `Website.Data.Db` 讀取；`Web.config` 以 Configuration Builders 的 `${SQL_*}` 權杖由環境變數代入，版控中沒有任何連線資訊 | M3 已完成；本機與 Azure 都只需設定環境變數 |
-| 寄信 | `forgotpass.aspx.cs` 改讀 `SMTP_*` 設定（M3 已完成），但仍以明碼寄出原密碼 | M7 改成重設密碼連結 |
+| 寄信 | `forgotpass.aspx.cs` 改讀 `SMTP_*` 設定（M3 已完成），M7 PR B 改為寄出一次性重設連結 | 已完成 |
 | 圖片上傳 | `addProducts.aspx.cs` 經 `Website.Data.ImageStore` 寫入 Blob，`pimage` 存完整網址（M3 已完成） | Azure 上需 M4 建立 Storage 與 Front Door |
 | 預設圖 | `index.aspx` 的 `onerror` 退回 `img/products/human.png` | 此檔必須保留在部署套件中 |
 | PDF | `profile.aspx.cs` 以 iTextSharp `HTMLWorker` 將訂單表格轉 PDF，寫入 `Response.OutputStream`；iTextSharp 5.5.13.6 與 BouncyCastle.Cryptography 2.6.2 由 NuGet 還原 | M2 已完成 |
@@ -158,7 +158,7 @@ flowchart LR
 | **M4** Azure 基礎設施 | Bicep 全部資源、`deploymentScript` 建 SQL 使用者、`infra.yml` | 您完成 [9.4](#94-一次性手動步驟) | 1.5 天 | ✅ 已完成（PR #11、#15、#16；ACS SMTP 以 `infra/smtp-setup.sh` 設定） |
 | **M5** 資料庫 Migration | `Global.asax` + DbUp、`0001` 起的腳本（含示範資料）、示範資料清除腳本 | M3 | 1 天 | ✅ 已完成（DbUp 啟動時套用 `0001`～`0004`；以 SQL Server 容器驗證首次、重複與手動建表情境） |
 | **M6** CD 與部署後驗證 | `deploy.yml`、範例圖片上傳、冒煙測試、ZAP Baseline、可用性監控 | M4、M5 | 1 天 | ✅ 已完成（另修正 M5 migrator 連線字串遺失密碼；App 記錄送 Log Analytics） |
-| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | 🔄 進行中（PR A 已完成；PR B～D 待完成，見 §12） |
+| **M7** 應用程式安全修正 | 參數化查詢、密碼雜湊、重設密碼連結、權限檢查、移除 `static` 共用狀態、上傳驗證 | M6 | 3～5 天 | 🔄 進行中（PR A、B 已完成；PR C、D 待完成，見 §12） |
 | **M8** 轉入正式營運 | 清除示範資料、更換敏感設定、收緊掃描阻擋、開啟部署核准 | M7 | 0.5 天 | ⬜ 未開始 |
 
 ---
@@ -478,11 +478,13 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | PR | 項目 | 關閉 Issue | 狀態 |
 | --- | --- | --- | --- |
 | A：資料存取 | 7-1、7-2、7-6（`cart`）、7-8 的 `Response.Write` | #4、#5，#7 的大部分 | ✅ |
-| B：密碼與重設連結 | 7-3、7-4、7-6（`forgotpass`） | — | ⬜ |
+| B：密碼與重設連結 | 7-3、7-4、7-6（`forgotpass`） | — | ✅ |
 | C：權限與上傳 | 7-5、7-7 | — | ⬜ |
 | D：錯誤頁與回應標頭 | 7-8 其餘部分，加上 X-Frame-Options、CSP、HSTS 等回應標頭 | #6、#7 | ⬜ |
 
 PR A 實作說明：所有 SQL 改經 `Website.Data.Db`（`Query`／`Execute`／`Scalar`，參數化並自動釋放連線），購物車 Session 集中到 `CartSession`，帳號建立與 uid 指派集中到 `UserAccounts`（賣家註冊改為指派 5001～9999）；首頁加入購物車改為原子性預扣庫存（`stock >= 數量` 才扣），購物車修改數量的舊數量改取自購物車列（不再使用 `Session["oldQuantity"]`）；結帳後清空購物車 Session；新上架商品庫存為 0。
+
+PR B 實作說明：`PasswordHasher`（PBKDF2-SHA256，100,000 次，16 位元組 salt，格式 `PBKDF2-SHA256$次數$salt$雜湊`）；migration `0005` 將 `password` 擴充為 `VARCHAR(200)` 並新增 `violet_password_reset`（只存權杖 SHA-256、30 分鐘到期、使用一次即失效）；`UserAccounts.Authenticate` 供兩個登入頁共用，舊明碼登入成功時改存雜湊（示範帳號因此不需另寫 migration）；`forgotpass` 移除 `static` 欄位，帳號姓名改存 ViewState，同一 Session 答錯 5 次即鎖定；新增 `resetPassword.aspx`。安全問題答案仍為明碼，不在本計畫範圍。
 
 | # | 項目 | 範圍 |
 | --- | --- | --- |
@@ -689,3 +691,4 @@ PR A 實作說明：所有 SQL 改經 `Website.Data.Db`（`Query`／`Execute`／
 | v1.6 | 2026-10-01 | M5 完成：`DatabaseMigrator`（DbUp + `sp_getapplock`）於 `Application_Start` 套用 `Website/Migrations/0001`～`0004`（建表冪等、示範分類／帳號／商品）；新增 `db/cleanup/remove_demo_data.sql` 與 `img/products/demo_seller/`；QuickStart §3 改為只需建立空資料庫 |
 | v1.7 | 2026-10-01 | M6 完成：`deploy.yml`（呼叫 `build.yml`、範例圖片 `--overwrite true` 上傳 Blob、`az webapp deploy`、冒煙測試 `.github/scripts/smoke-test.sh`、失敗自動回滾、ZAP Baseline）、可用性測試與警示（`ALERT_EMAIL` 選用）、App 記錄經 `AzureMonitorTraceListener` 與診斷設定送 Log Analytics；修正 `DatabaseMigrator` 於 `Open()` 後讀取 `ConnectionString` 遺失密碼的問題（實際部署驗證發現） |
 | v1.8 | 2026-10-01 | M7 分為 4 個 PR（§12）；PR A 完成：SQL 全面參數化（`Db.Query`／`Execute`／`Scalar`）、INSERT 指定欄位、`CartSession`／`UserAccounts` 共用類別、賣家註冊指派 uid、原子性預扣庫存、移除 `cart` 的 `static` 欄位與 `profile` 的 `Response.Write`、修正多項購物車與結帳缺陷；§20 勾選 M4～M6 已驗證項目 |
+| v1.9 | 2026-10-01 | M7 PR B 完成：PBKDF2 密碼雜湊（登入時自動升級舊明碼）、migration `0005`、忘記密碼改寄一次性重設連結（新增 `resetPassword.aspx`）、移除 `forgotpass` 的 `static` 欄位 |
