@@ -52,18 +52,16 @@ namespace Website
         }
 
         /// <summary>
-        /// 登入按鈕：以 username 或 email 查詢帳號並明碼比對密碼；成功時與 login.aspx 相同，
-        /// 設定 Session["uname"]、Session["user"] 並還原購物車後導向首頁；失敗則顯示錯誤訊息。
+        /// 登入按鈕：與 login.aspx 相同，以 <see cref="UserAccounts.Authenticate"/> 驗證帳號密碼；
+        /// 成功時設定 Session["uname"]、Session["user"] 並還原購物車後導向首頁；失敗則顯示錯誤訊息。
         /// </summary>
         /// <param name="sender">Submit 按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
-            DataTable account = Db.Query("SELECT uname, password FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", txtName.Text));
-
-            if (account.Rows.Count == 1 && account.Rows[0]["password"].ToString() == txtPassword.Text)
+            string name = UserAccounts.Authenticate(txtName.Text, txtPassword.Text);
+            if (name != null)
             {
-                string name = account.Rows[0]["uname"].ToString();
                 Session["uname"] = name;
                 Session["user"] = txtName.Text;
                 CartSession.LoadFromDatabase(Session, name);

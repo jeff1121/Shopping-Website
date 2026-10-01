@@ -127,11 +127,9 @@ namespace Website
             {
                 mypass[i] = pass[(int)( 61 * r.NextDouble() )];
             }
-            String orderid;
-            orderid = "#" + DateTime.Now.Hour.ToString() + DateTime.Now.Minute.ToString() + DateTime.Now.Second.ToString() + DateTime.Now.Day.ToString() + DateTime.Now.Month.ToString() + DateTime.Now.Year.ToString() + new string(mypass);
-
-            orderID.Text = orderid;
-
+            // 只取一次目前時間，避免各欄位跨秒時不一致；數字未補零，格式與原本相同
+            DateTime now = DateTime.Now;
+            orderID.Text = "#" + now.Hour + now.Minute + now.Second + now.Day + now.Month + now.Year + new string(mypass);
         }
     }
 }

@@ -1,11 +1,13 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="forgotpass.aspx.cs" Inherits="Website.forgotpass" %>
-<%-- 忘記密碼：usernamePanel 輸入帳號 → passwordPanel 回答安全問題 → 以 Email 寄出一次性重設連結（resetPassword.aspx）。 --%>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="resetPassword.aspx.cs" Inherits="Website.resetPassword" %>
+<%-- 重設密碼：以忘記密碼信中的一次性權杖（?token=）驗證後設定新密碼；權杖無效或過期時顯示提示。 --%>
 
 <!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
-    <title>Forgot Password</title>
+    <title>Reset Password</title>
+    <%-- 避免權杖經 Referer 標頭外流 --%>
+    <meta name="referrer" content="no-referrer" />
 
     <!--Css Link-->
         <link rel="stylesheet" type="text/css" href="css/style.css" />
@@ -83,38 +85,41 @@
             <!--Header-->
 
             <!--Body-->
-                <%-- 主內容：usernamePanel 先查帳號並顯示安全問題，passwordPanel 再比對答案並寄出重設連結。 --%>
+                <%-- 主內容：resetPanel 輸入新密碼；invalidPanel 顯示權杖無效；donePanel 顯示重設完成。 --%>
                 <div class="body">
-                    <asp:Label ID="lblLoginMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 640px; top: 10px; position: absolute" Text="Password Recovery"></asp:Label>
+                    <asp:Label ID="lblLoginMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 660px; top: 10px; position: absolute" Text="Reset Password"></asp:Label>
                     <br />
                     <div style="text-align: center;">
-                        <%-- 帳號查詢面板：輸入 username/email 後查 violet_user_login 並顯示安全問題。 --%>
-                        <asp:Panel ID="usernamePanel" runat="server" BorderStyle="Solid" Height="280px" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
-                            <br /><br /><br /><br />
-                            <asp:TextBox ID="txtUsername" runat="server" placeholder="Enter Username / Email-ID..." style="width: 300px; height: 30px"></asp:TextBox>
+                        <%-- 新密碼表單：規則與註冊頁相同（大小寫、數字、特殊字元，至少 8 碼）。 --%>
+                        <asp:Panel ID="resetPanel" runat="server" BorderStyle="Solid" Height="320px" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
+                            <br /><br /><br />
+                            <asp:TextBox ID="txtPassword" runat="server" style="width: 300px; height: 30px" placeholder="Enter New Password...." TextMode="Password"></asp:TextBox>
                                 <br />
-                                <asp:RequiredFieldValidator ID="validateUsernameEmpty" runat="server" ErrorMessage="Username cannot be left blank" ControlToValidate="txtUsername" ForeColor="Red"></asp:RequiredFieldValidator>
-                            <br />
-                            <asp:Label ID="lblErrorMsg" runat="server" Text="Incorrect Username / Email-ID" Font-Size="Large" ForeColor="Red" Visible="false"></asp:Label>
+                                <asp:RequiredFieldValidator ID="validatePasswordEmpty" runat="server" ErrorMessage="Password field cannot be left blank" ControlToValidate="txtPassword" ForeColor="Red" SetFocusOnError="True" Display="Dynamic"></asp:RequiredFieldValidator>
+                                <asp:RegularExpressionValidator ID="validatePasswordExp" runat="server" ErrorMessage="Password Should contain 1 Upper and 1 Lower case, 1 Number and <br> 1 Special Character and should have 8 minimum characters" ControlToValidate="txtPassword" ForeColor="Red" SetFocusOnError="True" ValidationExpression="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$" Display="Dynamic"></asp:RegularExpressionValidator>
                             <br /><br />
-                            <asp:Button ID="submit" runat="server" Text="Submit" OnClick="submit_Click" Font-Size="Large"/>
+                            <asp:TextBox ID="txtConfirmPassword" runat="server" style="width: 300px; height: 30px" placeholder="Re-Enter New Password...." TextMode="Password"></asp:TextBox>
+                                <br />
+                                <asp:RequiredFieldValidator ID="validateConfirmEmpty" runat="server" ErrorMessage="Confirm Password field cannot be left blank" ControlToValidate="txtConfirmPassword" ForeColor="Red" SetFocusOnError="True" Display="Dynamic"></asp:RequiredFieldValidator>
+                                <asp:CompareValidator ID="validateConfirm" runat="server" ErrorMessage="Password Mismatch" ForeColor="Red" SetFocusOnError="True" Display="Dynamic" ControlToCompare="txtPassword" ControlToValidate="txtConfirmPassword"></asp:CompareValidator>
+                            <br /><br />
+                            <asp:Button ID="btnReset" runat="server" Text="Reset Password" OnClick="btnReset_Click" Font-Size="Large"/>
                         </asp:Panel>
-                    
-                        <%-- 安全問題面板：答案正確時以 SMTP 將一次性重設連結寄到註冊信箱。 --%>
-                        <asp:Panel ID="passwordPanel" runat="server" Visible="false" BorderStyle="Solid" Height="280px" HorizontalAlign="Center" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
-                            <br /><br /><br /><br />
-                            <asp:Label ID="lblSec" runat="server" Text="" Font-Size="Large"></asp:Label>
-                            <br /><br />
 
-                            <asp:TextBox ID="txtSecA" runat="server" placeholder="Enter Your Security Answer..." style="width: 300px; height: 30px"></asp:TextBox>
-                            <br />
-                            <asp:Label ID="lblError" runat="server" Text="Incorrect Security Answer" Font-Size="Medium" ForeColor="Red" Visible="false"></asp:Label>
+                        <%-- 權杖無效、已使用或已過期時顯示，提供重新申請的連結。 --%>
+                        <asp:Panel ID="invalidPanel" runat="server" Visible="false" BorderStyle="Solid" Height="200px" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
+                            <br /><br /><br />
+                            <asp:Label ID="lblInvalid" runat="server" Text="This password reset link is invalid or has expired." Font-Size="Large" ForeColor="Red"></asp:Label>
                             <br /><br />
+                            <asp:HyperLink ID="lnkForgot" runat="server" NavigateUrl="~/forgotpass.aspx" Text="Request a new link" Font-Size="Large"></asp:HyperLink>
+                        </asp:Panel>
 
-                            <asp:Button ID="submitAns" runat="server" Text="Submit" OnClick="submitAns_Click" Font-Size="Large"/>
+                        <%-- 重設成功時顯示，提供登入連結。 --%>
+                        <asp:Panel ID="donePanel" runat="server" Visible="false" BorderStyle="Solid" Height="200px" style="top: 50px; left: 500px; position: relative; text-align: center" Width="520px">
+                            <br /><br /><br />
+                            <asp:Label ID="lblDone" runat="server" Text="Your password has been reset." Font-Size="Large" ForeColor="Green"></asp:Label>
                             <br /><br />
-                            <asp:Label ID="lblSuccess" runat="server" Text="A password reset link has been sent to the registered Email-ID (valid for 30 minutes)" Font-Size="Medium" ForeColor="Green" Visible="false"></asp:Label><br />
-                            
+                            <asp:HyperLink ID="lnkLogin" runat="server" NavigateUrl="~/login.aspx" Text="Sign In" Font-Size="Large"></asp:HyperLink>
                         </asp:Panel>
                     </div>
                 </div>

@@ -54,7 +54,7 @@
 | CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
 | Azure 部署 | Bicep 基礎設施（`infra/`、`infra.yml`）與自動部署（`deploy.yml`）：合併到 `main` 後建置、部署到 App Service，並執行冒煙測試、ZAP Baseline；失敗時自動回滾 |
 | 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
-| 安全性 | 僅適合學習用途：密碼明碼儲存、多處 SQL 字串串接（SQL Injection 風險），詳見[安全性說明](#安全性說明) |
+| 安全性 | 教學作品，M7 安全修正進行中（已完成參數化查詢、密碼雜湊與重設連結），詳見[安全性說明](#安全性說明) |
 
 ---
 
@@ -74,7 +74,7 @@
 4. 依 [QuickStart.md 第 4 節](QuickStart.md#4-設定環境變數)設定環境變數（`SQL_*`、`SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`）；`Web.config` 不含任何真實連線資訊。
 5. 執行 NuGet 還原，取得 `packages.config` 列出的套件（iTextSharp、Roslyn 編譯器、Configuration Builders、Azure Storage／Identity、DbUp 等）。
 6. 開啟 `Website.sln`，建置（`Ctrl+Shift+B`）後按 `F5`，瀏覽器會開啟 `https://localhost:44337/`；`Web.config` 已將 `index.aspx` 設為預設文件，根網址即為首頁。
-7. 以示範帳號 `demo_customer`／`demo_seller`（密碼 `Demo@1234`）登入；或自行註冊後，以 SQL 將 `uid` 改為大於 5000 測試賣家功能。
+7. 以示範帳號 `demo_customer`／`demo_seller`（密碼 `Demo@1234`）登入；或自行以「Register → User／Seller」註冊。
 
 ---
 
@@ -99,7 +99,7 @@
 - 結帳：系統產生訂單編號與日期，按下「Place Order」後建立訂單（**無金流**）。
 - 個人資料：檢視帳號資料；可修改電話、地址、國家、州、城市。
 - 訂單歷史：檢視所有已下訂單，並以 PDF（`OrderInvoice.pdf`）下載。
-- 忘記密碼：回答註冊時設定的安全問題後，透過 SMTP（Azure 上為 Azure Communication Services Email）將密碼寄到註冊信箱。
+- 忘記密碼：回答註冊時設定的安全問題後，透過 SMTP（Azure 上為 Azure Communication Services Email）寄出 30 分鐘內有效、只能使用一次的重設密碼連結。
 
 ### 賣家（`uid` > 5000）
 
@@ -169,7 +169,8 @@ Shopping-Website/
     ├── checkout.aspx(.cs)          # 結帳、建立訂單
     ├── login.aspx(.cs)             # 會員登入、還原購物車
     ├── register.aspx(.cs)          # 一般會員註冊、指派 uid
-    ├── forgotpass.aspx(.cs)        # 忘記密碼（安全問題 + Email）
+    ├── forgotpass.aspx(.cs)        # 忘記密碼（安全問題 + 寄出重設連結）
+    ├── resetPassword.aspx(.cs)     # 以一次性權杖設定新密碼
     ├── profile.aspx(.cs)           # 個人資料、訂單歷史與 PDF、賣家商品管理
     ├── addProducts.aspx(.cs)       # 賣家上架商品、上傳圖片
     ├── sellerRegister.aspx(.cs)    # 賣家註冊
@@ -182,11 +183,13 @@ Shopping-Website/
     ├── Config/AppSettings.cs       # 集中讀取 SMTP／Blob／圖片網址設定與啟動檢查
     ├── Data/Db.cs                  # 集中建立 SQL 連線，提供參數化查詢 Query／Execute／Scalar
     ├── Data/CartSession.cs         # 購物車 Session（DataTable）的建立、讀取與登入還原
-    ├── Data/UserAccounts.cs        # 帳號建立與 uid（會員／賣家）指派
+    ├── Data/UserAccounts.cs        # 帳號建立、登入驗證與 uid（會員／賣家）指派
+    ├── Data/PasswordHasher.cs      # PBKDF2 密碼雜湊與驗證
+    ├── Data/PasswordResets.cs      # 一次性重設密碼權杖
     ├── Data/DatabaseMigrator.cs    # 啟動時以 DbUp 套用 migration（sp_getapplock 防止並行）
     ├── Data/ImageStore.cs          # 商品圖片上傳到 Blob，回傳完整網址
     ├── Global.asax(.cs)            # 啟動時檢查設定並套用 migration；失敗時所有請求回應 500
-    ├── Migrations/                 # DbUp 腳本（內嵌資源）：0001 建表、0002～0004 示範分類／帳號／商品
+    ├── Migrations/                 # DbUp 腳本（內嵌資源）：0001 建表、0002～0004 示範分類／帳號／商品、0005 密碼雜湊欄位與重設權杖表
     ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
     ├── css/style.css               # 共用基礎樣式
     ├── Web.config                  # Configuration Builders、連線字串權杖、編譯、binding redirect
@@ -246,7 +249,8 @@ flowchart LR
     login[login.aspx<br/>登入] --> index
     register[register.aspx<br/>會員註冊] --> login
     sellerRegister[sellerRegister.aspx<br/>賣家註冊] --> login
-    forgot[forgotpass.aspx<br/>忘記密碼] --> login
+    forgot[forgotpass.aspx<br/>忘記密碼] -->|Email 連結| reset[resetPassword.aspx<br/>重設密碼]
+    reset --> login
     login -.-> forgot
     profile[profile.aspx<br/>個人資料] -->|賣家| add[addProducts.aspx<br/>上架商品]
     add --> profile
@@ -276,7 +280,8 @@ flowchart LR
 | `checkout.aspx` | 結帳、產生訂單編號、建立訂單 | `violet_order`、`violet_cart`、`violet_user_login` | `filldata`、`calculateOrderID`、`btnCheckout_Click`、`grandTotal` |
 | `login.aspx` | 會員登入、還原購物車 | `violet_user_login`、`violet_cart` | `Submit_Click` |
 | `register.aspx` | 一般會員註冊 | `violet_user_login` | `Submit_Click` |
-| `forgotpass.aspx` | 安全問題驗證後寄出密碼 | `violet_user_login` | `submit_Click`、`submitAns_Click` |
+| `forgotpass.aspx` | 安全問題驗證後寄出重設連結 | `violet_user_login`、`violet_password_reset` | `submit_Click`、`submitAns_Click`、`SendResetMail` |
+| `resetPassword.aspx` | 以一次性權杖設定新密碼 | `violet_password_reset`、`violet_user_login` | `Page_Load`、`btnReset_Click` |
 | `profile.aspx` | 個人資料、訂單歷史與 PDF、賣家商品管理（未登入導向登入頁） | `violet_user_login`、`violet_order`、`violet_products` | `Page_Load`、`Update_Click`、`Submit_Click`、`DownloadPDF`、`exportpdf`、`GridView1_RowDataBound`、`btnAddProduct_Click` |
 | `addProducts.aspx` | 賣家上架商品與上傳圖片 | `violet_products`、`violet_user_login` | `Submit_Click`、`uploadImg` |
 | `sellerRegister.aspx` | 賣家註冊（表單同會員註冊，指派 5001 以上的 uid） | `violet_user_login` | `Submit_Click` |
@@ -293,7 +298,7 @@ flowchart LR
 
 ### 登入與購物車還原
 
-1. `login.aspx`（與 `sellerSignIn.aspx`）以 `username` 或 `email` 查出帳號，必須剛好一筆且密碼相符（**明碼**比對）。
+1. `login.aspx`（與 `sellerSignIn.aspx`）透過 `UserAccounts.Authenticate()` 以 `username` 或 `email` 查出帳號，必須剛好一筆且密碼相符（PBKDF2 雜湊比對；舊版明碼密碼登入成功時自動改存雜湊）。
 2. 成功後設定 `Session["uname"]`、`Session["user"]`，並呼叫 `CartSession.LoadFromDatabase()`。
 3. `LoadFromDatabase()` 從 `violet_cart` 依 `sno` 讀出該使用者的品項，重建購物車 `DataTable`（`sno` 重新從 1 編號）存入 `Session["count"]`。
 
@@ -351,7 +356,10 @@ sequenceDiagram
 ### 忘記密碼
 
 1. 輸入使用者名稱或 Email → 顯示註冊時選的安全問題。
-2. 答對後以 SMTP 將**原密碼**寄到註冊 Email，並導向登入頁。SMTP 設定來自 `SMTP_*` 環境變數（M7 會改為一次性重設連結）。
+2. 答對後產生一次性權杖（資料庫只存 SHA-256 雜湊），以 SMTP 將 `resetPassword.aspx?token=...` 連結寄到註冊 Email。SMTP 設定來自 `SMTP_*` 環境變數。
+3. 連結 30 分鐘內有效、只能使用一次；重新申請時，同帳號先前未使用的權杖會作廢。
+4. `resetPassword.aspx` 在同一交易中作廢權杖並更新密碼雜湊。
+5. 同一 Session 答錯安全問題 5 次後不再接受作答。帳號查詢面板只存帳號姓名於 ViewState，不再使用 `static` 欄位。
 
 ### 角色判斷（uid）
 
@@ -371,7 +379,7 @@ sequenceDiagram
 > `DbSql.sql` 與程式碼實際使用的結構不一致（拼字錯誤、缺表、缺欄位）。實際結構由 `Website/Migrations/0001_create_tables.sql`
 > 在網站啟動時建立（見 [QuickStart.md「建立資料庫」](QuickStart.md#3-建立資料庫)）。以下為程式碼實際依賴的結構。
 
-多處使用**位置式** `INSERT ... VALUES(...)`（未指定欄位名稱），因此欄位**順序**必須完全一致。
+程式中的 INSERT 皆指定欄位名稱；以下的欄位編號為資料表中的順序。
 
 ### `violet_user_login` — 會員與賣家帳號
 
@@ -380,7 +388,7 @@ sequenceDiagram
 | 1 | `uname` | VARCHAR(50) PK | 姓名；作為購物車、訂單、商品的關聯鍵 |
 | 2 | `email` | VARCHAR(50) UNIQUE | Email，可用於登入 |
 | 3 | `username` | VARCHAR(20) UNIQUE | 使用者名稱，可用於登入 |
-| 4 | `password` | VARCHAR(20) | **明碼**密碼 |
+| 4 | `password` | VARCHAR(200) | PBKDF2 雜湊（`PBKDF2-SHA256$次數$salt$雜湊`）；0005 前建立的明碼密碼在下次登入時升級 |
 | 5 | `phone` | DECIMAL(10,0) UNIQUE | 10 位數電話 |
 | 6 | `dob` | DATE | 生日 |
 | 7 | `country` | VARCHAR(20) | 國家 |
@@ -404,11 +412,11 @@ sequenceDiagram
 | `keywords` | VARCHAR(500) | 搜尋關鍵字 |
 | `stock` | INT | 庫存 |
 
-### `violet_cart` — 購物車（位置式 INSERT，8 欄）
+### `violet_cart` — 購物車
 
 `uname`（買家）、`sno`、`pimage`、`pname`、`price`、`quantity`、`total`、`sname`（賣家）
 
-### `violet_order` — 訂單（位置式 INSERT，6 欄）
+### `violet_order` — 訂單
 
 `uname`、`pname`、`orderID`、`orderDate`（`ToShortDateString()` 字串）、`quantity`、`total`
 
@@ -416,9 +424,13 @@ sequenceDiagram
 
 `name`（分類名稱）、`cimage`（分類圖片路徑）
 
-### `violet_contact` — 聯絡留言（位置式 INSERT，3 欄）
+### `violet_contact` — 聯絡留言
 
 `uname`、`email`、`message`
+
+### `violet_password_reset` — 重設密碼權杖（0005）
+
+`token_hash`（CHAR(64) PK，權杖的 SHA-256）、`uname`、`expires_at`（UTC）、`used_at`（使用時間，未使用為 NULL）
 
 ### `violet_seller_login`
 
@@ -458,7 +470,7 @@ sequenceDiagram
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
 | M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
-| M7 應用程式安全修正 | 🔄 進行中（PR A 參數化查詢與資料存取已完成；密碼雜湊、權限檢查、回應標頭待完成） |
+| M7 應用程式安全修正 | 🔄 進行中（參數化查詢、密碼雜湊與重設連結已完成；權限檢查、上傳驗證、回應標頭待完成） |
 | M8 轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
@@ -538,7 +550,6 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 位置 | 問題 |
 | --- | --- |
 | `addProducts.aspx.cs` | 未選檔案時 `Substring(1)` 會拋例外；未檢查登入或賣家身分（M7 PR C） |
-| `forgotpass.aspx.cs` | 帳號、密碼、答案存在 `static` 欄位，多人同時使用會互相覆蓋（M7 PR B 改為重設連結） |
 | `profile.aspx` | 刪除確認對話框掛在「Edit」按鈕上；`SqlDataSource2` 的更新/刪除未檢查商品擁有者（M7 PR C） |
 | `sellerProfile.aspx.cs` | 更新/送出功能未實作 |
 | `sellerSignIn.aspx` | 選單沒有連結 |
@@ -561,14 +572,13 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 風險 | 說明 |
 | --- | --- |
 | SQL Injection | 已修正：程式碼中的 SQL 全部經 `Website.Data.Db` 以參數化查詢執行（M7 PR A） |
-| 明碼密碼 | 密碼以明碼儲存、比對，忘記密碼功能還會以 Email 寄出原密碼 |
+| 密碼儲存 | 已修正：密碼以 PBKDF2 雜湊儲存，忘記密碼改寄一次性重設連結（M7 PR B）；安全問題答案仍為明碼 |
 | 權限控管 | 頁面未檢查角色；任何人都能直接開啟 `addProducts.aspx`、修改 `?id=`/`?quantity=` |
 | 檔案上傳 | 僅以副檔名檢查，未檢查檔案內容與大小（檔名已改為 GUID，不會覆蓋） |
 | 資訊洩漏 | 已移除 `profile.aspx` 輸出 SQL 的除錯程式；錯誤頁與回應標頭仍待 M7 PR D |
-| 共用狀態 | `forgotpass` 的 `static` 欄位跨使用者共用（`cart` 已修正） |
+| 共用狀態 | 已修正：`forgotpass`、`cart` 不再使用 `static` 欄位 |
 
-建議修正方向：以雜湊（如 PBKDF2 / bcrypt）儲存密碼並改為重設密碼連結、
-加入頁面權限檢查、上傳時驗證檔案內容與大小（Plan M7）。
+建議修正方向：加入頁面權限檢查、上傳時驗證檔案內容與大小、加上安全性回應標頭（Plan M7）。
 
 ---
 
@@ -589,10 +599,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 > CI/CD（CodeQL 品質／安全掃描、SBOM、Azure App Service 部署、連線資訊環境變數化）的完整規劃見 [Plan.md](Plan.md)。
 
 - 以 Master Page 或 User Control 抽出共用頁首/頁尾。
-- 持續擴充 `Website.Data.Db`／資料存取層，將查詢集中化並統一釋放連線。
-- 全面改用參數化查詢與 `using` 釋放連線。
-- 密碼雜湊、重設密碼流程、角色授權。
-- 修正位置式 INSERT 為指定欄位的 INSERT。
+- 角色授權與頁面權限檢查（M7）。
+- 將 `SqlDataSource` 宣告式查詢也改為經 `Website.Data` 存取。
 - 串接金流（如 Stripe、PayPal）、訂單狀態追蹤、管理後台。
 - 響應式版面。
 - 遷移到 ASP.NET Core（Razor Pages / MVC）以支援跨平台。

@@ -115,6 +115,7 @@ GO
 | `0002_seed_categories.sql` | 分類 `Computer`、`Computer Accesories`（名稱須與 `addProducts.aspx.cs` 的固定清單一致） |
 | `0003_seed_demo_users.sql` | 示範帳號（見下表） |
 | `0004_seed_demo_products.sql` | 示範賣家的 4 項商品；圖片網址為 `IMAGE_BASE_URL/products/demo_seller/*.png`；`Demo Arcade Machine` 庫存為 0，用來展示「售完」 |
+| `0005_password_hash_and_reset_tokens.sql` | `password` 擴充為 `VARCHAR(200)` 存放 PBKDF2 雜湊；新增重設密碼權杖表 `violet_password_reset` |
 
 所有腳本都會先確認資料表或資料列是否已存在，因此套用到依舊版 QuickStart 手動建立的資料庫也不會失敗，也不會重複新增資料。
 
@@ -131,7 +132,7 @@ GO
 
 - 刻意**不建立外鍵**：賣家可在個人頁刪除商品，而購物車/訂單中仍可能保留該商品名稱；加上外鍵會導致刪除失敗。
 - `category` 使用 `VARCHAR(50)`：原腳本的 `VARCHAR(15)` 放不下 `Computer Accesories`（19 字元）。
-- `password` 為 `VARCHAR(20)` 明碼（原始設計，M7 會改為雜湊）。
+- `password` 存 PBKDF2 雜湊（`VARCHAR(200)`）。示範帳號在 0003 中是明碼，第一次登入成功時會自動改存雜湊。
 - `violet_seller_login` 未被任何程式碼使用，因此不建立。
 - 各欄位的完整說明見 [README.md 的資料庫結構](README.md#資料庫結構)。
 
@@ -316,7 +317,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 1. 從頁首「Register → User」進入 `register.aspx`。
 2. 依表單規則填寫：
    - 姓名只能有英文字母與空白；
-   - 密碼至少 8 碼，需含大寫、小寫、數字與特殊字元（`@$!%*?&`），且資料庫上限 20 字元；
+   - 密碼至少 8 碼，需含大寫、小寫、數字與特殊字元（`@$!%*?&`）
    - 電話必須剛好 10 位數字；
    - 生日不可晚於今天；
    - 國家/州/城市的驗證器已被註解，保留 `Select` 也會被接受，請自行選擇實際選項。
@@ -353,7 +354,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 | 9 | Checkout → Place Order | 顯示訂單完成面板，購物車徽章歸零；`violet_order` 新增資料、`violet_cart` 清空 |
 | 10 | 個人頁 | 顯示訂單歷史，可下載 `OrderInvoice.pdf` |
 | 11 | Contact 送出留言 | `violet_contact` 新增一筆 |
-| 12 | 忘記密碼 | 答對安全問題後寄出密碼信（需先完成第 9 節 SMTP 設定） |
+| 12 | 忘記密碼 | 答對安全問題後寄出重設連結（需先完成第 9 節 SMTP 設定）；開啟連結設定新密碼後可用新密碼登入，同一連結再次開啟顯示「已失效」 |
 
 ---
 
@@ -361,7 +362,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 
 ### SMTP（忘記密碼寄信）
 
-`forgotpass.aspx.cs` 以 `SmtpClient` 寄信，主機、連接埠、寄件者與帳密都來自環境變數 `SMTP_*`（見 4.1）。
+`forgotpass.aspx.cs` 以 `SmtpClient` 寄出重設連結（網址取自目前請求的主機名稱），主機、連接埠、寄件者與帳密都來自環境變數 `SMTP_*`（見 4.1）。
 本機可用 smtp4dev 或 Papercut 接收測試信（`SMTP_HOST=localhost`、`SMTP_PORT=25`、帳密留空）。
 Azure 上使用 Azure Communication Services Email 的 SMTP 介面（`smtp.azurecomm.net:587`，STARTTLS），密碼放在 Key Vault。
 

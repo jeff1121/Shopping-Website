@@ -83,7 +83,7 @@
             <!--Header-->
 
             <!--Body-->
-                <%-- 主內容：登入表單以帳號或 Email 搭配明碼密碼驗證，成功後由 login.aspx.cs 還原 violet_cart。 --%>
+                <%-- 主內容：登入表單以帳號或 Email 搭配密碼驗證（PBKDF2 雜湊），成功後由 login.aspx.cs 還原 violet_cart。 --%>
                 <div class="body">
                     <asp:Label ID="lblLoginMsg" runat="server" Font-Bold="True" Font-Italic="True" Font-Size="XX-Large" style="left: 680px; top: 10px; position: absolute" Text="Login Page"></asp:Label>
                     <div style="top: 100px; position: relative; text-align: center; font-size: large">
