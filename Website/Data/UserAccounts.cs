@@ -1,8 +1,22 @@
 ﻿using System;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Website.Data
 {
+    /// <summary>
+    /// <see cref="UserAccounts.Create"/> 的結果。
+    /// </summary>
+    public enum CreateResult
+    {
+        /// <summary>帳號已建立。</summary>
+        Created,
+        /// <summary>姓名、Email、使用者名稱或電話已被使用。</summary>
+        Duplicate,
+        /// <summary>至少一個欄位超過資料表允許的長度。</summary>
+        TooLong
+    }
+
     /// <summary>
     /// 註冊帳號時要寫入 violet_user_login 的欄位值（會員與賣家註冊頁共用）。
     /// </summary>
@@ -83,10 +97,50 @@ namespace Website.Data
 
         /// <summary>
         /// 以參數化、指定欄位的 INSERT 建立帳號；密碼以 <see cref="PasswordHasher"/> 雜湊後儲存。
+        /// 姓名、Email、使用者名稱或電話重複，或欄位超過資料表長度時不寫入，改以回傳值告知頁面。
+        /// </summary>
+        /// <param name="user">註冊表單的欄位值（呼叫前頁面驗證控制項須已通過）。</param>
+        /// <param name="uid">已由 <see cref="GenerateUid"/> 取得的 uid。</param>
+        /// <returns>建立結果。</returns>
+        public static CreateResult Create(NewUser user, int uid)
+        {
+            try
+            {
+                Insert(user, uid);
+                return CreateResult.Created;
+            }
+            catch (SqlException ex) when (Db.IsDuplicateKey(ex))
+            {
+                return CreateResult.Duplicate;
+            }
+            catch (SqlException ex) when (Db.IsTruncation(ex))
+            {
+                return CreateResult.TooLong;
+            }
+        }
+
+        /// <summary>
+        /// 判斷登入帳號（使用者名稱或 Email）是否為賣家（uid &gt; 5000）。
+        /// </summary>
+        /// <param name="login">Session["user"] 的值；null 代表未登入。</param>
+        /// <returns>帳號存在且為賣家時為 true。</returns>
+        public static bool IsSellerLogin(object login)
+        {
+            if (login == null)
+            {
+                return false;
+            }
+
+            object uid = Db.Scalar("SELECT uid FROM violet_user_login WHERE username=@login OR email=@login", Db.Param("@login", login.ToString()));
+            return uid != null && IsSeller(Convert.ToInt32(uid));
+        }
+
+        /// <summary>
+        /// 執行建立帳號的 INSERT。
         /// </summary>
         /// <param name="user">註冊表單的欄位值。</param>
-        /// <param name="uid">已由 <see cref="GenerateUid"/> 取得的 uid。</param>
-        public static void Create(NewUser user, int uid)
+        /// <param name="uid">帳號的 uid。</param>
+        private static void Insert(NewUser user, int uid)
         {
             Db.Execute("INSERT INTO violet_user_login (uname, email, username, password, phone, dob, country, state, city, gender, address, secq, seca, uid) "
                 + "VALUES (@uname, @email, @username, @password, @phone, @dob, @country, @state, @city, @gender, @address, @secq, @seca, @uid)",

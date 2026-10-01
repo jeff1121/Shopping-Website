@@ -97,7 +97,7 @@
                         <asp:TextBox ID="txtPrice" runat="server" style="width: 300px; height: 30px" placeholder="Enter Price...." MaxLength="10"></asp:TextBox>
                             <br />
                             <asp:RequiredFieldValidator ID="validatePhoneEmpty" runat="server" ErrorMessage="Enter Price of the Product" ControlToValidate="txtPrice" ForeColor="Red" Display="Dynamic"></asp:RequiredFieldValidator>
-                            <asp:RegularExpressionValidator ID="validatePhone" runat="server" ErrorMessage="Invalid Price (Decimal upto 2 places allowed)" ControlToValidate="txtPrice" ForeColor="Red" ValidationExpression="^[\d]+[\.]*[\d]{0,2}$" Display="Dynamic"></asp:RegularExpressionValidator>
+                            <asp:RegularExpressionValidator ID="validatePhone" runat="server" ErrorMessage="Invalid Price (Decimal upto 2 places allowed)" ControlToValidate="txtPrice" ForeColor="Red" ValidationExpression="^\d{1,18}(\.\d{1,2})?$" Display="Dynamic"></asp:RegularExpressionValidator>
                         <br /><br />
 
                         <asp:Label ID="Label7" runat="server" Text="*" Font-Size="Large" ForeColor="Red"></asp:Label>
@@ -110,7 +110,7 @@
 
                         <asp:Label ID="uploadText" runat="server" Font-Size="Large" Font-Bold="true" Text="Upload Image "></asp:Label>
                         &nbsp
-                        <asp:FileUpload ID="uploadImage" runat="server" />
+                        <asp:FileUpload ID="uploadImage" runat="server" accept=".jpg,.jpeg,.png,.gif,.webp" />
                         <br />
                         <asp:Label ID="Label1" runat="server" Font-Size="medium" Visible="False"></asp:Label>
                         <br /><br />

@@ -11,8 +11,8 @@ namespace Website
 {
     /// <summary>
     /// 「賣家個人資料」頁面（sellerProfile.aspx）的後置程式碼。
-    /// 以 violet_user_login 讀取登入者資料；程式碼阻擋 uid &lt; 5000 的帳號並導向 profile.aspx，
-    /// 因此 uid = 5000 也會通過，和專案其他頁面「uid &gt; 5000 才是賣家」的慣例不完全一致。目前更新/送出功能尚未實作完成。
+    /// 以 violet_user_login 讀取登入者資料；非賣家（<see cref="UserAccounts.IsSeller"/>，uid ≤ 5000）會被導向 profile.aspx。
+    /// 目前更新/送出功能尚未實作完成。
     /// </summary>
     /// <remarks>
     /// 此頁不顯示購物車圖示或徽章，只切換登入/註冊選單與登出按鈕；一般賣家管理實際上多在 profile.aspx 完成。

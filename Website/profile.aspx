@@ -263,7 +263,7 @@
                         <asp:Panel ID="Panel1" runat="server" Width="1077px" BorderStyle="Solid" style="text-align: center; left: 200px; position: relative" Visible="False">
 
                             <%-- GridView：賣家商品管理表格，可編輯價格、庫存、關鍵字並刪除商品。 --%>
-                            <asp:GridView ID="GridView1" runat="server" AutoGenerateColumns="False" HeaderStyle-BackColor="#999999" HeaderStyle-BorderWidth="5px" DataKeyNames="pname" DataSourceID="SqlDataSource2" OnRowDataBound="GridView1_RowDataBound">
+                            <asp:GridView ID="GridView1" runat="server" AutoGenerateColumns="False" HeaderStyle-BackColor="#999999" HeaderStyle-BorderWidth="5px" DataKeyNames="pname" DataSourceID="SqlDataSource2" OnRowDataBound="GridView1_RowDataBound" OnRowUpdating="GridView1_RowUpdating">
 
                                 <Columns>
                                     <asp:BoundField DataField="pname" HeaderText="Product Name" ReadOnly="True" SortExpression="pname"></asp:BoundField>
@@ -276,19 +276,23 @@
                                 </Columns>
 
                             </asp:GridView>
+                            <asp:Label ID="lblProductError" runat="server" ForeColor="Red" Visible="False"></asp:Label>
 
-                            <%-- SqlDataSource2：依 txtName.Text 對應的賣家姓名查詢 violet_products，並提供商品 UPDATE / DELETE 指令。 --%>
-                            <asp:SqlDataSource ID="SqlDataSource2" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] WHERE ([uname] = @uname)" DeleteCommand="DELETE FROM [violet_products] WHERE [pname] = @pname" UpdateCommand="UPDATE [violet_products] SET [price] = @price, [stock] = @stock, [keywords] = @keywords WHERE [pname] = @pname">
+                            <%-- SqlDataSource2：依 Session["uname"]（登入時寫入的賣家姓名）查詢 violet_products；UPDATE / DELETE 也限定 uname，只能修改自己的商品。 --%>
+                            <asp:SqlDataSource ID="SqlDataSource2" runat="server" ConnectionString='<%$ ConnectionStrings:cmpConnectionString %>' SelectCommand="SELECT * FROM [violet_products] WHERE ([uname] = @uname)" DeleteCommand="DELETE FROM [violet_products] WHERE [pname] = @pname AND [uname] = @uname" UpdateCommand="UPDATE [violet_products] SET [price] = @price, [stock] = @stock, [keywords] = @keywords WHERE [pname] = @pname AND [uname] = @uname">
                                 <DeleteParameters>
                                     <asp:Parameter Name="pname" Type="String"></asp:Parameter>
+                                    <asp:SessionParameter Name="uname" SessionField="uname" Type="String"></asp:SessionParameter>
                                 </DeleteParameters>
                                 <SelectParameters>
-                                    <asp:ControlParameter ControlID="txtName" PropertyName="Text" DefaultValue="" Name="uname" Type="String"></asp:ControlParameter>
+                                    <asp:SessionParameter Name="uname" SessionField="uname" Type="String"></asp:SessionParameter>
                                 </SelectParameters>
                                 <UpdateParameters>
                                     <asp:Parameter Name="price" Type="Decimal"></asp:Parameter>
                                     <asp:Parameter Name="stock" Type="Int32"></asp:Parameter>
                                     <asp:Parameter Name="keywords" Type="String"></asp:Parameter>
+                                    <asp:Parameter Name="pname" Type="String"></asp:Parameter>
+                                    <asp:SessionParameter Name="uname" SessionField="uname" Type="String"></asp:SessionParameter>
                                 </UpdateParameters>
                             </asp:SqlDataSource>
                         </asp:Panel>

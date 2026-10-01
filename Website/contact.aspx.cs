@@ -53,8 +53,22 @@ namespace Website
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
+            if (!Page.IsValid)
+            {
+                return;
+            }
+
             // txtMessage 是 HTML textarea（runat=server），需讀取 Value 而非 Text
             String strMessage = txtMessage.Value;
+
+            // 長度上限與 violet_contact 欄位一致（姓名、Email 50 字元，訊息 500 字元）
+            if (txtName.Text.Length > 50 || txtEmail.Text.Length > 50 || strMessage.Length > 500)
+            {
+                lblErrorMsg.Text = "Name and Email-ID allow 50 characters, Message allows 500.";
+                lblErrorMsg.ForeColor = System.Drawing.Color.Red;
+                lblErrorMsg.Visible = true;
+                return;
+            }
 
             Db.Execute("INSERT INTO violet_contact (uname, email, message) VALUES (@name, @email, @message)",
                 Db.Param("@name", txtName.Text), Db.Param("@email", txtEmail.Text), Db.Param("@message", strMessage));
@@ -63,6 +77,8 @@ namespace Website
             txtName.Text = "";
             txtEmail.Text = "";
             txtMessage.Value = "";
+            lblErrorMsg.Text = "Message Submitted Successfully";
+            lblErrorMsg.ForeColor = System.Drawing.Color.Green;
             lblErrorMsg.Visible = true;
         }
     }

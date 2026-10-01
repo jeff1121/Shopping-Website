@@ -513,6 +513,15 @@ namespace Website
         protected global::System.Web.UI.WebControls.GridView GridView1;
 
         /// <summary>
+        /// 標籤「lblProductError」：商品編輯值無效時的錯誤訊息，預設隱藏。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生的欄位。
+        /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblProductError;
+
+        /// <summary>
         /// SQL 資料來源「SqlDataSource2」：賣家商品來源：violet_products WHERE uname = @uname，含 UPDATE（price, stock, keywords）與 DELETE 指令。
         /// </summary>
         /// <remarks>

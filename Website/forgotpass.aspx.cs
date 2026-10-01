@@ -74,6 +74,11 @@ namespace Website
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void submit_Click(object sender, EventArgs e)
         {
+            if (!Page.IsValid)
+            {
+                return;
+            }
+
             DataTable account = Db.Query("SELECT uname, secq FROM violet_user_login WHERE username=@name OR email=@name", Db.Param("@name", txtUsername.Text));
             if (account.Rows.Count == 1)
             {
@@ -95,7 +100,7 @@ namespace Website
 
         /// <summary>
         /// 步驟二：比對安全問題答案。答對時產生一次性權杖並寄出重設連結（有效 <see cref="PasswordResets.LifetimeMinutes"/> 分鐘），
-        /// 顯示「已寄出」訊息；答錯則顯示錯誤並清空答案欄，超過 <see cref="MaxAttempts"/> 次回到步驟一。
+        /// 顯示「已寄出」訊息；寄信失敗時顯示稍後再試並寫入應用程式記錄；答錯則顯示錯誤並清空答案欄，超過 <see cref="MaxAttempts"/> 次回到步驟一。
         /// </summary>
         /// <param name="sender">觸發安全答案送出的按鈕。</param>
         /// <param name="e">按鈕點擊事件資料。</param>
@@ -120,6 +125,7 @@ namespace Website
             {
                 Session[AttemptsKey] = attempts + 1;
                 lblSuccess.Visible = false;
+                lblError.Text = "Incorrect Security Answer";
                 lblError.Visible = true;
                 txtSecA.Text = "";
                 txtSecA.Focus();
@@ -129,7 +135,21 @@ namespace Website
             Session[AttemptsKey] = null;
             string token = PasswordResets.Issue(ResetUname);
             string link = Request.Url.GetLeftPart(UriPartial.Authority) + ResolveUrl("~/resetPassword.aspx") + "?token=" + HttpUtility.UrlEncode(token);
-            SendResetMail(row["email"].ToString(), row["username"].ToString(), link);
+            try
+            {
+                SendResetMail(row["email"].ToString(), row["username"].ToString(), link);
+            }
+            catch (Exception ex) when (ex is SmtpException || ex is FormatException)
+            {
+                // 收件地址無效（例如保留網域 example.com）或 SMTP 暫時無法使用：不讓頁面出現 500。
+                // 只記錄例外類型與 SMTP 狀態碼，避免伺服器回應中的收件地址寫入記錄。
+                SmtpException smtpError = ex as SmtpException;
+                System.Diagnostics.Trace.TraceError("重設密碼信寄送失敗：" + ex.GetType().Name
+                    + (smtpError == null ? "" : "（" + smtpError.StatusCode + "）"));
+                lblError.Text = "Unable to send the reset email right now. Please try again later.";
+                lblError.Visible = true;
+                return;
+            }
 
             ResetUname = null;
             lblSec.Visible = false;

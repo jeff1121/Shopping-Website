@@ -335,6 +335,7 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 2. 填寫名稱、價格、分類、關鍵字並選擇圖片後送出；
 3. 新商品庫存為 0（首頁顯示售完），到 `profile.aspx` 的商品清單按「Edit」設定 Stock 後即可購買。
 
+> 圖片限 JPEG／PNG／GIF／WebP、2 MB 以內，檔案內容須與副檔名相符；只有賣家帳號能開啟此頁。
 > 上傳的圖片會寫入 Blob 容器 `products`，路徑為 `<登入帳號>/<GUID>.<副檔名>`；`pimage` 會存完整網址（`IMAGE_BASE_URL/products/...`）。本機需先啟動 Azurite（見 4.3）。
 
 ---
@@ -354,7 +355,8 @@ gh attestation verify site.zip -R jeff1121/Shopping-Website
 | 9 | Checkout → Place Order | 顯示訂單完成面板，購物車徽章歸零；`violet_order` 新增資料、`violet_cart` 清空 |
 | 10 | 個人頁 | 顯示訂單歷史，可下載 `OrderInvoice.pdf` |
 | 11 | Contact 送出留言 | `violet_contact` 新增一筆 |
-| 12 | 忘記密碼 | 答對安全問題後寄出重設連結（需先完成第 9 節 SMTP 設定）；開啟連結設定新密碼後可用新密碼登入，同一連結再次開啟顯示「已失效」 |
+| 12 | 忘記密碼 | 答對安全問題後寄出重設連結（需先完成第 9 節 SMTP 設定，且帳號 Email 可收信；示範帳號為 `@example.com`，會顯示寄送失敗）；開啟連結設定新密碼後可用新密碼登入，同一連結再次開啟顯示「已失效」 |
+| 13 | 以一般會員開啟 `addProducts.aspx` | 導向 `profile.aspx` |
 
 ---
 
@@ -413,7 +415,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | 每個頁面都顯示「網站啟動失敗…」且記錄有「資料庫 migration 失敗」 | migrator 帳號無法連線、缺少 `db_ddladmin` 權限，或某支腳本失敗；記錄會列出腳本名稱，見第 3 節 |
 | `String or binary data would be truncated` | 欄位長度不足（例如 `category`、`password` 超過 20 字元） |
 | 按加入購物車後仍停在首頁 | 庫存已被其他人買走或不足；重新整理首頁確認剩餘數量 |
-| 註冊時出現 `Violation of UNIQUE KEY constraint` | 使用者名稱、Email 或電話已被註冊，請換一組 |
+| 註冊時顯示「An account with this Name, Email-ID, Username or Phone Number already exists.」 | 姓名、使用者名稱、Email 或電話已被註冊，請換一組 |
+| 忘記密碼顯示「Unable to send the reset email right now…」 | SMTP 設定錯誤或收件地址無效（示範帳號的 `@example.com` 是保留網域，ACS 會拒收）；記錄中有「重設密碼信寄送失敗」與 SMTP 狀態碼 |
 | 上架商品時出現 Blob 連線錯誤 | Azurite 未啟動或容器 `products` 不存在，見 4.3；Azure 上請確認 `id-shopping-web` 具 Storage Blob Data Contributor |
 | 首頁商品圖片破圖 | `pimage` 網址錯誤或容器不可匿名讀取；頁面會自動改顯示 `img/products/human.png` |
 | Azure 上每個頁面都顯示「網站啟動失敗」（HTTP 500） | 遠端請求不顯示細節；到 Log Analytics `log-shopping` 查詢 `AppServiceAppLogs \| where Level == "Error"`（錯誤內容在 `StackTrace` 欄位），記錄約有數分鐘延遲 |

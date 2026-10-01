@@ -264,7 +264,7 @@ flowchart LR
 | `Session["user"]` | string | `login`、`sellerSignIn` | 登入時輸入的文字（使用者名稱**或** Email）。查詢以 `WHERE username=@x OR email=@x` 解析；不為 null 即視為已登入；登出時設為 null |
 | `Session["uname"]` | string | `login`、`sellerSignIn` | 使用者姓名（`violet_user_login.uname`），是購物車、訂單、商品中實際儲存的關聯鍵 |
 | `Session["count"]` | `DataTable` | `login`、`sellerSignIn`、`cart`、`checkout` | 購物車內容，由 `Website.Data.CartSession` 統一建立與讀取，欄位 `sno, pimage, pname, price, quantity, total, uname`（`uname` 欄位放**賣家**姓名，登入還原時讀自 `violet_cart.sname`）；列數即頁首徽章數字，下單後清空 |
-| `Session["addproduct"]` | string | `index`、`cart` | `"true"` 表示剛從首頁按下加入購物車，`cart.aspx` 才會新增品項，處理後重設為 `"false"` |
+| `Session["addproduct"]` | string | `index`、`cart` | 首頁預扣庫存成功後寫入「數量:商品名稱」；`cart.aspx` 只在網址 `?quantity=`、`?id=` 與此值完全相同時新增品項，處理後清除（`null`） |
 
 登出只清除 `Session["user"]`，其餘 Session 值會保留到 Session 逾時或下次登入覆寫。
 
@@ -318,7 +318,8 @@ sequenceDiagram
     alt 庫存不足
         I->>I: 停留首頁，不加入購物車
     end
-    I->>C: Redirect cart.aspx?id=商品&quantity=數量（Session addproduct = true）
+    I->>C: Redirect cart.aspx?id=商品&quantity=數量（Session addproduct = 數量:商品）
+    C->>C: 網址參數須與 Session addproduct 相同，否則不加入
     alt 購物車為空
         C->>DB: 查商品 → INSERT violet_cart（sno=1）
     else 商品已在購物車
@@ -326,7 +327,7 @@ sequenceDiagram
     else 新商品
         C->>DB: 查商品 → INSERT violet_cart（sno=列數+1）
     end
-    C->>C: Session addproduct = false，顯示 Grand Total
+    C->>C: 清除 Session addproduct，顯示 Grand Total
 ```
 
 - **修改數量**：按「Modify」→ 選新數量 →「Update」，庫存以單一 UPDATE 調整為 `stock + 舊數量 - 新數量`（結果不可小於 0），舊數量取自購物車列，小計由伺服器計算，同步更新 Session 與 `violet_cart`。
@@ -347,11 +348,11 @@ sequenceDiagram
 
 ### 賣家上架與商品管理
 
-1. `addProducts.aspx` 新增的商品庫存為 0，需到 `profile.aspx` 的商品清單按「Edit」設定 Stock 後才可購買。
-2. `addProducts.aspx` 驗證副檔名（jpg、jpeg、png、gif、webp，不分大小寫），由 `Website.Data.ImageStore` 上傳到 Blob 容器 `products` 的 `<登入帳號>/<GUID>.<副檔名>`。
+1. `addProducts.aspx` 只有賣家可用：未登入導向 `login.aspx`，一般會員導向 `profile.aspx`（`UserAccounts.IsSellerLogin`）。新增的商品庫存為 0，需到 `profile.aspx` 的商品清單按「Edit」設定 Stock 後才可購買。
+2. 上傳前依序檢查：必須選擇檔案、副檔名為 jpg、jpeg、png、gif、webp（不分大小寫）、大小不超過 2 MB、檔案開頭的格式識別碼與副檔名相符（`ImageStore.HasValidSignature`）、名稱最多 50 字元且尚未被使用、關鍵字最多 500 字元；價格須為最多兩位小數的數字。通過後由 `Website.Data.ImageStore` 上傳到 Blob 容器 `products` 的 `<登入帳號>/<GUID>.<副檔名>`。
 3. 資料庫中 `pimage` 儲存圖片完整網址（`IMAGE_BASE_URL/products/...`，Azure 上經 Front Door 提供），`uname` 儲存賣家姓名；舊資料的相對路徑仍可顯示。
 4. 分類選項寫死為 `Computer`、`Computer Accesories`，須與 `violet_categories.name` 一致。
-5. `profile.aspx` 的 `SqlDataSource2` 提供賣家商品清單的編輯（價格、庫存、關鍵字）與刪除。
+5. `profile.aspx` 的 `SqlDataSource2` 提供賣家商品清單的編輯（價格、庫存、關鍵字）與刪除。查詢、更新與刪除都以 `Session["uname"]` 限定為自己的商品；價格、庫存須為 0 以上、關鍵字最多 500 字元，否則取消更新並顯示 `lblProductError`。
 
 ### 忘記密碼
 
@@ -360,6 +361,7 @@ sequenceDiagram
 3. 連結 30 分鐘內有效、只能使用一次；重新申請時，同帳號先前未使用的權杖會作廢。
 4. `resetPassword.aspx` 在同一交易中作廢權杖並更新密碼雜湊。
 5. 同一 Session 答錯安全問題 5 次後不再接受作答。帳號查詢面板只存帳號姓名於 ViewState，不再使用 `static` 欄位。
+6. 寄信失敗（例如收件地址為保留網域 `example.com`，或 SMTP 暫時無法使用）時顯示「Unable to send the reset email…」，並在應用程式記錄寫入例外類型與 SMTP 狀態碼（不含收件地址）。
 
 ### 角色判斷（uid）
 
@@ -370,6 +372,7 @@ sequenceDiagram
 
 - `profile.aspx`：`uid > 5000` 顯示賣家區塊。
 - `sellerProfile.aspx`：未登入導向登入頁，`uid ≤ 5000`（`UserAccounts.IsSeller` 為 false）導向 `profile.aspx`。
+- `addProducts.aspx`：未登入導向登入頁，非賣家（`UserAccounts.IsSellerLogin` 為 false）導向 `profile.aspx`；PostBack 同樣經過此檢查。
 - 兩頁的 `uid` 都存於 ViewState，PostBack 後仍保留。
 
 ---
@@ -470,7 +473,7 @@ sequenceDiagram
 | M4 Azure 基礎設施（Bicep） | ✅ 已完成（資源已部署到 `rg-shopping`；ACS SMTP 帳號已設定） |
 | M5 資料庫 Migration 與示範資料 | ✅ 已完成（DbUp 啟動時套用；示範帳號與商品） |
 | M6 自動部署與部署後驗證 | ✅ 已完成（`deploy.yml`、冒煙測試、回滾、ZAP、可用性監控、App 記錄送 Log Analytics） |
-| M7 應用程式安全修正 | 🔄 進行中（參數化查詢、密碼雜湊與重設連結已完成；權限檢查、上傳驗證、回應標頭待完成） |
+| M7 應用程式安全修正 | 🔄 進行中（參數化查詢、密碼雜湊與重設連結、權限檢查與上傳驗證已完成；錯誤頁與回應標頭待完成） |
 | M8 轉入正式營運 | ⬜ 未開始 |
 
 ### GitHub Actions workflow
@@ -549,8 +552,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 | 位置 | 問題 |
 | --- | --- |
-| `addProducts.aspx.cs` | 未選檔案時 `Substring(1)` 會拋例外；未檢查登入或賣家身分（M7 PR C） |
-| `profile.aspx` | 刪除確認對話框掛在「Edit」按鈕上；`SqlDataSource2` 的更新/刪除未檢查商品擁有者（M7 PR C） |
+| `profile.aspx` | 刪除確認對話框掛在「Edit」按鈕上 |
 | `sellerProfile.aspx.cs` | 更新/送出功能未實作 |
 | `sellerSignIn.aspx` | 選單沒有連結 |
 | `register.aspx` | 國家/州/城市的驗證器被註解，選 `Select` 也會被接受；州/城市選項為固定的印度地名 |
@@ -573,12 +575,13 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 | --- | --- |
 | SQL Injection | 已修正：程式碼中的 SQL 全部經 `Website.Data.Db` 以參數化查詢執行（M7 PR A） |
 | 密碼儲存 | 已修正：密碼以 PBKDF2 雜湊儲存，忘記密碼改寄一次性重設連結（M7 PR B）；安全問題答案仍為明碼 |
-| 權限控管 | 頁面未檢查角色；任何人都能直接開啟 `addProducts.aspx`、修改 `?id=`/`?quantity=` |
-| 檔案上傳 | 僅以副檔名檢查，未檢查檔案內容與大小（檔名已改為 GUID，不會覆蓋） |
+| 權限控管 | 已修正：`addProducts` 只限賣家；賣家只能修改、刪除自己的商品；購物車只接受首頁實際預扣的品項與數量（M7 PR C）。角色仍以 `uid` 範圍判斷，沒有獨立的權限機制 |
+| 檔案上傳 | 已修正：檢查副檔名、2 MB 上限與檔案開頭格式識別碼，檔名為 GUID（M7 PR C） |
 | 資訊洩漏 | 已移除 `profile.aspx` 輸出 SQL 的除錯程式；錯誤頁與回應標頭仍待 M7 PR D |
 | 共用狀態 | 已修正：`forgotpass`、`cart` 不再使用 `static` 欄位 |
+| 輸入驗證 | 已修正：送出事件先檢查 `Page.IsValid`，略過瀏覽器端驗證也會被擋下；註冊資料重複或過長時顯示訊息而非錯誤頁（M7 PR C） |
 
-建議修正方向：加入頁面權限檢查、上傳時驗證檔案內容與大小、加上安全性回應標頭（Plan M7）。
+建議修正方向：加上自訂錯誤頁與安全性回應標頭（Plan M7 PR D）。
 
 ---
 
@@ -599,7 +602,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 > CI/CD（CodeQL 品質／安全掃描、SBOM、Azure App Service 部署、連線資訊環境變數化）的完整規劃見 [Plan.md](Plan.md)。
 
 - 以 Master Page 或 User Control 抽出共用頁首/頁尾。
-- 角色授權與頁面權限檢查（M7）。
+- 以 ASP.NET 角色或宣告取代 `uid` 範圍的角色判斷。
 - 將 `SqlDataSource` 宣告式查詢也改為經 `Website.Data` 存取。
 - 串接金流（如 Stripe、PayPal）、訂單狀態追蹤、管理後台。
 - 響應式版面。
