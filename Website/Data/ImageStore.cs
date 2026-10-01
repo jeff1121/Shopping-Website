@@ -27,6 +27,9 @@ namespace Website.Data
                 { ".webp", "image/webp" }
             };
 
+        /// <summary>單張商品圖片的大小上限：2 MB。</summary>
+        public const int MaxBytes = 2 * 1024 * 1024;
+
         /// <summary>Blob 路徑片段允許的字元：英數字、底線與連字號；其餘字元改為底線。</summary>
         private const string SafeSegmentChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
 
@@ -41,6 +44,82 @@ namespace Website.Data
         public static bool IsSupportedExtension(string extension)
         {
             return !string.IsNullOrEmpty(extension) && ContentTypes.ContainsKey(extension);
+        }
+
+        /// <summary>
+        /// 檢查檔案開頭的格式識別碼（magic bytes）是否與副檔名相符，避免把其他檔案改副檔名後上傳：
+        /// JPEG 為 FF D8 FF；PNG 為 89 50 4E 47 0D 0A 1A 0A；GIF 為 GIF87a 或 GIF89a；WebP 為 RIFF....WEBP。
+        /// 可搜尋的串流讀取後會回到原位置，之後仍可上傳。
+        /// </summary>
+        /// <param name="content">圖片內容串流。</param>
+        /// <param name="extension">含點的副檔名。</param>
+        /// <returns>內容開頭符合副檔名的格式時為 true。</returns>
+        public static bool HasValidSignature(Stream content, string extension)
+        {
+            if (content == null || !IsSupportedExtension(extension))
+            {
+                return false;
+            }
+
+            byte[] header = new byte[12];
+            long start = content.CanSeek ? content.Position : 0;
+            int read = 0;
+            while (read < header.Length)
+            {
+                int n = content.Read(header, read, header.Length - read);
+                if (n == 0)
+                {
+                    break;
+                }
+
+                read += n;
+            }
+
+            if (content.CanSeek)
+            {
+                content.Position = start;
+            }
+
+            switch (extension.ToLowerInvariant())
+            {
+                case ".jpg":
+                case ".jpeg":
+                    return StartsWith(header, read, 0, 0xFF, 0xD8, 0xFF);
+                case ".png":
+                    return StartsWith(header, read, 0, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A);
+                case ".gif":
+                    return StartsWith(header, read, 0, 0x47, 0x49, 0x46, 0x38) && (StartsWith(header, read, 4, 0x37, 0x61) || StartsWith(header, read, 4, 0x39, 0x61));
+                case ".webp":
+                    return StartsWith(header, read, 0, 0x52, 0x49, 0x46, 0x46) && StartsWith(header, read, 8, 0x57, 0x45, 0x42, 0x50);
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 檢查已讀取的位元組在指定位置是否為預期的序列。
+        /// </summary>
+        /// <param name="data">已讀取的檔案開頭。</param>
+        /// <param name="length">實際讀到的位元組數。</param>
+        /// <param name="offset">開始比對的位置。</param>
+        /// <param name="expected">預期的位元組。</param>
+        /// <returns>完全相符時為 true；讀到的資料不足時為 false。</returns>
+        private static bool StartsWith(byte[] data, int length, int offset, params byte[] expected)
+        {
+            if (offset + expected.Length > length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (data[offset + i] != expected[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

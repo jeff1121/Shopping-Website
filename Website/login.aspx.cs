@@ -44,6 +44,11 @@ namespace Website
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
+            if (!Page.IsValid)
+            {
+                return;
+            }
+
             string name = UserAccounts.Authenticate(txtName.Text, txtPassword.Text);
             if (name != null)
             {

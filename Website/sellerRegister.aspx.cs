@@ -64,8 +64,14 @@ namespace Website
         /// <param name="e">按鈕點擊事件資料。</param>
         protected void Submit_Click(object sender, EventArgs e)
         {
+            // 伺服器端再次執行驗證控制項，避免略過瀏覽器端驗證直接送出
+            if (!Page.IsValid)
+            {
+                return;
+            }
+
             int uid = UserAccounts.GenerateUid(UserAccounts.SellerUidMin, UserAccounts.SellerUidMax);
-            UserAccounts.Create(new NewUser
+            CreateResult result = UserAccounts.Create(new NewUser
             {
                 Uname = txtName.Text,
                 Email = txtEmail.Text,
@@ -83,7 +89,16 @@ namespace Website
                 SecurityAnswer = txtSecurityA.Text
             }, uid);
 
-            Response.Redirect("~/login.aspx");
+            if (result == CreateResult.Created)
+            {
+                Response.Redirect("~/login.aspx");
+                return;
+            }
+
+            lblRegisterError.Text = result == CreateResult.Duplicate
+                ? "An account with this Name, Email-ID, Username or Phone Number already exists."
+                : "One or more fields are too long. Name and Email-ID allow 50 characters, Username and Security Answer allow 20.";
+            lblRegisterError.Visible = true;
         }
     }
 }

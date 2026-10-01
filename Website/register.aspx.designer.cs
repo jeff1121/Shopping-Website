@@ -540,6 +540,15 @@ namespace Website
         protected global::System.Web.UI.WebControls.Button Submit;
 
         /// <summary>
+        /// 標籤「lblRegisterError」：註冊失敗訊息（資料重複或欄位過長），預設隱藏。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生的欄位。
+        /// 若要修改，請將欄位宣告從 designer 檔移至後置程式碼檔。
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblRegisterError;
+
+        /// <summary>
         /// 標籤「Label10」：頁尾說明「* - All fields are to be filled.」。
         /// </summary>
         /// <remarks>

@@ -111,6 +111,45 @@ namespace Website.Data
         }
 
         /// <summary>
+        /// 判斷例外是否為違反主索引鍵或唯一條件約束（SQL Server 錯誤 2627、2601），例如名稱或 Email 重複。
+        /// </summary>
+        /// <param name="ex">執行 SQL 時拋出的例外。</param>
+        /// <returns>任一錯誤為重複鍵值時為 true。</returns>
+        public static bool IsDuplicateKey(SqlException ex)
+        {
+            return HasErrorNumber(ex, 2627, 2601);
+        }
+
+        /// <summary>
+        /// 判斷例外是否為字串超過欄位長度而無法寫入（SQL Server 錯誤 8152、2628）。
+        /// </summary>
+        /// <param name="ex">執行 SQL 時拋出的例外。</param>
+        /// <returns>任一錯誤為字串截斷時為 true。</returns>
+        public static bool IsTruncation(SqlException ex)
+        {
+            return HasErrorNumber(ex, 8152, 2628);
+        }
+
+        /// <summary>
+        /// 檢查例外中的任一 SQL 錯誤是否為指定的錯誤編號。
+        /// </summary>
+        /// <param name="ex">執行 SQL 時拋出的例外。</param>
+        /// <param name="numbers">要比對的 SQL Server 錯誤編號。</param>
+        /// <returns>找到任一相符編號時為 true。</returns>
+        private static bool HasErrorNumber(SqlException ex, params int[] numbers)
+        {
+            foreach (SqlError error in ex.Errors)
+            {
+                if (Array.IndexOf(numbers, error.Number) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// 讀取指定名稱的連線字串，缺少設定時拋出明確錯誤。
         /// </summary>
         /// <param name="name">Web.config connectionStrings 中的設定名稱。</param>

@@ -74,5 +74,23 @@ namespace Website
 
             CompleteRequest();
         }
+
+        /// <summary>
+        /// 未處理例外事件：把例外類型、請求路徑與堆疊寫入 Trace（App Service 應用程式記錄），方便在 Log Analytics 查詢；
+        /// 不記錄查詢字串與表單內容，避免權杖或個資寫入記錄。回應內容仍由 customErrors 設定決定。
+        /// </summary>
+        /// <param name="sender">事件來源。</param>
+        /// <param name="e">事件資料。</param>
+        protected void Application_Error(object sender, EventArgs e)
+        {
+            Exception ex = Server.GetLastError();
+            if (ex == null)
+            {
+                return;
+            }
+
+            Exception root = ex.GetBaseException();
+            Trace.TraceError("未處理的例外：" + Context.Request.Path + " " + root.GetType().FullName + "\n" + root.StackTrace);
+        }
     }
 }

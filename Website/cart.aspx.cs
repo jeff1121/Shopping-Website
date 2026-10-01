@@ -167,10 +167,10 @@ namespace Website
 
         /// <summary>
         /// 填入購物車 GridView。
-        /// 若 Session["addproduct"] 為 "true"（由首頁加入購物車導向而來）且帶有有效的 ?id=&amp;quantity=：
+        /// 若網址的 ?quantity=數量&amp;id=商品 與 Session["addproduct"] 記錄的「數量:商品名稱」（首頁預扣庫存時寫入）完全相同：
         /// - 商品已在購物車：累加數量並同步 violet_cart；
         /// - 新商品：查出商品資料，以目前列數 + 1 作為 sno 追加，並寫入 violet_cart。
-        /// 處理後會將 Session["addproduct"] 重設為 "false"，避免重新整理時重複加入。
+        /// 處理後清除 Session["addproduct"]，避免重新整理時重複加入；參數不符時不加入任何品項。
         /// 最後顯示購物車內容與 Grand Total；無資料時顯示「購物車是空的」。
         /// </summary>
         public void filldata()
@@ -179,10 +179,12 @@ namespace Website
             string productName = Request.QueryString["id"];
             int quantity;
 
-            if ((Session["addproduct"] as string) == "true" && productName != null
-                && int.TryParse(Request.QueryString["quantity"], out quantity) && quantity > 0)
+            string reserved = Session["addproduct"] as string;
+            if (reserved != null && productName != null
+                && int.TryParse(Request.QueryString["quantity"], out quantity) && quantity > 0
+                && reserved == quantity + ":" + productName)
             {
-                Session["addproduct"] = "false";
+                Session["addproduct"] = null;
                 DataRow existing = FindRowByName(dt, productName);
                 if (existing != null)
                 {

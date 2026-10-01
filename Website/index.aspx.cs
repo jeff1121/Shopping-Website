@@ -22,7 +22,7 @@ namespace Website
         /// <summary>
         /// 頁面載入事件：
         /// 1. 若網址帶有 ?category=，改用 SqlDataSource5 顯示該分類商品；
-        /// 2. 若已登入，將 Session["addproduct"] 重設為 "false"，並更新頁首圖示與購物車數量徽章。
+        /// 2. 若已登入，清除 Session["addproduct"]（尚未處理的加入購物車紀錄），並更新頁首圖示與購物車數量徽章。
         /// </summary>
         /// <param name="sender">觸發頁面載入事件的物件。</param>
         /// <param name="e">頁面載入事件資料。</param>
@@ -37,7 +37,7 @@ namespace Website
             }
             if (Session["user"] != null)
             {
-                Session["addproduct"] = "false";
+                Session["addproduct"] = null;
                 btnLogout.Visible = true;
                 Menu1.Visible = false;
                 profileIcon.Visible = true;
@@ -50,7 +50,7 @@ namespace Website
         /// <summary>
         /// 商品 DataList 的項目命令事件。點擊「加入購物車」（CommandName="addtocart"）時：
         /// 1. 以單一 UPDATE 在庫存足夠時扣除所選數量（庫存在加入購物車時即預扣），避免同時下單造成負庫存；
-        /// 2. 扣除成功才設定 Session["addproduct"]="true"，讓 cart.aspx 知道要新增品項；
+        /// 2. 扣除成功才把「數量:商品名稱」記在 Session["addproduct"]，cart.aspx 只接受與此紀錄完全相同的網址參數；
         /// 3. 導向 cart.aspx?id=商品名稱&amp;quantity=數量（皆經 URL 編碼）。庫存不足時重新整理首頁。
         /// </summary>
         /// <param name="source">觸發命令事件的 DataList。</param>
@@ -83,7 +83,8 @@ namespace Website
                     return;
                 }
 
-                Session["addproduct"] = "true";
+                // 記下實際預扣的數量與商品，避免改寫網址的 quantity 加入超過預扣數量的品項
+                Session["addproduct"] = quantity + ":" + pname;
                 Response.Redirect("~/cart.aspx?id=" + HttpUtility.UrlEncode(pname) + "&quantity=" + quantity);
             }
         }

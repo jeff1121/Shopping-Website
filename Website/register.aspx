@@ -207,6 +207,8 @@
                             <asp:Button ID="Submit" runat="server" Text="Submit" Font-Size="Large" OnClick="Submit_Click"/>
                             &nbsp &nbsp &nbsp &nbsp
                             <input id="btReset" type="reset" value="Reset" style="font-size: large" />
+                            <br />
+                            <asp:Label ID="lblRegisterError" runat="server" Font-Size="Large" ForeColor="Red" Visible="False"></asp:Label>
 
                         <br /><br />
                         <asp:Label ID="Label10" runat="server" Text="* - All fields are to be filled." Font-Size="medium" ForeColor="Red"></asp:Label>

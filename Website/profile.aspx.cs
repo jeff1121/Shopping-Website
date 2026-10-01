@@ -20,7 +20,7 @@ namespace Website
     /// </summary>
     /// <remarks>
     /// 以 Session["user"] 查詢 violet_user_login；訂單清單由 SqlDataSource1 使用 Session["uname"] 查詢
-    /// violet_order，賣家商品清單由 SqlDataSource2 依 txtName.Text 查詢 violet_products。未登入時導向登入頁。
+    /// violet_order，賣家商品清單由 SqlDataSource2 依 Session["uname"] 查詢 violet_products，更新與刪除也限定為自己的商品。未登入時導向登入頁。
     /// </remarks>
     public partial class profile : System.Web.UI.Page
     {
@@ -241,6 +241,29 @@ namespace Website
                 {
                     ( (LinkButton)control ).OnClientClick = "return confirm('Are you Sure?')";
                 }
+            }
+        }
+
+        /// <summary>
+        /// 賣家商品 GridView 更新前觸發：價格須為 0 以上、最多兩位小數的數字，庫存須為 0 以上的整數，
+        /// 關鍵字最多 500 字元；不符合時取消更新並顯示 lblProductError，避免轉型失敗造成 500 錯誤。
+        /// </summary>
+        /// <param name="sender">GridView1。</param>
+        /// <param name="e">包含新值的更新事件資料。</param>
+        protected void GridView1_RowUpdating(object sender, GridViewUpdateEventArgs e)
+        {
+            decimal price;
+            int stock;
+            string keywords = Convert.ToString(e.NewValues["keywords"]) ?? "";
+            bool valid = decimal.TryParse(Convert.ToString(e.NewValues["price"]), out price) && price >= 0 && price < 1000000000000000000m && decimal.Round(price, 2) == price
+                && int.TryParse(Convert.ToString(e.NewValues["stock"]), out stock) && stock >= 0
+                && keywords.Length <= 500;
+
+            lblProductError.Visible = !valid;
+            if (!valid)
+            {
+                lblProductError.Text = "Price must be a non-negative number with up to 2 decimals, Stock a non-negative whole number, and Keywords up to 500 characters.";
+                e.Cancel = true;
             }
         }
     }
