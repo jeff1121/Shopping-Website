@@ -8,7 +8,7 @@
     <title>About</title>
 
     <%-- 共用樣式連結：指向 Website/css/style.css（此檔目前未在 repo 中）。 --%>
-        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css?v=20261002" />
     <style type="text/css">
         .auto-style1 {
             width: 100%;

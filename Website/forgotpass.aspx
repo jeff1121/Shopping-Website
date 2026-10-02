@@ -8,7 +8,7 @@
     <title>Forgot Password</title>
 
     <!--Css Link-->
-        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css?v=20261002" />
 </head>
 <body>
     <form id="form1" runat="server">

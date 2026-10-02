@@ -8,7 +8,7 @@
     <title>About</title>
 
     <!--Css Link-->
-        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css?v=20261002" />
     <style type="text/css">
         .auto-style1 {
             width: 100%;
