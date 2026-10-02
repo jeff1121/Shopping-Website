@@ -9,7 +9,7 @@
     <meta name="robots" content="noindex" />
 
     <!--Css Link-->
-        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css?v=20261002" />
 </head>
 <body>
     <div style="margin: 120px auto; max-width: 600px; text-align: center; font-family: Verdana, sans-serif">

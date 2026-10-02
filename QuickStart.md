@@ -262,6 +262,7 @@ az storage blob upload-batch --destination products --destination-path demo_sell
 所有頁面都以 `<link href="css/style.css">` 引用共用樣式；此檔已納入專案，提供基礎樣式與共用版面修正：
 `.body` 下移 150px 避開固定頁首與服務資訊列、固定頁首置於最上層、頁尾給予定位基準與高度（欄位為絕對定位）。
 各頁的內嵌 `<style>` 與 inline style 仍是主要版面來源；若主內容與頁首或頁尾重疊，先檢查此檔是否載入。
+各頁連結為 `css/style.css?v=<日期>`；修改此檔時請一併更新所有頁面的版本參數，避免瀏覽器沿用快取的舊檔。
 
 ### 5.4 NuGet 還原
 
