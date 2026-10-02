@@ -192,7 +192,7 @@ Shopping-Website/
     ├── Global.asax(.cs)            # 啟動時檢查設定並套用 migration；失敗時所有請求回應 500
     ├── Migrations/                 # DbUp 腳本（內嵌資源）：0001 建表、0002～0004 示範分類／帳號／商品、0005 密碼雜湊欄位與重設權杖表
     ├── Properties/AssemblyInfo.cs  # 組件資訊；CI 會替換 InformationalVersion
-    ├── css/style.css               # 共用基礎樣式
+    ├── css/style.css               # 共用基礎樣式與版面修正（頁首、頁尾定位）
     ├── Web.config                  # Configuration Builders、連線字串權杖、編譯、binding redirect
     ├── Web.Debug.config            # Debug 組態轉換（僅範例）
     ├── Web.Release.config          # Release 組態轉換（移除 debug 屬性）

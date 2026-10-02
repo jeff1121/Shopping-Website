@@ -259,8 +259,9 @@ az storage blob upload-batch --destination products --destination-path demo_sell
 
 ### 5.3 `css/style.css`
 
-所有頁面都以 `<link href="css/style.css">` 引用共用樣式；此檔已納入專案，僅提供中性基礎樣式，
-各頁的內嵌 `<style>` 與 inline style 仍是主要版面來源。
+所有頁面都以 `<link href="css/style.css">` 引用共用樣式；此檔已納入專案，提供基礎樣式與共用版面修正：
+`.body` 下移 150px 避開固定頁首與服務資訊列、固定頁首置於最上層、頁尾給予定位基準與高度（欄位為絕對定位）。
+各頁的內嵌 `<style>` 與 inline style 仍是主要版面來源；若主內容與頁首或頁尾重疊，先檢查此檔是否載入。
 
 ### 5.4 NuGet 還原
 
