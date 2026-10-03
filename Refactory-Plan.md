@@ -14,9 +14,9 @@
 
 新站是一個 ASP.NET Core MVC 應用程式，Razor 產生 HTML，Tailwind 提供樣式。公開註冊只建立會員。賣家由種子管理者授予。介面預設繁體中文，可切換英文。視覺採用市集資訊架構與 Bento 商品格。
 
-舊的 `Website/` Web Forms 專案留在儲存庫裡，`deploy.yml` 在切換 PR 之前繼續部署它。新站先有自己的建置與測試工作，不接管 Front Door。
+舊的 `Website/` Web Forms 專案留在儲存庫裡，既有的 `deploy.yml` 繼續部署它。新站用另一個 Web App 與另一個部署工作。兩個站同時開著，各有一個網址，用來對照、人工審查與 Demo。
 
-資料放在同一台 Azure SQL 的新資料表。`violet_*` 保留到切換完成，讓舊站回滾仍讀得到舊資料。不搬移舊密碼雜湊。示範帳號在新結構重新建立。
+資料放在同一台 Azure SQL。新站只用新資料表，舊站繼續用 `violet_*`。不搬移舊密碼雜湊。示範帳號在新結構重新建立。
 
 測試有兩道獨立門檻，兩道都必須通過，不能互相抵銷：
 
@@ -28,7 +28,7 @@
 | 項目 | 決定 |
 | --- | --- |
 | 第一版範圍 | 現有購物能力的對等功能，加上本文件列出的結構修正。不含金流、訂單狀態機、完整管理後台 |
-| 資料庫 | 同一 Azure SQL 新增一組表。`violet_*` 留到切換完成 |
+| 資料庫 | 同一個 Azure SQL。新表與 `violet_*` 並存，兩邊都繼續讀寫自己的表 |
 | 前端 | MVC Razor + Tailwind。不引入 React |
 | 賣家資格 | 公開註冊只建立會員。管理者授予或收回賣家 |
 | 介面語言 | `zh-Hant` 與 `en` 可切換。預設 `zh-Hant` |
@@ -39,7 +39,7 @@
 | PDF | QuestPDF 重畫訂單 PDF。授權說明見第 13.3 節，不稱它為 MIT |
 | 身分 | ASP.NET Core Identity。角色 `Customer`、`Seller`、`Operator` |
 | 舊密碼 | 不搬移。示範帳號重設 |
-| 環境 | 仍是一個資源群組。切換時新增 Linux App Service，舊 Windows App 先停不刪 |
+| 環境 | 仍是一個資源群組、一個資料庫。另建一個 Linux Web App，舊 Windows Web App 保持運行。兩個網址並存 |
 
 管理者功能只有一頁：以使用者名稱或 Email 找到會員，授予或收回 `Seller`。這頁不做訂單管理、商品審核或金流。
 
@@ -126,7 +126,7 @@
 - 秘密不進版控。連線、SMTP、Blob、圖片基底網址繼續來自環境變數與 Key Vault。
 - App 啟動時套用 migration。GitHub-hosted runner 不開 SQL 防火牆。
 - 角色指派仍在 bootstrap，不放進 Bicep。
-- 切換前不重建資源群組，不新增第二套環境。
+- 不重建資源群組，不新增第二個資料庫，也不把現有環境拆成測試與正式。第二個 Web App 仍屬於這一個環境，只為了讓兩個網址同時可開。
 - 示範資料與試運行資料仍要能用 [db/cleanup/remove_demo_data.sql](db/cleanup/remove_demo_data.sql) 的精神清除。新站另備一份針對新表的清除腳本，不在啟動時自動執行。
 
 ## 4. 範圍
@@ -151,8 +151,8 @@
 - 完整管理後台：訂單列表、代客下單、分類 CRUD、公告編輯、稽核畫面。
 - 把舊 `violet_*` 資料列搬進新表。分類與示範帳號、示範商品在新結構重新種子化。
 - 自動翻譯會員輸入的商品名稱、關鍵字、地址、聯絡留言。
-- 在切換 PR 之前改變現有 `deploy.yml` 的部署目標。
-- 刪除 `Website/` 或改寫舊頁。切換完成後的刪除是後續工作，不在本計畫的完成定義裡。
+- 改變現有 `deploy.yml` 的部署目標，或停止、刪除舊 Web App。舊站下線要另做決定。
+- 刪除 `Website/` 或改寫舊頁。那是舊站下線之後的工作，不在本計畫的完成定義裡。
 
 ### 4.3 結構修正
 
@@ -197,8 +197,8 @@ Shopping-Website/
 ├── tests/
 │   ├── Shopping.Web.Tests/           單元 + WebApplicationFactory。負責 100% 覆蓋率
 │   └── Shopping.E2E/                 Playwright。不列入覆蓋率分母
-├── Website/                          舊站。切換前保持可部署
-└── infra/                            切換 PR 才改
+├── Website/                          舊站。持續可部署
+└── infra/                            並行上線時才加第二個 Web App
 ```
 
 `Shopping.Web` 參考 `Shopping.Data`。`Shopping.Data` 不參考 Web。測試專案可以參考兩者。
@@ -520,7 +520,7 @@ Tailwind 在建置時產出 `wwwroot/css/site.css`，該檔納入版控，讓沒
 - 上傳：副檔名白名單、2 MB、magic bytes、檔名改 GUID。不採用原始檔名。
 - 錯誤頁與日誌分離。回應不含堆疊、SQL、連線字串。
 - 安全標頭見 FR-105 到 FR-107。CSP 的 `img-src` 允許 `'self'`、`data:` 與 `https:`，因為商品圖在 Front Door。其餘維持 `'self'`。
-- 依賴審查繼續阻擋新的 GPL／AGPL。iTextSharp 不進入新專案，切換完成後例外可以從新專案拿掉。舊 `Website/` 在被刪除前仍可能觸發既有例外，這不構成新站採用 AGPL 的理由。
+- 依賴審查繼續阻擋新的 GPL／AGPL。iTextSharp 不進入新專案。舊 `Website/` 還在時，既有例外可以留著；這不構成新站採用 AGPL 的理由。
 - 示範密碼只存在種子與文件。不新增真實秘密到 git。
 
 ## 13. 外部系統
@@ -543,7 +543,7 @@ PDF 測試斷言：位元組以 `%PDF` 開頭，抽出的文字含訂單編號�
 
 ## 14. 設定
 
-新站用環境變數繫結，名稱沿用舊站語意，避免切換時營運人員要記第二套名字：
+新站用環境變數繫結，名稱沿用舊站語意，避免兩個 Web App 各記一套名字：
 
 | 變數 | 用途 |
 | --- | --- |
@@ -557,18 +557,35 @@ PDF 測試斷言：位元組以 `%PDF` 開頭，抽出的文字含訂單編號�
 
 開發設定放在 `appsettings.Development.json`，只含本機 Azurite 與本機 SQL 的非秘密預設，或明確要求環境變數。不把試運行的真實密碼寫進檔案。
 
-## 15. 切換
+## 15. 並行上線
 
-切換是單獨的 PR，在第 18 節階段 0 到 6 都完成之後才做。
+階段 0 到 6 完成之後，用單獨的 PR 把新站放到 Azure。目的是兩個網址同時可開，而不是把流量從舊站切走。
 
-1. 在 `rg-shopping` 新增 Linux App Service，執行 `net10.0`。掛上既有的 `id-shopping-web`。不新建資源群組。
+現況的 Front Door 只轉送商品圖片，網站本身在 App Service 的 `azurewebsites.net`。因此並行不需要改 Front Door 的來源，也不要把新站放進 Front Door。兩個網站各用自己的主機名稱。Cookie 不互通，登入一邊不會變成登入另一邊。
+
+| 項目 | 舊站 | 新站 |
+| --- | --- | --- |
+| 資源群組 | `rg-shopping` | 同一個 `rg-shopping` |
+| 資料庫 | 現有 Azure SQL | 同一個資料庫 |
+| 資料表 | `violet_*` | `shop_*` 與 Identity 表 |
+| 計算 | 現有 Windows 方案 `asp-shopping`、Web App `app-shopping-<suffix>` | 新的 Linux 方案與 Web App `app-shopping-mvc-<suffix>` |
+| 網址 | 既有的 `*.azurewebsites.net` | 新 App 自己的 `*.azurewebsites.net` |
+| 部署 | 既有 `deploy.yml` 繼續發布 `site.zip` | 新的工作流程只發布新站 |
+| 圖片 | 共用 Blob 與 Front Door 的 `IMAGE_BASE_URL` | 同一組 |
+| 身分 | 既有 `id-shopping-web` | 掛上同一個受控識別。Bicep 仍不指派角色 |
+
+舊方案是 Windows，不能拿來跑 Linux 上的 `net10.0`。所以要在同一個資源群組裡新增一個 Linux App Service 方案，而不是在舊方案上加一個站。兩個方案都留著。規格先用與現況相同的 B1。
+
+上線步驟：
+
+1. 新 App 掛上 `id-shopping-web`。應用程式設定沿用現有的 `SQL_*`、`SMTP_*`、`STORAGE_*`、`IMAGE_BASE_URL`、`AZURE_CLIENT_ID`。秘密仍是 Key Vault 參考。
 2. 新站的 migration 只建立 `shop_*` 與 Identity 表。不修改 `violet_*`。
-3. 部署新站，但 Front Door 仍指向舊站。對新站的暫用主機名稱跑冒煙與 E2E 清單中的部署後子集：目錄、登入、加入購物車、下單、PDF、安全標頭、404。
-4. 通過後把 Front Door 來源改到新站。舊 Windows App 停止，不刪除。
-5. 回滾是把 Front Door 指回舊站並啟動它。因為 `violet_*` 沒有被新站寫入，舊站資料與回滾前一致。新站在切換後寫入的 `shop_*` 訂單不會出現在舊站；這一點寫進切換 PR 的說明。若已有真實訂單，就不把來源指回去，改為修正新站再部署。
-6. 試運行仍是同一個環境。本計畫不把 M8 正式營運做完。
+3. 部署新站後，對新網址冒煙：`/` 看得到示範商品、`/account/login`、`/categories`、示範圖片、安全標頭、未知路徑 404。舊網址同時再打開一次，確認仍是舊站。
+4. 冒煙失敗只修新站再部署。不要停止舊 Web App，也不要改舊站的部署目標。
+5. 舊站的可用性測試繼續打舊主機名稱。新站另加一組測試，不取代舊的。
+6. 試運行仍是同一個環境。本計畫不把 M8 正式營運做完，也不決定何時下線舊站。
 
-切換 PR 同時更新 README、QuickStart、冒煙腳本與 `CONTEXT.md`。在那之前，README 仍描述舊站，避免文件先於軟體。
+文件在這個 PR 更新 README、QuickStart 與 `CONTEXT.md`，兩個網址並列。在那之前，README 仍描述舊站，避免文件先於軟體。
 
 ## 16. 測試與 100% 覆蓋率
 
@@ -697,7 +714,7 @@ CI 先安裝 Playwright 瀏覽器。本機文件寫明同一條安裝指令。
 
 步驟：還原、檢查 Tailwind 產物沒有漂移、`dotnet build` 警告即錯誤、單元與整合測試、覆蓋率門檻、FR 追溯、Playwright、上傳失敗時的 trace。
 
-既有 `build.yml` 與 `deploy.yml` 維持部署舊站，直到切換 PR。切換 PR 把部署物改為 `dotnet publish` 的新站，冒煙測試改打新路由：`/` 看得到示範商品、`/account/login`、`/categories`、示範圖片可經 Front Door 取得、安全標頭、未知路徑 404。回滾用 Front Door，不再依賴舊的 `site.zip` 語意；舊 `site.zip` 工作在切換後從部署流程移除，原始碼仍留著直到後續刪除舊站的 PR。
+既有 `build.yml` 與 `deploy.yml` 繼續建置與部署舊站。新站另用 `deploy-mvc.yml`，只對 `app-shopping-mvc-<suffix>` 做 `dotnet publish`。新站冒煙打它自己的網址：`/` 看得到示範商品、`/account/login`、`/categories`、示範圖片可經 Front Door 取得、安全標頭、未知路徑 404。舊站的 `site.zip` 部署保留。新站部署失敗時，舊網址維持原樣。
 
 依賴審查對新專案生效。QuestPDF 不是 AGPL，不需要 AGPL 例外。若掃描器把 Community License 標成未知，在 PR 說明附上第 13.3 節的資格判斷，不把套件放進允許清單裡的 AGPL 例外。
 
@@ -714,13 +731,13 @@ CI 先安裝 Playwright 瀏覽器。本機文件寫明同一條安裝指令。
 | 4 | PDF、上架、Blob、賣家維護、管理者授予 | FR-40、FR-41、FR-80 到 FR-92。覆蓋率 100% |
 | 5 | 聯絡、錯誤頁、安全標頭、CSP、防偽造的負面測試 | FR-101 到 FR-108。覆蓋率 100% |
 | 6 | 補齊全部 E2E 劇本與 FR 追溯測試。修測試找出的缺陷 | 第 9 節每個 FR 都有測試名稱。E2E 清單全綠。覆蓋率仍是 100% |
-| 7 | 切換 PR：Linux App、Front Door、文件 | 第 15 節的暫用主機名稱冒煙通過後才改來源 |
+| 7 | 並行上線：同一個資源群組裡的第二個 Web App、文件列出兩個網址 | 新網址冒煙通過，舊網址仍是舊站 |
 
 階段 1 起，每個使用者看得到的 PR 都在桌面 1440 與 375 走完該階段的新流程，再合併。自動化 E2E 從該流程第一次出現就加進來，不等到階段 6 才第一次點頁面。階段 6 是補齊矩陣與追溯，不是第一次寫 E2E。
 
 ADR 在對應階段寫入 `docs/adr/`，至少包括：
 
-- 以 `net10.0` MVC 重寫，舊站保留到切換。
+- 以 `net10.0` MVC 重寫。舊站與新站以兩個 Web App 同時運行。
 - 新表與 `violet_*` 並存，啟動時由 App 套用 SQL。
 - 賣家由管理者授予。
 - 訂單 PDF 改用 QuestPDF Community License，取代 ADR 0003 對新站的效力。ADR 0003 在舊站刪除前仍描述舊站。
@@ -730,8 +747,9 @@ ADR 在對應階段寫入 `docs/adr/`，至少包括：
 
 | 風險 | 處理 |
 | --- | --- |
-| 單一環境沒有預演場 | 新站先用暫用主機名稱驗證。Front Door 切換是最後一步。舊表不改，所以舊站還能啟動 |
-| 切換後的新訂單在舊站看不見 | 一旦有非示範訂單，回滾改為修新站，不把流量指回舊站 |
+| 單一資源群組裡多一個計算方案 | 舊方案是 Windows，Linux 站需要自己的方案。兩個 Web App 都留著，才能用兩個網址對照。不新增資料庫或資源群組 |
+| 新站部署失敗 | 只回滾或修新 Web App。舊網址與 `violet_*` 不參與這次回滾 |
+| 在新站下的訂單舊站看不到 | 這是表分開的結果。Demo 時用對應網址查看該站自己的訂單 |
 | QuestPDF 資格 | 以 MIT 開源專案資格使用。閉源前必須換工具或買授權 |
 | 100% 分支迫使程式保持小而可測 | 這是本計畫的設計約束。邏輯放在服務裡，不放在 Razor |
 | Playwright 在 CI 不穩定 | 失敗保留 trace。不把失敗測試改成 Skip。不穩定測試修到可重複 |
@@ -748,5 +766,5 @@ ADR 在對應階段寫入 `docs/adr/`，至少包括：
 - Coverlet 對 `Shopping.Web` 與 `Shopping.Data` 的行覆蓋率與分支覆蓋率都是 100%。
 - 第 9 節每個 FR 都能在測試名稱裡找到。使用者可見的 FR 能在 E2E 專案找到。
 - 第 16.4 節的路由在兩語系與兩個寬度都有 E2E。
-- 舊站在切換前仍由現有工作流程部署。切換後 Front Door 指向新站，舊 App 停止但未刪除。
-- README、QuickStart、`CONTEXT.md` 與 ADR 在切換 PR 與程式一致。
+- 舊站仍由現有工作流程部署，而且 Web App 保持運行。新站在同一個資源群組、同一個資料庫，有自己的 Web App 與網址。
+- README、QuickStart、`CONTEXT.md` 與 ADR 列出兩個網址，並與程式一致。
