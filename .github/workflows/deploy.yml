@@ -86,7 +86,7 @@ jobs:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: |
           set -euo pipefail
-          app=$(az webapp list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'app-shopping-')].name | [0]" -o tsv)
+          app=$(az webapp list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'app-shopping-') && !starts_with(name, 'app-shopping-mvc-')].name | [0]" -o tsv)
           storage=$(az storage account list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'stshopping')].name | [0]" -o tsv)
           host=$(az webapp show -g "$RESOURCE_GROUP" -n "$app" --query defaultHostName -o tsv)
           image_base_url=$(az webapp config appsettings list -g "$RESOURCE_GROUP" -n "$app" \

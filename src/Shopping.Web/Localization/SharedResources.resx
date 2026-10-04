@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AboutBody" xml:space="preserve"><value>這是示範市集。商品由賣家上架，賣家資格由管理者授予。</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>關於我們</value></data>
+  <data name="AccountLabel" xml:space="preserve"><value>帳號或 Email</value></data>
+  <data name="AccountTitle" xml:space="preserve"><value>帳戶</value></data>
+  <data name="AddToCart" xml:space="preserve"><value>加入購物車</value></data>
+  <data name="Address" xml:space="preserve"><value>地址</value></data>
+  <data name="BackHome" xml:space="preserve"><value>回目錄</value></data>
+  <data name="BirthDate" xml:space="preserve"><value>生日</value></data>
+  <data name="BirthInFuture" xml:space="preserve"><value>生日不能是未來。</value></data>
+  <data name="BirthInvalid" xml:space="preserve"><value>生日格式不正確。</value></data>
+  <data name="BlogBody" xml:space="preserve"><value>示範文章：先註冊成會員，再由管理者授予賣家資格。本站沒有自行註冊賣家的入口。</value></data>
+  <data name="BlogTitle" xml:space="preserve"><value>部落格</value></data>
+  <data name="Brand" xml:space="preserve"><value>市集</value></data>
+  <data name="CartEmpty" xml:space="preserve"><value>購物車是空的。</value></data>
+  <data name="CatalogEmpty" xml:space="preserve"><value>沒有符合的商品。</value></data>
+  <data name="CategoriesTitle" xml:space="preserve"><value>分類</value></data>
+  <data name="Category" xml:space="preserve"><value>分類</value></data>
+  <data name="CategoryInvalid" xml:space="preserve"><value>請選擇分類。</value></data>
+  <data name="Checkout" xml:space="preserve"><value>結帳</value></data>
+  <data name="CheckoutTitle" xml:space="preserve"><value>結帳</value></data>
+  <data name="City" xml:space="preserve"><value>城市</value></data>
+  <data name="ConfirmDelete" xml:space="preserve"><value>我確定刪除</value></data>
+  <data name="ConfirmMismatch" xml:space="preserve"><value>確認密碼不一致。</value></data>
+  <data name="ConfirmPassword" xml:space="preserve"><value>確認密碼</value></data>
+  <data name="ContactMessage" xml:space="preserve"><value>訊息</value></data>
+  <data name="ContactName" xml:space="preserve"><value>姓名</value></data>
+  <data name="ContactSent" xml:space="preserve"><value>已收到您的訊息。</value></data>
+  <data name="ContactTitle" xml:space="preserve"><value>聯絡我們</value></data>
+  <data name="Country" xml:space="preserve"><value>國家</value></data>
+  <data name="Delete" xml:space="preserve"><value>刪除</value></data>
+  <data name="DisplayName" xml:space="preserve"><value>顯示名稱</value></data>
+  <data name="DisplayNameInvalid" xml:space="preserve"><value>顯示名稱只接受文字與空白，最多 50 字。</value></data>
+  <data name="Email" xml:space="preserve"><value>Email</value></data>
+  <data name="EmailInvalid" xml:space="preserve"><value>Email 格式不正確。</value></data>
+  <data name="EmailTaken" xml:space="preserve"><value>這個 Email 已被使用。</value></data>
+  <data name="Error403Body" xml:space="preserve"><value>這個帳號不能使用此功能。</value></data>
+  <data name="Error403Title" xml:space="preserve"><value>沒有權限</value></data>
+  <data name="Error404Body" xml:space="preserve"><value>這個網址沒有內容。</value></data>
+  <data name="Error404Title" xml:space="preserve"><value>找不到頁面</value></data>
+  <data name="Error500Body" xml:space="preserve"><value>請稍後再試。</value></data>
+  <data name="Error500Title" xml:space="preserve"><value>發生問題</value></data>
+  <data name="ForgotLink" xml:space="preserve"><value>忘記密碼</value></data>
+  <data name="ForgotSent" xml:space="preserve"><value>若帳號存在，重設信已寄出。</value></data>
+  <data name="ForgotTitle" xml:space="preserve"><value>忘記密碼</value></data>
+  <data name="Gender" xml:space="preserve"><value>性別</value></data>
+  <data name="GenderFemale" xml:space="preserve"><value>女</value></data>
+  <data name="GenderInvalid" xml:space="preserve"><value>請選擇性別。</value></data>
+  <data name="GenderMale" xml:space="preserve"><value>男</value></data>
+  <data name="GenderOthers" xml:space="preserve"><value>其他</value></data>
+  <data name="GrantSeller" xml:space="preserve"><value>授予賣家</value></data>
+  <data name="HowToSellBody" xml:space="preserve"><value>請先註冊為會員。賣家資格由管理者授予，網站沒有自行註冊賣家的功能。</value></data>
+  <data name="HowToSellTitle" xml:space="preserve"><value>如何成為賣家</value></data>
+  <data name="Image" xml:space="preserve"><value>圖片</value></data>
+  <data name="ImageInvalid" xml:space="preserve"><value>圖片無法使用。</value></data>
+  <data name="ImageRequired" xml:space="preserve"><value>請上傳圖片。</value></data>
+  <data name="Insufficient" xml:space="preserve"><value>庫存不足</value></data>
+  <data name="Invoice" xml:space="preserve"><value>下載發票</value></data>
+  <data name="IsSeller" xml:space="preserve"><value>目前是賣家</value></data>
+  <data name="Keywords" xml:space="preserve"><value>關鍵字</value></data>
+  <data name="KeywordsInvalid" xml:space="preserve"><value>關鍵字過長。</value></data>
+  <data name="LangEn" xml:space="preserve"><value>English</value></data>
+  <data name="LangZh" xml:space="preserve"><value>繁體中文</value></data>
+  <data name="LoginFailed" xml:space="preserve"><value>帳號或密碼不正確。</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>登入</value></data>
+  <data name="MailUnavailable" xml:space="preserve"><value>若帳號存在，重設信已寄出。</value></data>
+  <data name="MemberMissing" xml:space="preserve"><value>找不到會員。</value></data>
+  <data name="NameInvalid" xml:space="preserve"><value>名稱不正確。</value></data>
+  <data name="NameTaken" xml:space="preserve"><value>這個名稱已被使用。</value></data>
+  <data name="NavAbout" xml:space="preserve"><value>關於</value></data>
+  <data name="NavAccount" xml:space="preserve"><value>帳戶</value></data>
+  <data name="NavBlog" xml:space="preserve"><value>部落格</value></data>
+  <data name="NavCart" xml:space="preserve"><value>購物車</value></data>
+  <data name="NavCatalog" xml:space="preserve"><value>目錄</value></data>
+  <data name="NavCategories" xml:space="preserve"><value>分類</value></data>
+  <data name="NavContact" xml:space="preserve"><value>聯絡我們</value></data>
+  <data name="NavLogin" xml:space="preserve"><value>登入</value></data>
+  <data name="NavLogout" xml:space="preserve"><value>登出</value></data>
+  <data name="NavOperator" xml:space="preserve"><value>賣家資格</value></data>
+  <data name="NavRegister" xml:space="preserve"><value>註冊</value></data>
+  <data name="NavSell" xml:space="preserve"><value>上架商品</value></data>
+  <data name="NewPassword" xml:space="preserve"><value>新密碼</value></data>
+  <data name="NewProduct" xml:space="preserve"><value>上架商品</value></data>
+  <data name="NoOnlinePayment" xml:space="preserve"><value>此訂單沒有線上付款。</value></data>
+  <data name="NotSeller" xml:space="preserve"><value>目前不是賣家</value></data>
+  <data name="OperatorTitle" xml:space="preserve"><value>賣家資格</value></data>
+  <data name="OrderNumber" xml:space="preserve"><value>訂單編號</value></data>
+  <data name="OrderPlaced" xml:space="preserve"><value>訂單已成立</value></data>
+  <data name="Orders" xml:space="preserve"><value>訂單</value></data>
+  <data name="OrdersEmpty" xml:space="preserve"><value>還沒有訂單。</value></data>
+  <data name="Password" xml:space="preserve"><value>密碼</value></data>
+  <data name="PasswordInvalid" xml:space="preserve"><value>密碼至少 8 碼，需含大小寫、數字與特殊字元。</value></data>
+  <data name="Phone" xml:space="preserve"><value>電話</value></data>
+  <data name="PhoneInvalid" xml:space="preserve"><value>電話須為 10 碼數字。</value></data>
+  <data name="PhoneTaken" xml:space="preserve"><value>這個電話已被使用。</value></data>
+  <data name="PlaceOrder" xml:space="preserve"><value>送出訂單</value></data>
+  <data name="PriceInvalid" xml:space="preserve"><value>價格不正確。</value></data>
+  <data name="PriceLabel" xml:space="preserve"><value>價格</value></data>
+  <data name="ProductName" xml:space="preserve"><value>商品名稱</value></data>
+  <data name="Quantity" xml:space="preserve"><value>數量</value></data>
+  <data name="ReadOnly" xml:space="preserve"><value>此欄位不能修改。</value></data>
+  <data name="Region" xml:space="preserve"><value>州或省</value></data>
+  <data name="RegisterTitle" xml:space="preserve"><value>註冊</value></data>
+  <data name="Rejected" xml:space="preserve"><value>不能變更管理者資格。</value></data>
+  <data name="Remove" xml:space="preserve"><value>移除</value></data>
+  <data name="Required" xml:space="preserve"><value>必填。</value></data>
+  <data name="ResetDone" xml:space="preserve"><value>密碼已更新，請登入。</value></data>
+  <data name="ResetFailed" xml:space="preserve"><value>重設失敗，請重新申請。</value></data>
+  <data name="ResetTitle" xml:space="preserve"><value>重設密碼</value></data>
+  <data name="RevokeSeller" xml:space="preserve"><value>撤銷賣家</value></data>
+  <data name="SaveProfile" xml:space="preserve"><value>儲存</value></data>
+  <data name="SearchButton" xml:space="preserve"><value>搜尋</value></data>
+  <data name="SearchLabel" xml:space="preserve"><value>搜尋商品</value></data>
+  <data name="SearchMember" xml:space="preserve"><value>使用者名稱或 Email</value></data>
+  <data name="SellerLabel" xml:space="preserve"><value>賣家</value></data>
+  <data name="SellerProducts" xml:space="preserve"><value>我的商品</value></data>
+  <data name="SendReset" xml:space="preserve"><value>寄出重設信</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>跳至主要內容</value></data>
+  <data name="SoldOut" xml:space="preserve"><value>已售完</value></data>
+  <data name="SortPriceAsc" xml:space="preserve"><value>價格由低到高</value></data>
+  <data name="SortPriceDesc" xml:space="preserve"><value>價格由高到低</value></data>
+  <data name="SortRandom" xml:space="preserve"><value>隨機</value></data>
+  <data name="StockLabel" xml:space="preserve"><value>庫存</value></data>
+  <data name="Submit" xml:space="preserve"><value>送出</value></data>
+  <data name="TooLong" xml:space="preserve"><value>長度過長。</value></data>
+  <data name="TrustBody" xml:space="preserve"><value>加入購物車不會預扣庫存，結帳時才一次扣庫。</value></data>
+  <data name="TrustTitle" xml:space="preserve"><value>安心選購</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>目前無法成立訂單</value></data>
+  <data name="Update" xml:space="preserve"><value>更新</value></data>
+  <data name="UserName" xml:space="preserve"><value>使用者名稱</value></data>
+  <data name="UserNameInvalid" xml:space="preserve"><value>使用者名稱只接受英數，最多 20 字。</value></data>
+  <data name="UserNameTaken" xml:space="preserve"><value>這個使用者名稱已被使用。</value></data>
+</root>

@@ -136,6 +136,27 @@ module appService 'modules/appservice.bicep' = {
   }
 }
 
+module appServiceMvc 'modules/appservice-mvc.bicep' = {
+  name: 'appservice-mvc'
+  params: {
+    location: location
+    tags: tags
+    appName: 'app-shopping-mvc-${suffix}'
+    webIdentityId: webIdentity.id
+    webIdentityClientId: webIdentity.properties.clientId
+    keyVaultName: keyVault.outputs.name
+    sqlServerFqdn: sql.outputs.fqdn
+    databaseName: sql.outputs.databaseName
+    storageBlobEndpoint: storage.outputs.blobEndpoint
+    storageContainer: storageContainer
+    imageBaseUrl: 'https://${frontDoor.outputs.endpointHostName}'
+    smtpFrom: 'DoNotReply@${email.outputs.fromDomain}'
+    smtpUserName: smtpUserName
+    appInsightsConnectionString: monitoring.outputs.connectionString
+    logAnalyticsWorkspaceId: monitoring.outputs.workspaceId
+  }
+}
+
 module availability 'modules/availability.bicep' = {
   name: 'availability'
   params: {
@@ -143,6 +164,7 @@ module availability 'modules/availability.bicep' = {
     tags: tags
     appInsightsId: monitoring.outputs.appInsightsId
     appHostName: appService.outputs.hostName
+    mvcHostName: appServiceMvc.outputs.hostName
     alertEmail: alertEmail
   }
 }
@@ -152,6 +174,12 @@ output appName string = appService.outputs.name
 
 @description('Web App 主機名稱')
 output appHostName string = appService.outputs.hostName
+
+@description('新站 Web App 名稱')
+output mvcAppName string = appServiceMvc.outputs.name
+
+@description('新站 Web App 主機名稱')
+output mvcHostName string = appServiceMvc.outputs.hostName
 
 @description('Blob 主要端點')
 output storageBlobEndpoint string = storage.outputs.blobEndpoint

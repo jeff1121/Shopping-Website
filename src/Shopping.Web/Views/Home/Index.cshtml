@@ -1,0 +1,77 @@
+@model IReadOnlyList<ProductCard>
+@{
+    var keyword = ViewData["Keyword"] as string ?? "";
+    var sort = ViewData["Sort"] as string ?? "random";
+    var categoryId = ViewData["CategoryId"] as int?;
+    string SortHref(string value)
+    {
+        var query = new List<string> { "sort=" + value };
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            query.Add("keyword=" + Uri.EscapeDataString(keyword));
+        }
+        if (categoryId is int id)
+        {
+            query.Add("category=" + id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return "/?" + string.Join("&", query);
+    }
+}
+<h1 class="font-display text-3xl font-bold">@T["NavCatalog"]</h1>
+<nav class="mt-4 flex flex-wrap gap-2" aria-label="@T["SortRandom"]">
+    <a class="inline-flex min-h-11 items-center rounded-2xl px-4 @(sort == "random" ? "bg-primary text-white" : "bg-surface")" href="@SortHref("random")">@T["SortRandom"]</a>
+    <a class="inline-flex min-h-11 items-center rounded-2xl px-4 @(sort == "price-asc" ? "bg-primary text-white" : "bg-surface")" href="@SortHref("price-asc")">@T["SortPriceAsc"]</a>
+    <a class="inline-flex min-h-11 items-center rounded-2xl px-4 @(sort == "price-desc" ? "bg-primary text-white" : "bg-surface")" href="@SortHref("price-desc")">@T["SortPriceDesc"]</a>
+</nav>
+@if (Model.Count == 0)
+{
+    <p class="mt-8">@T["CatalogEmpty"]</p>
+}
+else
+{
+    <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        @foreach (var item in Model)
+        {
+            <li class="flex flex-col rounded-2xl bg-surface p-4 shadow-sm">
+                <a href="/products/@item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                    <img class="aspect-square w-full rounded-2xl object-cover" src="@item.ImageUrl" alt="@item.Name" />
+                    <h2 class="mt-3 line-clamp-2 font-display text-lg font-bold">@item.Name</h2>
+                </a>
+                <p class="mt-2">@item.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+                <p>@T["StockLabel"] @item.Stock.ToString(System.Globalization.CultureInfo.InvariantCulture)</p>
+                <p>@T["SellerLabel"] @item.SellerName</p>
+                @if (item.Stock == 0)
+                {
+                    <p>@T["SoldOut"]</p>
+                    <button class="mt-3 min-h-11 rounded-2xl bg-slate-300 px-4" type="button" disabled>@T["AddToCart"]</button>
+                }
+                else
+                {
+                    <form class="mt-3 flex flex-col gap-2" method="post" action="/cart" novalidate>
+                        @await Html.PartialAsync("_Token")
+                        <input type="hidden" name="productId" value="@item.Id" />
+                        <label>@T["Quantity"]
+                            <select class="min-h-11 rounded-2xl border border-slate-300 px-3" name="quantity">
+                                @for (var qty = 1; qty <= item.MaxQuantity; qty++)
+                                {
+                                    <option value="@qty">@qty</option>
+                                }
+                            </select>
+                        </label>
+                        <button class="min-h-11 rounded-2xl bg-cta px-4 text-white" type="submit">@T["AddToCart"]</button>
+                    </form>
+                }
+            </li>
+        }
+    </ul>
+}
+<section class="mt-10 grid gap-4 md:grid-cols-2">
+    <article class="rounded-2xl bg-surface p-6">
+        <h2 class="font-display text-xl font-bold">@T["TrustTitle"]</h2>
+        <p class="mt-2">@T["TrustBody"]</p>
+    </article>
+    <article class="rounded-2xl bg-surface p-6">
+        <h2 class="font-display text-xl font-bold">@T["HowToSellTitle"]</h2>
+        <p class="mt-2">@T["HowToSellBody"]</p>
+    </article>
+</section>

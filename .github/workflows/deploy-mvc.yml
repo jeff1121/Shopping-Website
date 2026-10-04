@@ -1,0 +1,102 @@
+# 只部署新的 Linux Web App。舊站的 site.zip 仍由 deploy.yml 負責。
+name: 部署 MVC
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/Shopping.Web/**'
+      - 'src/Shopping.Data/**'
+      - '.github/workflows/deploy-mvc.yml'
+      - '.github/scripts/smoke-mvc.sh'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-mvc-azure
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: 部署到 Linux Web App
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: azure
+      url: ${{ steps.names.outputs.app-url }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 設定 .NET
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 設定 Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/Shopping.Web/package-lock.json
+
+      - name: 建置樣式
+        working-directory: src/Shopping.Web
+        run: |
+          npm ci
+          npm run build:css
+
+      - name: 發行
+        run: dotnet publish src/Shopping.Web/Shopping.Web.csproj --configuration Release --output publish --nologo
+
+      - name: 打包
+        run: |
+          set -euo pipefail
+          (cd publish && zip -r ../site-mvc.zip .)
+
+      - name: 登入 Azure（OIDC）
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 取得新站名稱
+        id: names
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          app=$(az webapp list -g "$RESOURCE_GROUP" --query "[?starts_with(name, 'app-shopping-mvc-')].name | [0]" -o tsv)
+          host=$(az webapp show -g "$RESOURCE_GROUP" -n "$app" --query defaultHostName -o tsv)
+          image_base_url=$(az webapp config appsettings list -g "$RESOURCE_GROUP" -n "$app" \
+            --query "[?name=='IMAGE_BASE_URL'].value | [0]" -o tsv)
+          if [[ -z "$app" || -z "$host" || -z "$image_base_url" ]]; then
+            echo '::error::找不到 Linux Web App 或 IMAGE_BASE_URL。請先部署 infra/modules/appservice-mvc.bicep。'
+            exit 1
+          fi
+          {
+            echo "app=$app"
+            echo "app-url=https://$host"
+            echo "image-base-url=$image_base_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 部署網站套件
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          APP: ${{ steps.names.outputs.app }}
+        run: |
+          set -euo pipefail
+          az webapp deploy -g "$RESOURCE_GROUP" -n "$APP" --src-path site-mvc.zip --type zip --timeout 900000 -o none
+
+      - name: 冒煙測試
+        env:
+          APP_URL: ${{ steps.names.outputs.app-url }}
+          IMAGE_BASE_URL: ${{ steps.names.outputs.image-base-url }}
+        run: .github/scripts/smoke-mvc.sh "$APP_URL" "$IMAGE_BASE_URL"

@@ -1,0 +1,31 @@
+@model CartPage
+<h1 class="font-display text-3xl font-bold">@T["NavCart"]</h1>
+@if (Model.Lines.Count == 0)
+{
+    <p class="mt-4">@T["CartEmpty"]</p>
+    <p class="mt-4"><a class="inline-flex min-h-11 items-center" href="/">@T["BackHome"]</a></p>
+}
+else
+{
+    <ul class="mt-6 grid gap-4">
+        @foreach (var line in Model.Lines)
+        {
+            <li class="grid gap-3 rounded-2xl bg-surface p-4 md:grid-cols-[6rem_1fr]">
+                <img class="h-24 w-24 rounded-2xl object-cover" src="@line.ImageUrl" alt="@line.Name" />
+                <div>
+                    <h2 class="font-display text-lg">@line.Name</h2>
+                    <p>@line.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+                    <p>@line.LineTotal.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+                    <form class="mt-2 flex flex-wrap gap-2" method="post" action="/cart/@line.ProductId" novalidate>
+                        @await Html.PartialAsync("_Token")
+                        <input class="min-h-11 w-20 rounded-2xl border border-slate-300 px-3" name="quantity" value="@line.Quantity" />
+                        <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit" name="action" value="update">@T["Update"]</button>
+                        <button class="min-h-11 rounded-2xl border border-slate-300 px-4" type="submit" name="action" value="remove">@T["Remove"]</button>
+                    </form>
+                </div>
+            </li>
+        }
+    </ul>
+    <p class="mt-4 font-display text-xl">@Model.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+    <p class="mt-4"><a class="inline-flex min-h-11 items-center rounded-2xl bg-cta px-4 text-white" href="/checkout">@T["Checkout"]</a></p>
+}

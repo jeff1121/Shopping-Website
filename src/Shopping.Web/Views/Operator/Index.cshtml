@@ -1,0 +1,40 @@
+@{
+    var query = ViewData["Query"] as string ?? "";
+    var member = ViewData["Member"] as MemberLookup;
+}
+<h1 class="font-display text-3xl font-bold">@T["OperatorTitle"]</h1>
+@if (ViewData["Rejected"] is true)
+{
+    <p class="mt-4">@T["Rejected"]</p>
+}
+<form class="mt-6 flex max-w-xl flex-wrap gap-2" method="get" action="/operator/sellers">
+    <label class="sr-only" for="query">@T["SearchMember"]</label>
+    <input class="min-h-11 flex-1 rounded-2xl border border-slate-300 px-4" id="query" name="query" value="@query" />
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["SearchButton"]</button>
+</form>
+@if (!string.IsNullOrWhiteSpace(query) && member is null)
+{
+    <p class="mt-4">@T["MemberMissing"]</p>
+}
+@if (member is not null)
+{
+    <section class="mt-6 max-w-xl rounded-2xl bg-surface p-4">
+        <p>@member.UserName</p>
+        <p>@member.Email</p>
+        <p>@(member.IsSeller ? T["IsSeller"] : T["NotSeller"])</p>
+        <form class="mt-3" method="post" action="/operator/sellers" novalidate>
+            @await Html.PartialAsync("_Token")
+            <input type="hidden" name="targetId" value="@member.Id" />
+            <input type="hidden" name="role" value="Seller" />
+            <input type="hidden" name="query" value="@query" />
+            <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit" name="action" value="grant">@T["GrantSeller"]</button>
+        </form>
+        <form class="mt-3" method="post" action="/operator/sellers" novalidate>
+            @await Html.PartialAsync("_Token")
+            <input type="hidden" name="targetId" value="@member.Id" />
+            <input type="hidden" name="role" value="Seller" />
+            <input type="hidden" name="query" value="@query" />
+            <button class="min-h-11 rounded-2xl border border-slate-300 px-4" type="submit" name="action" value="revoke">@T["RevokeSeller"]</button>
+        </form>
+    </section>
+}

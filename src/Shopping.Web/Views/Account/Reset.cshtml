@@ -1,0 +1,22 @@
+@{
+    var userId = ViewData["UserId"] as string ?? "";
+    var token = ViewData["Token"] as string ?? "";
+}
+<h1 class="font-display text-3xl font-bold">@T["ResetTitle"]</h1>
+@if (ViewData["ResetDone"] is true)
+{
+    <p class="mt-4">@T["ResetDone"]</p>
+    <p class="mt-4"><a href="/account/login">@T["NavLogin"]</a></p>
+}
+else
+{
+    <form class="mt-6 grid max-w-xl gap-4" method="post" action="/account/reset" novalidate>
+        @await Html.PartialAsync("_Token")
+        <div asp-validation-summary="ModelOnly" class="text-red-700"></div>
+        <input type="hidden" name="user" value="@userId" />
+        <input type="hidden" name="token" value="@token" />
+        <div><label for="password">@T["NewPassword"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="password" name="password" type="password" /></div>
+        <div><label for="confirmPassword">@T["ConfirmPassword"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="confirmPassword" name="confirmPassword" type="password" /></div>
+        <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["Submit"]</button>
+    </form>
+}

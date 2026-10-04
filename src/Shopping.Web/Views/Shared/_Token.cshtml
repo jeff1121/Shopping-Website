@@ -1,0 +1,4 @@
+@{
+    var set = Xsrf.GetAndStoreTokens(Context);
+}
+<input type="hidden" name="@set.FormFieldName" value="@set.RequestToken" />

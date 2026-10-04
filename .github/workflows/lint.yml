@@ -37,11 +37,11 @@ jobs:
 
       # 只檢查新的 migration／維運腳本；舊的 DbSql.sql 已過時，不納入
       - name: SQL（sqlfluff，T-SQL）
-        if: hashFiles('db/**/*.sql', 'Website/Migrations/**/*.sql') != ''
+        if: hashFiles('db/**/*.sql', 'Website/Migrations/**/*.sql', 'src/Shopping.Data/Migrations/**/*.sql') != ''
         uses: docker://sqlfluff/sqlfluff@sha256:8003e7099a43661bb972bb29b6c66ef0954545586a047bd88cdbdfb6d758f144 # 4.3.0
         with:
           entrypoint: /bin/sh
-          args: -c "sqlfluff lint --dialect tsql $(for d in db Website/Migrations; do [ -d $d ] && printf '%s ' $d; done)"
+          args: -c "sqlfluff lint --dialect tsql $(for d in db Website/Migrations src/Shopping.Data/Migrations; do [ -d $d ] && printf '%s ' $d; done)"
 
       - name: Workflow（actionlint）
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12

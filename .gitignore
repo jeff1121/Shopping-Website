@@ -35,3 +35,10 @@ sbom-*.json
 # 作業系統
 .DS_Store
 Thumbs.db
+
+# 新站前端建置與測試產出
+node_modules/
+TestResults/
+playwright-report/
+test-results/
+*.pfx

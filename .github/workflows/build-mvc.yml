@@ -1,0 +1,112 @@
+# 新站建置、覆蓋率與 Playwright（Refactory-Tasks T03、T09）。不部署。
+name: 建置 MVC
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'Refactory-Plan.md'
+      - 'Refactory-Tasks.md'
+      - 'docker-compose.tests.yml'
+      - 'docker/**'
+      - '.github/workflows/build-mvc.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'Refactory-Plan.md'
+      - 'Refactory-Tasks.md'
+      - 'docker-compose.tests.yml'
+      - 'docker/**'
+      - '.github/workflows/build-mvc.yml'
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 建置與測試
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: 設定 .NET
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 設定 Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/Shopping.Web/package-lock.json
+
+      - name: 建置樣式
+        working-directory: src/Shopping.Web
+        run: |
+          npm ci
+          npm run build:css
+          git diff --exit-code -- wwwroot/css/site.css
+
+      - name: 啟動測試 SQL 與 Azurite
+        run: docker compose -f docker-compose.tests.yml up -d
+
+      - name: 等待測試 SQL
+        run: |
+          python3 - << 'PY'
+          import socket
+          import time
+          for _ in range(60):
+              try:
+                  with socket.create_connection(("127.0.0.1", 14333), 2):
+                      raise SystemExit(0)
+              except OSError:
+                  time.sleep(2)
+          raise SystemExit("測試 SQL 未在 14333 接聽")
+          PY
+
+      - name: 建置
+        run: dotnet build Shopping.sln --configuration Release --nologo
+
+      - name: 覆蓋率
+        run: bash tests/check-coverage.sh
+
+      - name: 檢查是否已加入 Playwright
+        id: playwright
+        run: |
+          if grep -q 'Microsoft.Playwright' tests/Shopping.E2E/Shopping.E2E.csproj; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 安裝 Chromium
+        if: steps.playwright.outputs.present == 'true'
+        run: pwsh tests/Shopping.E2E/bin/Release/net10.0/playwright.ps1 install chromium --with-deps
+
+      - name: 端對端測試
+        if: steps.playwright.outputs.present == 'true'
+        run: dotnet test tests/Shopping.E2E/Shopping.E2E.csproj --configuration Release --no-build --nologo
+
+      - name: 上傳失敗追蹤
+        if: failure() && steps.playwright.outputs.present == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            tests/Shopping.E2E/bin/Release/net10.0/playwright-report/
+          if-no-files-found: ignore

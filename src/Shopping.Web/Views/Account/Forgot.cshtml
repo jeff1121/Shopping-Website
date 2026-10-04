@@ -1,0 +1,10 @@
+<h1 class="font-display text-3xl font-bold">@T["ForgotTitle"]</h1>
+@if (ViewData["ResetMessage"] is string key)
+{
+    <p class="mt-4">@T[key]</p>
+}
+<form class="mt-6 grid max-w-xl gap-4" method="post" action="/account/forgot" novalidate>
+    @await Html.PartialAsync("_Token")
+    <div><label for="account">@T["AccountLabel"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="account" name="account" /></div>
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["SendReset"]</button>
+</form>

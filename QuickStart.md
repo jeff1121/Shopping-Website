@@ -5,6 +5,11 @@
 
 > 專案功能、架構與已知問題的完整說明請見 [README.md](README.md)。
 
+已部署的兩個網站：
+
+- 舊站（本文件第 1 到第 10 節，僅 Windows）：<https://app-shopping-zy2bgk.azurewebsites.net>
+- 新站（ASP.NET Core MVC，net10.0）：<https://app-shopping-mvc-zy2bgk.azurewebsites.net>
+
 ---
 
 ## 目錄
@@ -39,7 +44,7 @@
 
 ### macOS / Linux 使用者
 
-本專案**無法**在 macOS 或 Linux 上以 .NET（Core）執行。可選擇：
+舊站 ASP.NET Web Forms **無法**在 macOS 或 Linux 上建置或執行。可選擇：
 
 - 使用 Windows 虛擬機（Parallels、VMware、UTM）或雲端 Windows VM 執行 Visual Studio。
 - SQL Server 可改用 Docker 在本機執行，再由 Windows VM 連線：
@@ -50,6 +55,14 @@
   ```
 
   Apple Silicon 需在 Docker Desktop 啟用 Rosetta 模擬 x86_64。
+
+新站可以在 macOS 直接執行。安裝 .NET 10 SDK 後，在儲存庫根目錄：
+
+```bash
+dotnet run --project src/Shopping.Web/Shopping.Web.csproj
+```
+
+本機設定與測試資料庫見 `src/Shopping.Web/appsettings.Development.json` 與 `docker-compose.tests.yml`。新站啟動不會改寫舊站的 `violet_*` 表。
 
 ---
 
