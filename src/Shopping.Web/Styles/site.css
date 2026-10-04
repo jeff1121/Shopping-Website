@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: Rubik;
+  src: url("/fonts/rubik-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Rubik;
+  src: url("/fonts/rubik-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("/fonts/nunito-sans-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("/fonts/nunito-sans-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-primary: #3b82f6;
+  --color-secondary: #60a5fa;
+  --color-cta: #f97316;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ink: #1e293b;
+  --color-ok: #15803d;
+  --font-display: Rubik, "PingFang TC", "Noto Sans TC", sans-serif;
+  --font-body: "Nunito Sans", "PingFang TC", "Noto Sans TC", sans-serif;
+}
+
+.nav-panel {
+  display: none;
+}
+
+.nav-panel.is-open {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .nav-panel {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none;
+    transition: none;
+  }
+}

@@ -1,0 +1,75 @@
+@model ApplicationUser
+@{
+    var orders = ViewLists.Orders(ViewData);
+    var products = ViewLists.Products(ViewData);
+}
+<h1 class="font-display text-3xl font-bold">@T["AccountTitle"]</h1>
+<section class="mt-6 grid max-w-xl gap-2">
+    <p>@T["DisplayName"] @Model.DisplayName</p>
+    <p>@T["Email"] @Model.Email</p>
+    <p>@T["UserName"] @Model.UserName</p>
+    <p>@T["BirthDate"] @Model.DateOfBirth.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)</p>
+    <p>@T["Gender"] @Model.Gender</p>
+</section>
+<form class="mt-6 grid max-w-xl gap-4" method="post" action="/account" novalidate>
+    @await Html.PartialAsync("_Token")
+    <div asp-validation-summary="ModelOnly" class="text-red-700"></div>
+    <div><label for="Phone">@T["Phone"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Phone" name="Phone" value="@Model.PhoneNumber" />@if (ViewData.ModelState.TryGetValue("Phone", out var phone) && phone.Errors.Count > 0){<span class="text-red-700">@phone.Errors[0].ErrorMessage</span>}</div>
+    <div><label for="Country">@T["Country"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Country" name="Country" value="@Model.Country" /></div>
+    <div><label for="Region">@T["Region"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Region" name="Region" value="@Model.Region" /></div>
+    <div><label for="City">@T["City"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="City" name="City" value="@Model.City" /></div>
+    <div><label for="Address">@T["Address"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Address" name="Address" value="@Model.Address" /></div>
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["SaveProfile"]</button>
+</form>
+<section class="mt-10">
+    <h2 class="font-display text-2xl font-bold">@T["Orders"]</h2>
+    @if (orders.Count == 0)
+    {
+        <p class="mt-2">@T["OrdersEmpty"]</p>
+    }
+    else
+    {
+        <ul class="mt-4 grid gap-3">
+            @foreach (var order in orders)
+            {
+                <li class="rounded-2xl bg-surface p-4">
+                    <p>@T["OrderNumber"] @order.Number</p>
+                    <p>@order.DateText</p>
+                    <p>@order.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+                    <p>@string.Join(", ", order.Names)</p>
+                    <a href="/account/orders/@order.Number/invoice">@T["Invoice"]</a>
+                </li>
+            }
+        </ul>
+    }
+</section>
+@if (User.IsInRole("Seller"))
+{
+    <section class="mt-10">
+        <h2 class="font-display text-2xl font-bold">@T["SellerProducts"]</h2>
+        <p class="mt-2"><a href="/seller/products/new">@T["NewProduct"]</a></p>
+        <ul class="mt-4 grid gap-4">
+            @foreach (var item in products)
+            {
+                <li class="rounded-2xl bg-surface p-4">
+                    <h3 class="font-display text-lg">@item.Name</h3>
+                    <form class="mt-3 grid gap-2" method="post" action="/seller/products/@item.Id" novalidate>
+                        @await Html.PartialAsync("_Token")
+                        <input name="price" value="@item.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+                        <input name="stock" value="@item.Stock.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                        <input name="keywords" value="@item.Keywords" />
+                        <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit" name="action" value="update">@T["Update"]</button>
+                    </form>
+                    <form class="mt-3 grid gap-2" method="post" action="/seller/products/@item.Id" novalidate>
+                        @await Html.PartialAsync("_Token")
+                        <label class="inline-flex min-h-11 items-center gap-2">
+                            <input type="checkbox" name="confirm" value="true" />
+                            @T["ConfirmDelete"]
+                        </label>
+                        <button class="min-h-11 rounded-2xl bg-cta px-4 text-white" type="submit" name="action" value="delete">@T["Delete"]</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    </section>
+}

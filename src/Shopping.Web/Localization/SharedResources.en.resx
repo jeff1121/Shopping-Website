@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AboutBody" xml:space="preserve"><value>This is a demo marketplace. Sellers list products after an operator grants access.</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>About</value></data>
+  <data name="AccountLabel" xml:space="preserve"><value>Username or email</value></data>
+  <data name="AccountTitle" xml:space="preserve"><value>Account</value></data>
+  <data name="AddToCart" xml:space="preserve"><value>Add to cart</value></data>
+  <data name="Address" xml:space="preserve"><value>Address</value></data>
+  <data name="BackHome" xml:space="preserve"><value>Back to catalog</value></data>
+  <data name="BirthDate" xml:space="preserve"><value>Date of birth</value></data>
+  <data name="BirthInFuture" xml:space="preserve"><value>The date of birth cannot be in the future.</value></data>
+  <data name="BirthInvalid" xml:space="preserve"><value>The date of birth is not valid.</value></data>
+  <data name="BlogBody" xml:space="preserve"><value>Register as a member first. An operator grants seller access. There is no seller signup.</value></data>
+  <data name="BlogTitle" xml:space="preserve"><value>Blog</value></data>
+  <data name="Brand" xml:space="preserve"><value>Market</value></data>
+  <data name="CartEmpty" xml:space="preserve"><value>Your cart is empty.</value></data>
+  <data name="CatalogEmpty" xml:space="preserve"><value>No matching products.</value></data>
+  <data name="CategoriesTitle" xml:space="preserve"><value>Categories</value></data>
+  <data name="Category" xml:space="preserve"><value>Category</value></data>
+  <data name="CategoryInvalid" xml:space="preserve"><value>Choose a category.</value></data>
+  <data name="Checkout" xml:space="preserve"><value>Checkout</value></data>
+  <data name="CheckoutTitle" xml:space="preserve"><value>Checkout</value></data>
+  <data name="City" xml:space="preserve"><value>City</value></data>
+  <data name="ConfirmDelete" xml:space="preserve"><value>I confirm deletion</value></data>
+  <data name="ConfirmMismatch" xml:space="preserve"><value>The confirmation does not match.</value></data>
+  <data name="ConfirmPassword" xml:space="preserve"><value>Confirm password</value></data>
+  <data name="ContactMessage" xml:space="preserve"><value>Message</value></data>
+  <data name="ContactName" xml:space="preserve"><value>Name</value></data>
+  <data name="ContactSent" xml:space="preserve"><value>We received your message.</value></data>
+  <data name="ContactTitle" xml:space="preserve"><value>Contact</value></data>
+  <data name="Country" xml:space="preserve"><value>Country</value></data>
+  <data name="Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="DisplayName" xml:space="preserve"><value>Display name</value></data>
+  <data name="DisplayNameInvalid" xml:space="preserve"><value>Use letters and spaces, up to 50 characters.</value></data>
+  <data name="Email" xml:space="preserve"><value>Email</value></data>
+  <data name="EmailInvalid" xml:space="preserve"><value>The email is not valid.</value></data>
+  <data name="EmailTaken" xml:space="preserve"><value>This email is already used.</value></data>
+  <data name="Error403Body" xml:space="preserve"><value>This account cannot use this function.</value></data>
+  <data name="Error403Title" xml:space="preserve"><value>Access denied</value></data>
+  <data name="Error404Body" xml:space="preserve"><value>This address has no page.</value></data>
+  <data name="Error404Title" xml:space="preserve"><value>Page not found</value></data>
+  <data name="Error500Body" xml:space="preserve"><value>Please try again later.</value></data>
+  <data name="Error500Title" xml:space="preserve"><value>Something went wrong</value></data>
+  <data name="ForgotLink" xml:space="preserve"><value>Forgot password</value></data>
+  <data name="ForgotSent" xml:space="preserve"><value>If the account exists, a reset email was sent.</value></data>
+  <data name="ForgotTitle" xml:space="preserve"><value>Forgot password</value></data>
+  <data name="Gender" xml:space="preserve"><value>Gender</value></data>
+  <data name="GenderFemale" xml:space="preserve"><value>Female</value></data>
+  <data name="GenderInvalid" xml:space="preserve"><value>Choose a gender.</value></data>
+  <data name="GenderMale" xml:space="preserve"><value>Male</value></data>
+  <data name="GenderOthers" xml:space="preserve"><value>Other</value></data>
+  <data name="GrantSeller" xml:space="preserve"><value>Grant seller</value></data>
+  <data name="HowToSellBody" xml:space="preserve"><value>Register as a member. An operator grants seller access. There is no self-service seller registration.</value></data>
+  <data name="HowToSellTitle" xml:space="preserve"><value>How to become a seller</value></data>
+  <data name="Image" xml:space="preserve"><value>Image</value></data>
+  <data name="ImageInvalid" xml:space="preserve"><value>The image cannot be used.</value></data>
+  <data name="ImageRequired" xml:space="preserve"><value>Upload an image.</value></data>
+  <data name="Insufficient" xml:space="preserve"><value>Not enough stock</value></data>
+  <data name="Invoice" xml:space="preserve"><value>Download invoice</value></data>
+  <data name="IsSeller" xml:space="preserve"><value>Currently a seller</value></data>
+  <data name="Keywords" xml:space="preserve"><value>Keywords</value></data>
+  <data name="KeywordsInvalid" xml:space="preserve"><value>The keywords are too long.</value></data>
+  <data name="LangEn" xml:space="preserve"><value>English</value></data>
+  <data name="LangZh" xml:space="preserve"><value>Traditional Chinese</value></data>
+  <data name="LoginFailed" xml:space="preserve"><value>The username or password is incorrect.</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>Log in</value></data>
+  <data name="MailUnavailable" xml:space="preserve"><value>If the account exists, a reset email was sent.</value></data>
+  <data name="MemberMissing" xml:space="preserve"><value>No member found.</value></data>
+  <data name="NameInvalid" xml:space="preserve"><value>The name is not valid.</value></data>
+  <data name="NameTaken" xml:space="preserve"><value>This name is already used.</value></data>
+  <data name="NavAbout" xml:space="preserve"><value>About</value></data>
+  <data name="NavAccount" xml:space="preserve"><value>Account</value></data>
+  <data name="NavBlog" xml:space="preserve"><value>Blog</value></data>
+  <data name="NavCart" xml:space="preserve"><value>Cart</value></data>
+  <data name="NavCatalog" xml:space="preserve"><value>Catalog</value></data>
+  <data name="NavCategories" xml:space="preserve"><value>Categories</value></data>
+  <data name="NavContact" xml:space="preserve"><value>Contact</value></data>
+  <data name="NavLogin" xml:space="preserve"><value>Log in</value></data>
+  <data name="NavLogout" xml:space="preserve"><value>Log out</value></data>
+  <data name="NavOperator" xml:space="preserve"><value>Seller access</value></data>
+  <data name="NavRegister" xml:space="preserve"><value>Register</value></data>
+  <data name="NavSell" xml:space="preserve"><value>List a product</value></data>
+  <data name="NewPassword" xml:space="preserve"><value>New password</value></data>
+  <data name="NewProduct" xml:space="preserve"><value>List a product</value></data>
+  <data name="NoOnlinePayment" xml:space="preserve"><value>This order has no online payment.</value></data>
+  <data name="NotSeller" xml:space="preserve"><value>Not a seller</value></data>
+  <data name="OperatorTitle" xml:space="preserve"><value>Seller access</value></data>
+  <data name="OrderNumber" xml:space="preserve"><value>Order number</value></data>
+  <data name="OrderPlaced" xml:space="preserve"><value>Order placed</value></data>
+  <data name="Orders" xml:space="preserve"><value>Orders</value></data>
+  <data name="OrdersEmpty" xml:space="preserve"><value>No orders yet.</value></data>
+  <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="PasswordInvalid" xml:space="preserve"><value>Use at least 8 characters with upper, lower, a digit, and a symbol.</value></data>
+  <data name="Phone" xml:space="preserve"><value>Phone</value></data>
+  <data name="PhoneInvalid" xml:space="preserve"><value>Use exactly 10 digits.</value></data>
+  <data name="PhoneTaken" xml:space="preserve"><value>This phone number is already used.</value></data>
+  <data name="PlaceOrder" xml:space="preserve"><value>Place order</value></data>
+  <data name="PriceInvalid" xml:space="preserve"><value>The price is not valid.</value></data>
+  <data name="PriceLabel" xml:space="preserve"><value>Price</value></data>
+  <data name="ProductName" xml:space="preserve"><value>Product name</value></data>
+  <data name="Quantity" xml:space="preserve"><value>Quantity</value></data>
+  <data name="ReadOnly" xml:space="preserve"><value>This field cannot be changed.</value></data>
+  <data name="Region" xml:space="preserve"><value>Region</value></data>
+  <data name="RegisterTitle" xml:space="preserve"><value>Register</value></data>
+  <data name="Rejected" xml:space="preserve"><value>Operator access cannot be changed here.</value></data>
+  <data name="Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Required" xml:space="preserve"><value>Required.</value></data>
+  <data name="ResetDone" xml:space="preserve"><value>Password updated. Please log in.</value></data>
+  <data name="ResetFailed" xml:space="preserve"><value>Reset failed. Request a new link.</value></data>
+  <data name="ResetTitle" xml:space="preserve"><value>Reset password</value></data>
+  <data name="RevokeSeller" xml:space="preserve"><value>Revoke seller</value></data>
+  <data name="SaveProfile" xml:space="preserve"><value>Save</value></data>
+  <data name="SearchButton" xml:space="preserve"><value>Search</value></data>
+  <data name="SearchLabel" xml:space="preserve"><value>Search products</value></data>
+  <data name="SearchMember" xml:space="preserve"><value>Username or email</value></data>
+  <data name="SellerLabel" xml:space="preserve"><value>Seller</value></data>
+  <data name="SellerProducts" xml:space="preserve"><value>My products</value></data>
+  <data name="SendReset" xml:space="preserve"><value>Send reset email</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>Skip to content</value></data>
+  <data name="SoldOut" xml:space="preserve"><value>Sold out</value></data>
+  <data name="SortPriceAsc" xml:space="preserve"><value>Price low to high</value></data>
+  <data name="SortPriceDesc" xml:space="preserve"><value>Price high to low</value></data>
+  <data name="SortRandom" xml:space="preserve"><value>Random</value></data>
+  <data name="StockLabel" xml:space="preserve"><value>Stock</value></data>
+  <data name="Submit" xml:space="preserve"><value>Submit</value></data>
+  <data name="TooLong" xml:space="preserve"><value>The text is too long.</value></data>
+  <data name="TrustBody" xml:space="preserve"><value>Adding to the cart does not reserve stock. Stock changes at checkout.</value></data>
+  <data name="TrustTitle" xml:space="preserve"><value>Shop with confidence</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>The order could not be placed</value></data>
+  <data name="Update" xml:space="preserve"><value>Update</value></data>
+  <data name="UserName" xml:space="preserve"><value>Username</value></data>
+  <data name="UserNameInvalid" xml:space="preserve"><value>Use letters and digits, up to 20 characters.</value></data>
+  <data name="UserNameTaken" xml:space="preserve"><value>This username is already used.</value></data>
+</root>

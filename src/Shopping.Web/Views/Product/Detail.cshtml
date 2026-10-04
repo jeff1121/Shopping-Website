@@ -1,0 +1,29 @@
+@model ProductCard
+<h1 class="font-display text-3xl font-bold">@Model.Name</h1>
+<img class="mt-4 max-h-96 rounded-2xl object-cover" src="@Model.ImageUrl" alt="@Model.Name" />
+<p class="mt-4">@Model.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+<p>@T["StockLabel"] @Model.Stock.ToString(System.Globalization.CultureInfo.InvariantCulture)</p>
+<p>@T["SellerLabel"] @Model.SellerName</p>
+<p>@Model.CategoryName</p>
+<p>@Model.Keywords</p>
+@if (Model.Stock == 0)
+{
+    <p>@T["SoldOut"]</p>
+    <button class="mt-3 min-h-11 rounded-2xl bg-slate-300 px-4" type="button" disabled>@T["AddToCart"]</button>
+}
+else
+{
+    <form class="mt-4 flex flex-col gap-2" method="post" action="/cart" novalidate>
+        @await Html.PartialAsync("_Token")
+        <input type="hidden" name="productId" value="@Model.Id" />
+        <label>@T["Quantity"]
+            <select class="min-h-11 rounded-2xl border border-slate-300 px-3" name="quantity">
+                @for (var qty = 1; qty <= Model.MaxQuantity; qty++)
+                {
+                    <option value="@qty">@qty</option>
+                }
+            </select>
+        </label>
+        <button class="min-h-11 w-fit rounded-2xl bg-cta px-4 text-white" type="submit">@T["AddToCart"]</button>
+    </form>
+}

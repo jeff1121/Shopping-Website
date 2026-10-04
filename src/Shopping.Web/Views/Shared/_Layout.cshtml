@@ -1,0 +1,95 @@
+@using System.Globalization
+@{
+    var count = Context.Items["CartCount"] as int? ?? 0;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var isSeller = User.IsInRole("Seller");
+    var isOperator = User.IsInRole("Operator");
+    var returnUrl = Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString;
+    var keyword = Context.Request.Query["keyword"].ToString();
+    var category = Context.Request.Query["category"].ToString();
+}
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.Name">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@T["Brand"]</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body class="min-h-screen bg-canvas font-body text-ink">
+    <a class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-surface focus:px-4 focus:py-2" href="#main">@T["SkipToContent"]</a>
+    <header class="border-b border-slate-200 bg-surface">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
+            <a class="font-display text-2xl font-bold text-primary" href="/">@T["Brand"]</a>
+            <form class="flex min-w-0 flex-1 gap-2" method="get" action="/" role="search">
+                <label class="sr-only" for="site-search">@T["SearchLabel"]</label>
+                <input class="min-h-11 min-w-0 flex-1 rounded-2xl border border-slate-300 px-4" id="site-search" name="keyword" value="@keyword" />
+                @if (!string.IsNullOrEmpty(category))
+                {
+                    <input type="hidden" name="category" value="@category" />
+                }
+                <button class="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-cta px-4 font-display text-white" type="submit">
+                    <img src="~/icons/search.svg" width="24" height="24" alt="" />
+                    @T["SearchButton"]
+                </button>
+            </form>
+            <button class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl border border-slate-300 md:hidden" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+                <img src="~/icons/menu.svg" width="24" height="24" alt="" />
+                <span class="sr-only">@T["NavCatalog"]</span>
+            </button>
+            <nav class="nav-panel w-full flex-col flex-wrap gap-2 md:flex-row md:items-center" id="site-nav">
+                <a class="inline-flex min-h-11 items-center px-3" href="/">@T["NavCatalog"]</a>
+                <a class="inline-flex min-h-11 items-center px-3" href="/categories">@T["NavCategories"]</a>
+                <a class="inline-flex min-h-11 items-center px-3" href="/about">@T["NavAbout"]</a>
+                <a class="inline-flex min-h-11 items-center px-3" href="/blog">@T["NavBlog"]</a>
+                <a class="inline-flex min-h-11 items-center px-3" href="/contact">@T["NavContact"]</a>
+                @if (isSeller)
+                {
+                    <a class="inline-flex min-h-11 items-center px-3" href="/seller/products/new">@T["NavSell"]</a>
+                }
+                @if (isOperator)
+                {
+                    <a class="inline-flex min-h-11 items-center px-3" href="/operator/sellers">@T["NavOperator"]</a>
+                }
+                <a class="inline-flex min-h-11 items-center gap-2 px-3" href="/cart">
+                    <img src="~/icons/cart.svg" width="24" height="24" alt="" />
+                    @T["NavCart"]
+                    <span>@count.ToString(CultureInfo.InvariantCulture)</span>
+                </a>
+                @if (signedIn)
+                {
+                    <a class="inline-flex min-h-11 items-center gap-2 px-3" href="/account">
+                        <img src="~/icons/user.svg" width="24" height="24" alt="" />
+                        @T["NavAccount"]
+                    </a>
+                    <form method="post" action="/account/logout" novalidate>
+                        @await Html.PartialAsync("_Token")
+                        <button class="inline-flex min-h-11 items-center px-3" type="submit">@T["NavLogout"]</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="inline-flex min-h-11 items-center px-3" href="/account/login">@T["NavLogin"]</a>
+                    <a class="inline-flex min-h-11 items-center rounded-2xl bg-primary px-4 text-white" href="/account/register">@T["NavRegister"]</a>
+                }
+                <form method="post" action="/culture" novalidate>
+                    @await Html.PartialAsync("_Token")
+                    <input type="hidden" name="culture" value="zh-Hant" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="inline-flex min-h-11 items-center px-3" type="submit">@T["LangZh"]</button>
+                </form>
+                <form method="post" action="/culture" novalidate>
+                    @await Html.PartialAsync("_Token")
+                    <input type="hidden" name="culture" value="en" />
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="inline-flex min-h-11 items-center px-3" type="submit">@T["LangEn"]</button>
+                </form>
+            </nav>
+        </div>
+    </header>
+    <main id="main" class="mx-auto max-w-7xl px-4 py-8">
+        @RenderBody()
+    </main>
+    <script src="~/js/nav.js"></script>
+</body>
+</html>

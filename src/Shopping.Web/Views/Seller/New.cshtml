@@ -1,0 +1,23 @@
+@model ProductForm
+@{
+    var categories = ViewLists.Categories(ViewData);
+}
+<h1 class="font-display text-3xl font-bold">@T["NewProduct"]</h1>
+<form class="mt-6 grid max-w-xl gap-4" method="post" action="/seller/products/new" enctype="multipart/form-data" novalidate>
+    @await Html.PartialAsync("_Token")
+    <div asp-validation-summary="All" class="text-red-700"></div>
+    <div><label for="Name">@T["ProductName"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Name" name="Name" value="@Model.Name" /></div>
+    <div><label for="Price">@T["PriceLabel"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Price" name="Price" value="@Model.Price" /></div>
+    <div>
+        <label for="CategoryId">@T["Category"]</label>
+        <select class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="CategoryId" name="CategoryId">
+            @foreach (var item in categories)
+            {
+                <option value="@item.Id" selected="@(Model.CategoryId == item.Id)">@item.Name</option>
+            }
+        </select>
+    </div>
+    <div><label for="Keywords">@T["Keywords"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Keywords" name="Keywords" value="@Model.Keywords" /></div>
+    <div><label for="image">@T["Image"]</label><input class="mt-1 block min-h-11" id="image" name="image" type="file" /></div>
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["Submit"]</button>
+</form>

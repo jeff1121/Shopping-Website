@@ -1,0 +1,28 @@
+@model RegistrationForm
+<h1 class="font-display text-3xl font-bold">@T["RegisterTitle"]</h1>
+<form class="mt-6 grid max-w-xl gap-4" method="post" action="/account/register" novalidate>
+    @await Html.PartialAsync("_Token")
+    <div asp-validation-summary="ModelOnly" class="text-red-700"></div>
+    <div><label for="DisplayName">@T["DisplayName"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="DisplayName" name="DisplayName" value="@Model.DisplayName" /><span class="text-red-700" asp-validation-for="DisplayName"></span></div>
+    <div><label for="Email">@T["Email"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Email" name="Email" value="@Model.Email" /><span class="text-red-700" asp-validation-for="Email"></span></div>
+    <div><label for="UserName">@T["UserName"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="UserName" name="UserName" value="@Model.UserName" /><span class="text-red-700" asp-validation-for="UserName"></span></div>
+    <div><label for="Password">@T["Password"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Password" name="Password" type="password" /><span class="text-red-700" asp-validation-for="Password"></span></div>
+    <div><label for="ConfirmPassword">@T["ConfirmPassword"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="ConfirmPassword" name="ConfirmPassword" type="password" /><span class="text-red-700" asp-validation-for="ConfirmPassword"></span></div>
+    <div><label for="Phone">@T["Phone"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Phone" name="Phone" value="@Model.Phone" /><span class="text-red-700" asp-validation-for="Phone"></span></div>
+    <div><label for="BirthDate">@T["BirthDate"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="BirthDate" name="BirthDate" value="@Model.BirthDate" /><span class="text-red-700" asp-validation-for="BirthDate"></span></div>
+    <div>
+        <label for="Gender">@T["Gender"]</label>
+        <select class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Gender" name="Gender">
+            <option value="">@T["Gender"]</option>
+            <option value="Male" selected="@(Model.Gender == "Male")">@T["GenderMale"]</option>
+            <option value="Female" selected="@(Model.Gender == "Female")">@T["GenderFemale"]</option>
+            <option value="Others" selected="@(Model.Gender == "Others")">@T["GenderOthers"]</option>
+        </select>
+        <span class="text-red-700" asp-validation-for="Gender"></span>
+    </div>
+    <div><label for="Country">@T["Country"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Country" name="Country" value="@Model.Country" /><span class="text-red-700" asp-validation-for="Country"></span></div>
+    <div><label for="Region">@T["Region"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Region" name="Region" value="@Model.Region" /><span class="text-red-700" asp-validation-for="Region"></span></div>
+    <div><label for="City">@T["City"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="City" name="City" value="@Model.City" /><span class="text-red-700" asp-validation-for="City"></span></div>
+    <div><label for="Address">@T["Address"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="Address" name="Address" value="@Model.Address" /><span class="text-red-700" asp-validation-for="Address"></span></div>
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["Submit"]</button>
+</form>

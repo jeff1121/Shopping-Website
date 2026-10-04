@@ -12,6 +12,9 @@ param appInsightsId string
 @description('Web App 主機名稱，例：app-shopping-xxxxxx.azurewebsites.net')
 param appHostName string
 
+@description('新站 Web App 主機名稱。空字串時不建立第二組可用性測試')
+param mvcHostName string = ''
+
 @description('告警收件信箱；空字串時不建立 Action Group')
 param alertEmail string = ''
 
@@ -92,6 +95,75 @@ resource availabilityAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     criteria: {
       'odata.type': 'Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria'
       webTestId: webTest.id
+      componentId: appInsightsId
+      failedLocationCount: 2
+    }
+    actions: empty(alertEmail)
+      ? []
+      : [
+          {
+            actionGroupId: actionGroup.id
+          }
+        ]
+  }
+}
+
+resource mvcWebTest 'Microsoft.Insights/webtests@2022-06-15' = if (!empty(mvcHostName)) {
+  name: 'avail-shopping-mvc-home'
+  location: location
+  tags: union(tags, {
+    'hidden-link:${appInsightsId}': 'Resource'
+  })
+  kind: 'standard'
+  properties: {
+    SyntheticMonitorId: 'avail-shopping-mvc-home'
+    Name: '新站首頁可用性'
+    Enabled: true
+    Frequency: 300
+    Timeout: 30
+    Kind: 'standard'
+    RetryEnabled: true
+    Locations: [
+      {
+        Id: 'apac-hk-hkn-azr'
+      }
+      {
+        Id: 'apac-sg-sin-azr'
+      }
+      {
+        Id: 'apac-jp-kaw-edge'
+      }
+    ]
+    Request: {
+      RequestUrl: 'https://${mvcHostName}/'
+      HttpVerb: 'GET'
+      ParseDependentRequests: false
+    }
+    ValidationRules: {
+      ExpectedHttpStatusCode: 200
+      SSLCheck: true
+      SSLCertRemainingLifetimeCheck: 7
+    }
+  }
+}
+
+resource mvcAvailabilityAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(mvcHostName)) {
+  name: 'alert-shopping-mvc-availability'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: '新站首頁可用性測試在 2 個以上位置失敗'
+    severity: 1
+    enabled: true
+    scopes: [
+      mvcWebTest.id
+      appInsightsId
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria'
+      webTestId: mvcWebTest.id
       componentId: appInsightsId
       failedLocationCount: 2
     }

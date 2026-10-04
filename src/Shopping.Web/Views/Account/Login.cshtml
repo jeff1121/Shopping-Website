@@ -1,0 +1,14 @@
+@{
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "/";
+    var account = ViewData["Account"] as string ?? "";
+}
+<h1 class="font-display text-3xl font-bold">@T["LoginTitle"]</h1>
+<form class="mt-6 grid max-w-xl gap-4" method="post" action="/account/login" novalidate>
+    @await Html.PartialAsync("_Token")
+    <div asp-validation-summary="ModelOnly" class="text-red-700"></div>
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
+    <div><label for="account">@T["AccountLabel"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="account" name="account" value="@account" /></div>
+    <div><label for="password">@T["Password"]</label><input class="mt-1 min-h-11 w-full rounded-2xl border border-slate-300 px-4" id="password" name="password" type="password" /></div>
+    <button class="min-h-11 rounded-2xl bg-primary px-4 text-white" type="submit">@T["NavLogin"]</button>
+</form>
+<p class="mt-4"><a href="/account/forgot">@T["ForgotLink"]</a></p>

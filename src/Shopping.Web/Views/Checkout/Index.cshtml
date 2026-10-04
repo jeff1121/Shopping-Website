@@ -1,0 +1,34 @@
+@model CheckoutPage
+<h1 class="font-display text-3xl font-bold">@T["CheckoutTitle"]</h1>
+<p class="mt-2">@Model.DateText</p>
+<p class="mt-2">@T["NoOnlinePayment"]</p>
+@if (!string.IsNullOrEmpty(Model.OrderNumber))
+{
+    <p class="mt-4">@T["OrderPlaced"]</p>
+    <p>@T["OrderNumber"] @Model.OrderNumber</p>
+}
+else if (Model.Message == "unavailable")
+{
+    <p class="mt-4">@T["Unavailable"]</p>
+}
+else if (!string.IsNullOrEmpty(Model.Message))
+{
+    <p class="mt-4">@T["Insufficient"] @Model.Message</p>
+}
+<ul class="mt-6 grid gap-3">
+    @foreach (var line in Model.Cart.Lines)
+    {
+        <li class="rounded-2xl bg-surface p-4">
+            <h2 class="font-display text-lg">@line.Name</h2>
+            <p>@line.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture) × @line.Price.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+        </li>
+    }
+</ul>
+<p class="mt-4 font-display text-xl">@Model.Cart.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)</p>
+@if (string.IsNullOrEmpty(Model.OrderNumber))
+{
+    <form class="mt-4" method="post" action="/checkout" novalidate>
+        @await Html.PartialAsync("_Token")
+        <button class="min-h-11 rounded-2xl bg-cta px-4 text-white" type="submit">@T["PlaceOrder"]</button>
+    </form>
+}

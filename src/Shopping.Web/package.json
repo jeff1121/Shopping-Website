@@ -1,0 +1,13 @@
+{
+  "name": "shopping-web",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./Styles/site.css -o ./wwwroot/css/site.css --minify"
+  },
+  "devDependencies": {
+    "@fontsource/nunito-sans": "5.2.7",
+    "@fontsource/rubik": "5.2.8",
+    "@tailwindcss/cli": "4.1.16",
+    "tailwindcss": "4.1.16"
+  }
+}

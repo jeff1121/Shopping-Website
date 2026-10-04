@@ -1,0 +1,13 @@
+@model IReadOnlyList<CategoryLink>
+<h1 class="font-display text-3xl font-bold">@T["CategoriesTitle"]</h1>
+<ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+    @foreach (var item in Model)
+    {
+        <li>
+            <a class="flex min-h-11 items-center gap-4 rounded-2xl bg-surface p-4" href="/?category=@item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                <img class="h-16 w-16 rounded-2xl object-cover" src="@item.ImagePath" alt="@item.Name" />
+                <span class="font-display text-xl">@item.Name</span>
+            </a>
+        </li>
+    }
+</ul>

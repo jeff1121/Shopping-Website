@@ -1,26 +1,37 @@
-# Shopping Website — 電子商務網站（ASP.NET Web Forms）
+# Shopping Website — 電子商務網站
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Platform](https://img.shields.io/badge/platform-ASP.NET%20Web%20Forms-purple.svg)
-![Framework](https://img.shields.io/badge/.NET%20Framework-4.7.2-blueviolet.svg)
+![舊站](https://img.shields.io/badge/舊站-ASP.NET%20Web%20Forms%204.7.2-purple.svg)
+![新站](https://img.shields.io/badge/新站-ASP.NET%20Core%20MVC%20net10.0-blue.svg)
 ![Language](https://img.shields.io/badge/language-C%23-green.svg)
 ![Database](https://img.shields.io/badge/database-SQL%20Server-red.svg)
 
-以 **ASP.NET Web Forms（.NET Framework 4.7.2、C#）** 搭配 **SQL Server（ADO.NET）** 開發的教學用電子商務網站。
-一般會員可以瀏覽、搜尋、排序商品並透過購物車下單；賣家可以上架商品、管理價格與庫存。
+這個儲存庫同時保留兩套教學用電子商務網站，可以並排對照：
 
-本 Repo 位於 [Jeff1121/Shopping-Website](https://github.com/Jeff1121/Shopping-Website)，源自
-[DarylFernandes99/Shopping-Website](https://github.com/DarylFernandes99/Shopping-Website)，
-並補上完整的繁體中文程式碼註解與文件。商業邏輯與原專案相同；目前只調整了 SQL 連線的建立方式
-（集中到 `Website.Data.Db`），並補齊建置所需的檔案與 NuGet 套件。
+- 舊站是 ASP.NET Web Forms（.NET Framework 4.7.2、C#）搭配 SQL Server 與 ADO.NET。資料表前綴是 `violet_`。
+- 新站是 ASP.NET Core MVC（net10.0），使用 Razor 與 Tailwind CSS。資料表前綴是 `shop_`，與舊表放在同一個 Azure SQL。新站啟動不會修改 `violet_*`。
+
+兩站都讓一般會員瀏覽、搜尋、排序商品，並透過購物車下單。賣家可以上架商品、管理價格與庫存。新站沒有付款、訂單狀態流程，也沒有完整管理後台。
+
+本儲存庫位於 [Jeff1121/Shopping-Website](https://github.com/Jeff1121/Shopping-Website)，源自
+[DarylFernandes99/Shopping-Website](https://github.com/DarylFernandes99/Shopping-Website)。
+舊站補上繁體中文程式碼註解，並把 SQL 連線集中到 `Website.Data.Db`。新站的行為以 [Refactory-Plan.md](Refactory-Plan.md) 為準，工作拆分見 [Refactory-Tasks.md](Refactory-Tasks.md)。
 
 > 🚀 **想直接跑起來？** 請看 [QuickStart.md](QuickStart.md)，內含資料庫建立腳本、連線字串設定、建置前必要修正與常見問題排除。
+
+同一套 Azure 資源現在有兩個網站，可同時開啟、人工比對：
+
+- 舊站（ASP.NET Web Forms）：<https://app-shopping-zy2bgk.azurewebsites.net>
+- 新站（ASP.NET Core MVC）：<https://app-shopping-mvc-zy2bgk.azurewebsites.net>
+
+新站使用同一份 Azure SQL 的 `shop_*` 表，不修改 `violet_*`。公開註冊只建立會員，賣家資格由管理者授予。回滾或停止只針對新站，不停止舊站。
 
 ---
 
 ## 目錄
 
 - [專案現況（請先閱讀）](#專案現況請先閱讀)
+- [新站（ASP.NET Core MVC）](#新站aspnet-core-mvc)
 - [快速開始](#快速開始)
 - [功能總覽](#功能總覽)
 - [技術架構](#技術架構)
@@ -50,11 +61,75 @@
 | 版控現況 | 已有 `.gitignore`、`.editorconfig`、`.gitattributes`；`packages/`、`Website/obj/`、`Website.csproj.user` 不進版控（NuGet 還原）；部分已簽入圖片未列入 `Website.csproj` |
 | 外部相依 | 全部透過 NuGet（`packages.config`）管理：iTextSharp 5.5.13.6、Roslyn CodeDom 4.1.0、Configuration Builders 3.0、Azure.Storage.Blobs 12、Azure.Identity 1、dbup-sqlserver 5 與其遞移相依套件 |
 | 資料庫結構 | 網站啟動時以 DbUp 自動套用 `Website/Migrations/*.sql`（建表＋示範資料）；`DbSql.sql` 已過時，僅供參考，見 [QuickStart.md](QuickStart.md#3-建立資料庫) |
-| 自動化測試 | 無 |
-| CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)） |
-| Azure 部署 | Bicep 基礎設施（`infra/`、`infra.yml`）與自動部署（`deploy.yml`）：合併到 `main` 後建置、部署到 App Service，並執行冒煙測試、ZAP Baseline；失敗時自動回滾 |
-| 執行平台 | 僅限 Windows（.NET Framework + IIS / IIS Express） |
+| 自動化測試 | 新站有單元、整合與 Playwright 端對端測試；舊站 Web Forms 仍無自動化測試 |
+| CI（GitHub Actions） | CodeQL 品質／安全掃描、原始碼 SBOM、相依套件審查、Lint、OpenSSF Scorecard、Dependabot，以及 `建置`（Windows MSBuild → `site.zip`）與 `部署套件 SBOM`（見 [CI/CD 與 Azure 部署](#cicd-與-azure-部署)）。新站另有 `build-mvc.yml` 與 `deploy-mvc.yml` |
+| Azure 部署 | 舊站 <https://app-shopping-zy2bgk.azurewebsites.net> 仍由 `deploy.yml` 部署。新站 <https://app-shopping-mvc-zy2bgk.azurewebsites.net> 由 `deploy-mvc.yml` 部署。失敗時只回滾對應的那一個站 |
+| 執行平台 | 舊站僅限 Windows（.NET Framework + IIS / IIS Express）。新站為 net10.0，macOS 可用 `dotnet run` |
 | 安全性 | 教學作品，已完成 M7 安全修正；Key Vault 與 SQL 稽核記錄送 Log Analytics。目前仍是 Demo 環境（含公開示範帳號），轉入正式營運步驟見 [docs/go-live-checklist.md](docs/go-live-checklist.md)；詳見[安全性說明](#安全性說明) |
+
+---
+
+## 新站（ASP.NET Core MVC）
+
+新站程式在 `src/Shopping.Web` 與 `src/Shopping.Data`。舊站的 `Website/` 目錄、`violet_*` 資料表與 `deploy.yml` 都還在，沒有被這次重構取代。
+
+### 與舊站不同的行為
+
+- 公開註冊只建立會員。網站沒有賣家自助註冊。管理者在 `/operator/sellers` 授予或收回賣家資格，不能授予管理者。
+- 角色使用 ASP.NET Core Identity 的 Customer、Seller、Operator，不再用 `violet_user_login.uid` 的數值範圍。
+- 加入購物車不預扣庫存。庫存只在結帳的同一個交易裡扣除。
+- 訂單編號是 `V` 加上 26 字元 ULID，總長度 27。
+- 預設目錄排序是 SQL Server 的 `NEWID()`，每一列各算一次。重新載入時順序可以不同，商品集合相同。
+- 預設語系是繁體中文。改成英文可用 `?culture=en` 或頁首的語系表單。商品名稱與使用者自己輸入的文字不翻譯。
+- 刪除商品要勾選「我確定刪除」，不使用瀏覽器的確認對話框。
+- 內容安全政策不使用 `unsafe-inline` 與 `unsafe-eval`。
+
+示範帳號是 `demo_customer`、`demo_seller`、`demo_operator`，密碼都是 `Demo@1234`。
+
+### 本機執行
+
+需要 .NET 10 SDK。測試用的 SQL Server 與 Azurite 由 Docker Compose 啟動：
+
+```bash
+docker compose -f docker-compose.tests.yml up -d
+dotnet run --project src/Shopping.Web/Shopping.Web.csproj
+```
+
+開發設定在 `src/Shopping.Web/appsettings.Development.json`。`dotnet run` 會使用啟動設定檔，預設網址是 `https://localhost:7037` 與 `http://localhost:5203`。設定檔裡的密碼留空，請用環境變數 `SQL_PASSWORD` 與 `SQL_MIGRATOR_PASSWORD` 提供。Apple Silicon 上的測試 SQL 映像使用 `linux/amd64`。
+
+### 測試
+
+```bash
+docker compose -f docker-compose.tests.yml up -d
+bash tests/check-coverage.sh
+dotnet test tests/Shopping.E2E/Shopping.E2E.csproj --configuration Release
+```
+
+`tests/check-coverage.sh` 以 Release 組態執行單元與整合測試，並要求 `Shopping.Web` 與 `Shopping.Data` 的手寫 C# 行覆蓋率、分支覆蓋率都是 1。不要用排除屬性放寬這個門檻。第二個指令是 Playwright 端對端測試，涵蓋 [Refactory-Tasks.md](Refactory-Tasks.md) 第 6 節列出的功能編號。兩個指令都要連到同一個測試 SQL，請分開執行，不要同時跑。
+
+### 主要路由
+
+| 路徑 | 用途 |
+| --- | --- |
+| `/` | 目錄、搜尋與排序 |
+| `/categories` | 分類 |
+| `/products/{id}` | 商品詳情 |
+| `/account/register`、`/account/login` | 註冊與登入 |
+| `/account/forgot`、`/account/reset` | 忘記密碼與重設密碼 |
+| `/account` | 個人資料 |
+| `/cart`、`/checkout` | 購物車與結帳 |
+| `/account/orders/{number}/invoice` | 下載訂單 PDF |
+| `/seller/products/new` | 賣家上架。匿名與一般會員不能進入 |
+| `/operator/sellers` | 管理者授予或收回賣家 |
+| `/about`、`/blog`、`/contact` | 關於我們、部落格與聯絡我們 |
+
+方案檔是 `Shopping.sln`。它只包含新站與測試專案，不包含 `Website/Website.csproj`。
+
+### 資料與部署
+
+新站的 SQL 腳本內嵌在 `src/Shopping.Data/Migrations`，由應用程式啟動時套用。正式環境是同一個資源群組 `rg-shopping` 裡的 Linux App Service `app-shopping-mvc-<suffix>`，方案是 `asp-shopping-mvc`。部署工作流程是 `.github/workflows/deploy-mvc.yml`，冒煙腳本是 `.github/scripts/smoke-mvc.sh`。這個流程只發布新站，不會停止或改寫 Windows 舊站。Front Door 仍然只提供圖片，不轉送網站流量。
+
+架構決定見 [ADR 0005](docs/adr/0005-net10-mvc-rewrite.md) 到 [ADR 0009](docs/adr/0009-seller-granted-by-operator.md)。
 
 ---
 
@@ -79,6 +154,8 @@
 ---
 
 ## 功能總覽
+
+以下小節描述舊站 Web Forms。新站的差異見[新站（ASP.NET Core MVC）](#新站aspnet-core-mvc)。
 
 ### 訪客（未登入）
 
@@ -113,6 +190,8 @@
 
 ## 技術架構
 
+下表是舊站。新站是 net10.0 ASP.NET Core MVC、Razor、Tailwind CSS、Entity Framework Core 與手寫 SQL、ASP.NET Core Identity、MailKit 與 QuestPDF。
+
 | 分類 | 技術 | 說明 |
 | --- | --- | --- |
 | Web 框架 | ASP.NET Web Forms | 每頁由 `.aspx` 標記 + `.aspx.cs` 後置程式碼 + `.aspx.designer.cs` 組成 |
@@ -141,7 +220,7 @@ Shopping-Website/
 │   ├── CODEOWNERS                  # 所有檔案由 @jeff1121 審查
 │   ├── dependabot.yml              # NuGet 與 Actions 每週更新
 │   └── copilot-instructions.md     # 給 AI 程式助理的專案說明（英文）
-├── docs/adr/                       # 架構決策紀錄（ADR 0001～0004）
+├── docs/adr/                       # 架構決策紀錄（ADR 0001～0009）
 ├── infra/
 │   ├── bootstrap.sh                # Azure 與 GitHub 一次性設定腳本（可重複執行）
 │   ├── smtp-setup.sh               # ACS SMTP 帳號設定（首次部署後執行一次，可重複執行）
@@ -149,6 +228,13 @@ Shopping-Website/
 │   ├── main.bicepparam             # 部署參數（不含密碼；密碼由 infra.yml 從 GitHub Secret 傳入）
 │   ├── modules/                    # monitoring、keyvault、sql、sql-users、storage、frontdoor、email、appservice
 │   └── scripts/sql-users.ps1       # deploymentScript：建立資料庫使用者並把密碼存入 Key Vault
+├── Shopping.sln                    # 新站方案（不含 Website/Website.csproj）
+├── src/Shopping.Web/               # 新站 MVC：Razor、控制器、Tailwind 與靜態檔
+├── src/Shopping.Data/              # 新站資料存取、內嵌 SQL 與 PDF
+├── tests/                          # 新站單元、整合與 Playwright 端對端測試
+├── docker-compose.tests.yml        # 測試用 SQL Server 與 Azurite
+├── Refactory-Plan.md               # 新站行為規格
+├── Refactory-Tasks.md              # 新站工作細項 T00～T29
 ├── .editorconfig                   # 編碼與行尾規則（VS 檔案 UTF-8 BOM + CRLF，其餘 UTF-8 + LF）
 ├── .gitattributes                  # Git 行尾處理（CRLF 檔案原樣保存）
 ├── .gitignore                      # 排除 bin/、obj/、packages/、*.user、本機敏感設定
@@ -490,7 +576,9 @@ sequenceDiagram
 | `build.yml` | 建置 | PR、push `main`、手動、`workflow_call` | Windows MSBuild 發行 → `site.zip`；部署套件 SBOM 與簽章 |
 | `infra.yml` | 基礎設施 | PR、push `main`（變更 `infra/**`）、手動 | PR：Bicep lint 與 what-if（結果貼到 PR 留言）；`main`：部署到 `rg-shopping` |
 | `azure-oidc-check.yml` | Azure OIDC 驗證 | PR（變更 bootstrap）、手動 | 確認 GitHub 能以 OIDC 登入 Azure，並檢查一次性設定的資源 |
-| `deploy.yml` | 部署 | push `main`（不含只改 `infra/**`、文件）、手動 | 呼叫 `建置` → 上傳範例圖片到 Blob → `az webapp deploy` → 冒煙測試（失敗自動回滾上一版）→ ZAP Baseline（artifact `zap-baseline`）；手動輸入 `run-id` 可回滾到指定執行 |
+| `deploy.yml` | 部署 | push `main`（不含只改 `infra/**`、文件）、手動 | 呼叫 `建置` → 上傳範例圖片到 Blob → `az webapp deploy` → 冒煙測試（失敗自動回滾上一版）→ ZAP Baseline（artifact `zap-baseline`）；手動輸入 `run-id` 可回滾到指定執行。只選 `app-shopping-` 開頭、且不是 `app-shopping-mvc-` 的 Windows 站 |
+| `build-mvc.yml` | 建置 MVC | PR、push `main`（變更新站程式、測試或規格） | 建置 `Shopping.sln`，執行覆蓋率門檻與 Playwright 端對端測試。不部署 |
+| `deploy-mvc.yml` | 部署 MVC | push `main`（變更新站程式或部署流程）、手動 | 發行 `src/Shopping.Web`，只部署 Linux 新站，再執行 `smoke-mvc.sh` |
 
 所有 Action 都固定到 commit SHA，頂層 `permissions: {}`，每個 job 只給最小權限。Dependabot 每週更新 NuGet 與 Actions。
 掃描結果集中在 GitHub → Security → Code scanning；既有警示以 Issue #4～#7 追蹤，預計在 M7 修正。
@@ -520,7 +608,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/bootstrap.sh
 
 ### Azure 基礎設施
 
-`infra/main.bicep` 建立 App Service（B1 Windows）、Azure SQL（Basic）、Key Vault、Storage（容器 `products`）、Front Door Standard、ACS Email、Log Analytics 與 Application Insights；資源名稱後綴由 `uniqueString(resourceGroup().id)` 產生。
+`infra/main.bicep` 建立 App Service（B1 Windows）、Azure SQL（Basic）、Key Vault、Storage（容器 `products`）、Front Door Standard、ACS Email、Log Analytics 與 Application Insights；資源名稱後綴由 `uniqueString(resourceGroup().id)` 產生。`infra/modules/appservice-mvc.bicep` 另外建立 Linux B1 方案與新站 Web App，共用同一個 SQL、Blob 與 Key Vault。Front Door 的來源仍是 Blob，不轉送網站流量。
 
 - 變更 `infra/**` 的 PR 會執行 Bicep lint 與 what-if，結果貼到 PR 留言；合併到 `main` 或手動觸發「基礎設施」workflow 時部署。
 - 資料庫使用者 `shopping_app`、`shopping_migrator` 由 deploymentScript（`infra/scripts/sql-users.ps1`）建立，密碼只存在 Key Vault；App Service 以 Key Vault 參考讀取。
@@ -534,8 +622,9 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 ### 應用程式部署與監控
 
-- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常、示範圖片可經 Front Door 取得、安全性回應標頭存在（先等新版本的標頭出現，避免檢查到尚未重新啟動的舊版本），且不存在的頁面回傳 404 錯誤頁；每項檢查都會重試。回滾後的冒煙測試略過標頭與 404 檢查（`SMOKE_SECURITY_CHECKS=false`），因為回滾目標可能是較舊的版本。
-- 冒煙測試失敗時自動重新部署上一個成功的版本；也可手動執行「部署」並輸入要回滾的 run ID。
+- 合併到 `main` 後「部署」workflow 自動執行；網站啟動時 DbUp 套用 migration，冒煙測試（[`.github/scripts/smoke-test.sh`](.github/scripts/smoke-test.sh)）確認首頁出現示範商品、登入頁與分類頁正常、示範圖片可經 Front Door 取得、安全性回應標頭存在（先等新版本的標頭出現，避免檢查到尚未重新啟動的舊版本），且不存在的頁面回傳 404 錯誤頁；每項檢查都會重試。回滾後的冒煙測試略過標頭與 404 檢查（`SMOKE_SECURITY_CHECKS=false`），因為回滾目標可能是較舊的版本。這個 workflow 只會選到 `app-shopping-` 開頭、且不是 `app-shopping-mvc-` 的 Windows 站。
+- 冒煙測試失敗時自動重新部署上一個成功的版本；也可手動執行「部署」並輸入要回滾的 run ID。回滾不會停止或改寫新站。
+- 新站由 `deploy-mvc.yml` 發行 `src/Shopping.Web`，冒煙腳本是 [`.github/scripts/smoke-mvc.sh`](.github/scripts/smoke-mvc.sh)。新站要回滾或停止時，只重新部署或停止 `app-shopping-mvc-<suffix>`，不要動舊站。目前兩個網址是 <https://app-shopping-zy2bgk.azurewebsites.net> 與 <https://app-shopping-mvc-zy2bgk.azurewebsites.net>。
 - OWASP ZAP Baseline 報告為 artifact `zap-baseline`，略過規則寫在 `.zap/rules.tsv`。
 - Application Insights 可用性測試每 5 分鐘自 3 個位置請求首頁，2 個以上失敗時觸發警示；設定 GitHub 變數 `ALERT_EMAIL` 後才會寄信。
 - 應用程式記錄（`Trace`，含啟動錯誤與 migration 紀錄）送到 Log Analytics `log-shopping`，以 `AppServiceAppLogs | where Level == "Error"` 查詢。
@@ -544,9 +633,11 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 ## 已知問題與限制
 
+這一節記的是舊站 Web Forms。新站已改為結帳時才扣庫存、由管理者授予賣家，並用響應式版面。新站仍沒有付款、訂單狀態與完整後台。
+
 ### 建置與環境
 
-- Windows / Visual Studio / MSBuild 環境仍是必要條件；macOS 與 Linux 無法直接建置 .NET Framework Web Forms。
+- 舊站仍需要 Windows / Visual Studio / MSBuild。macOS 與 Linux 無法直接建置 .NET Framework Web Forms。新站可在 macOS 用 `dotnet run` 啟動。
 - 本機執行需先設定環境變數（見 [QuickStart 第 4 節](QuickStart.md#4-設定環境變數)）；連線字串採 SQL 驗證，不支援 Windows 整合驗證。
 - 部分已簽入商品圖片未列入 `Website.csproj`，發行套件可能不包含這些圖片。
 
@@ -596,7 +687,8 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 - **修改資料表**：新增 migration 腳本，並一併更新 `QuickStart.md` 與本文件的資料庫章節。
 - **程式碼註解**：所有類別、方法、欄位皆以繁體中文 XML 文件註解（`/// <summary>`）說明；每個 `.aspx` 第二行以 `<%-- --%>` 說明頁面用途；設定檔（`Web.config`、`Website.csproj` 等）以 XML 註解說明。
 - **designer 檔註解**：`.aspx.designer.cs` 的每個控制項欄位都有「型別「ID」：用途」格式的繁中註解。Visual Studio 重新產生此檔時會還原為英文預設註解，提交前請補回或還原。
-- **機密資訊**：不要提交真實連線字串或 SMTP 密碼；新增設定一律在 `Web.config` 用 `${名稱}` 權杖，並經 `Website.Config.AppSettings` 讀取。
+- **機密資訊**：不要提交真實連線字串或 SMTP 密碼。舊站的新設定一律在 `Web.config` 用 `${名稱}` 權杖，並經 `Website.Config.AppSettings` 讀取。新站的密碼放在環境變數或 Key Vault 參考，不要寫進 `appsettings.json`。
+- **新站**：業務規則放在 `src/Shopping.Web/Services` 與 `src/Shopping.Data`。資料表變更只新增 `src/Shopping.Data/Migrations` 的腳本，不修改 `violet_*`。公開型別用繁體中文 `/// <summary>`。`.cs` 檔維持 UTF-8 BOM 與 CRLF。
 
 ---
 
@@ -609,7 +701,7 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 - 將 `SqlDataSource` 宣告式查詢也改為經 `Website.Data` 存取。
 - 串接金流（如 Stripe、PayPal）、訂單狀態追蹤、管理後台。
 - 響應式版面。
-- 遷移到 ASP.NET Core（Razor Pages / MVC）以支援跨平台。
+- 舊站遷移到 ASP.NET Core 的工作已由並排的新站承接，見[新站（ASP.NET Core MVC）](#新站aspnet-core-mvc)。舊站本身仍保留。
 
 ---
 
@@ -634,7 +726,9 @@ SUBSCRIPTION_ID=<訂用帳戶 ID> env -u GH_TOKEN ./infra/smtp-setup.sh
 
 | 套件 | 用途 | 授權 |
 | --- | --- | --- |
-| iTextSharp 5.5.13.6 | 訂單 PDF 匯出（`HTMLWorker`） | AGPL-3.0；決策背景見 [ADR 0003](docs/adr/0003-keep-itextsharp-agpl.md) |
+| iTextSharp 5.5.13.6 | 舊站訂單 PDF 匯出（`HTMLWorker`） | AGPL-3.0；決策背景見 [ADR 0003](docs/adr/0003-keep-itextsharp-agpl.md) |
+| QuestPDF 2025.7.2 | 新站訂單 PDF | Community License，不是 MIT；見 [ADR 0008](docs/adr/0008-questpdf-community-license.md) |
+| MailKit 4.18.1 | 新站寄信 | MIT |
 | BouncyCastle.Cryptography 2.6.2 | iTextSharp 加密相依套件 | MIT |
 | Microsoft.CodeDom.Providers.DotNetCompilerPlatform 4.1.0 | ASP.NET Web Forms Roslyn CodeDom 編譯器提供者 | MIT |
 
