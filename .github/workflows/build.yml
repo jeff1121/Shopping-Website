@@ -154,7 +154,7 @@ jobs:
 
       # Syft 會掃描部署根目錄、Web.config、bin/*.dll 與靜態資產；舊式 .NET DLL 的精確版本可能無法全數辨識，NuGet 風險仍以相依圖與原始碼 SBOM 補足。
       - name: 產生部署套件 SBOM（SPDX）
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           path: package
           format: spdx-json
@@ -163,7 +163,7 @@ jobs:
           upload-release-assets: false
 
       - name: 產生部署套件 SBOM（CycloneDX）
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           path: package
           format: cyclonedx-json
