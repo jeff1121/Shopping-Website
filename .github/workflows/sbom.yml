@@ -35,7 +35,7 @@ jobs:
         run: git archive --format=tar.gz --prefix=shopping-website/ -o "source-${GITHUB_SHA}.tar.gz" HEAD
 
       - name: 產生 SBOM（SPDX）
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           path: .
           format: spdx-json
@@ -44,7 +44,7 @@ jobs:
           upload-release-assets: false
 
       - name: 產生 SBOM（CycloneDX）
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           path: .
           format: cyclonedx-json
@@ -78,7 +78,7 @@ jobs:
           fail-build: false
 
       - name: 上傳比對結果至 Code scanning
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
           category: grype-source
@@ -94,7 +94,7 @@ jobs:
           fail-build: false
 
       - name: 上傳比對結果至 Code scanning（NuGet）
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: ${{ steps.grype-nuget.outputs.sarif }}
           category: grype-nuget
@@ -114,7 +114,7 @@ jobs:
           sbom-path: sbom-dependency-graph.spdx.json
 
       - name: 保存 SBOM
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom-source
           path: |
